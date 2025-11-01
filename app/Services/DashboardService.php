@@ -173,6 +173,111 @@ class DashboardService
         ];
     }
 
+    /**
+     * Get entries (session starts) over time by period type
+     * 
+     * @param int $tenantId
+     * @param string $periodType 'daily', 'weekly', or 'monthly'
+     * @param int $count Number of periods to show
+     * @return array Array with labels, data, and growth indicators
+     */
+    public function getEntriesOverTime(int $tenantId, string $periodType, int $count): array
+    {
+        $now = now();
+        $labels = [];
+        $data = [];
+        $growth = []; // Growth percentage from previous period
+        
+        if ($periodType === 'daily') {
+            // Get entries for the last $count days
+            for ($i = $count - 1; $i >= 0; $i--) {
+                $date = $now->copy()->subDays($i)->startOfDay();
+                $endDate = $date->copy()->endOfDay();
+                
+                $entries = PlaySession::where('tenant_id', $tenantId)
+                    ->where('started_at', '>=', $date)
+                    ->where('started_at', '<=', $endDate)
+                    ->count();
+                
+                $labels[] = $date->format('d.m.Y');
+                $data[] = $entries;
+                
+                // Calculate growth from previous day
+                if ($i < $count - 1) {
+                    $prevEntries = $data[count($data) - 2];
+                    if ($prevEntries > 0) {
+                        $growthPercent = round((($entries - $prevEntries) / $prevEntries) * 100, 1);
+                    } else {
+                        $growthPercent = $entries > 0 ? 100 : 0;
+                    }
+                } else {
+                    $growthPercent = 0;
+                }
+                $growth[] = $growthPercent;
+            }
+        } elseif ($periodType === 'weekly') {
+            // Get entries for the last $count weeks
+            for ($i = $count - 1; $i >= 0; $i--) {
+                $weekStart = $now->copy()->subWeeks($i)->startOfWeek();
+                $weekEnd = $weekStart->copy()->endOfWeek();
+                
+                $entries = PlaySession::where('tenant_id', $tenantId)
+                    ->where('started_at', '>=', $weekStart)
+                    ->where('started_at', '<=', $weekEnd)
+                    ->count();
+                
+                $labels[] = $weekStart->format('d.m') . ' - ' . $weekEnd->format('d.m.Y');
+                $data[] = $entries;
+                
+                // Calculate growth from previous week
+                if ($i < $count - 1) {
+                    $prevEntries = $data[count($data) - 2];
+                    if ($prevEntries > 0) {
+                        $growthPercent = round((($entries - $prevEntries) / $prevEntries) * 100, 1);
+                    } else {
+                        $growthPercent = $entries > 0 ? 100 : 0;
+                    }
+                } else {
+                    $growthPercent = 0;
+                }
+                $growth[] = $growthPercent;
+            }
+        } elseif ($periodType === 'monthly') {
+            // Get entries for the last $count months
+            for ($i = $count - 1; $i >= 0; $i--) {
+                $monthStart = $now->copy()->subMonths($i)->startOfMonth();
+                $monthEnd = $monthStart->copy()->endOfMonth();
+                
+                $entries = PlaySession::where('tenant_id', $tenantId)
+                    ->where('started_at', '>=', $monthStart)
+                    ->where('started_at', '<=', $monthEnd)
+                    ->count();
+                
+                $labels[] = $monthStart->format('m.Y');
+                $data[] = $entries;
+                
+                // Calculate growth from previous month
+                if ($i < $count - 1) {
+                    $prevEntries = $data[count($data) - 2];
+                    if ($prevEntries > 0) {
+                        $growthPercent = round((($entries - $prevEntries) / $prevEntries) * 100, 1);
+                    } else {
+                        $growthPercent = $entries > 0 ? 100 : 0;
+                    }
+                } else {
+                    $growthPercent = 0;
+                }
+                $growth[] = $growthPercent;
+            }
+        }
+        
+        return [
+            'labels' => $labels,
+            'data' => $data,
+            'growth' => $growth,
+        ];
+    }
+
     private function formatMinutes(int $minutes): string
     {
         $hours = intdiv($minutes, 60);

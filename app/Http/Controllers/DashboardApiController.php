@@ -78,6 +78,32 @@ class DashboardApiController extends Controller
         $reports = $this->dashboard->getReports($tenantId, $start, $end, $weekdaysArray);
         return ApiResponder::success(['reports' => $reports]);
     }
+
+    /** Get entries over time report */
+    public function entriesReport()
+    {
+        $user = Auth::user();
+        if (!$user || !$user->tenant) {
+            return ApiResponder::error('Neautentificat', 401);
+        }
+        $tenantId = $user->tenant->id;
+
+        $periodType = request()->query('period', 'daily'); // daily, weekly, monthly
+        $count = (int) request()->query('count', 7); // Number of periods
+
+        // Validate period type
+        if (!in_array($periodType, ['daily', 'weekly', 'monthly'])) {
+            return ApiResponder::error('Tip perioadă invalid. Trebuie să fie: daily, weekly sau monthly', 400);
+        }
+
+        // Validate count
+        if ($count < 1 || $count > 365) {
+            return ApiResponder::error('Numărul de perioade trebuie să fie între 1 și 365', 400);
+        }
+
+        $entriesData = $this->dashboard->getEntriesOverTime($tenantId, $periodType, $count);
+        return ApiResponder::success(['entries' => $entriesData]);
+    }
 }
 
 

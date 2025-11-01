@@ -5,106 +5,149 @@
 
 @section('content')
 <div class="space-y-6">
-    <!-- Global Date Filters -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover sticky top-4 z-10">
-        <div class="p-6">
-            <div class="flex flex-col md:flex-row md:items-end md:space-x-3 space-y-3 md:space-y-0">
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">Data start</label>
-                    <input type="date" id="reportStart" class="px-3 py-2 border border-gray-300 rounded-md" />
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">Data stop</label>
-                    <input type="date" id="reportEnd" class="px-3 py-2 border border-gray-300 rounded-md" />
-                </div>
-                <div class="md:flex-1">
-                    <label class="block text-sm text-gray-600 mb-1">Zile săptămână</label>
-                    <div class="flex flex-wrap gap-2">
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="1" class="mr-2" checked>
-                            <span class="text-sm">Luni</span>
-                        </label>
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="2" class="mr-2" checked>
-                            <span class="text-sm">Marți</span>
-                        </label>
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="3" class="mr-2" checked>
-                            <span class="text-sm">Miercuri</span>
-                        </label>
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="4" class="mr-2" checked>
-                            <span class="text-sm">Joi</span>
-                        </label>
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="5" class="mr-2" checked>
-                            <span class="text-sm">Vineri</span>
-                        </label>
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="6" class="mr-2" checked>
-                            <span class="text-sm">Sâmbătă</span>
-                        </label>
-                        <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
-                            <input type="checkbox" name="weekdays" value="0" class="mr-2" checked>
-                            <span class="text-sm">Duminică</span>
-                        </label>
+    <!-- Reports and Traffic Section with Filters -->
+    <div class="relative">
+        <!-- Sticky Filters Header -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover sticky top-4 z-10 mb-6">
+            <div class="p-6">
+                <div class="flex flex-col md:flex-row md:items-end md:space-x-3 space-y-3 md:space-y-0">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Data start</label>
+                        <input type="date" id="reportStart" class="px-3 py-2 border border-gray-300 rounded-md" />
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">Selectează zilele săptămânii pentru filtrare</p>
-                </div>
-                <div>
-                    <label class="block text-sm text-transparent mb-1">&nbsp;</label>
-                    <button id="reloadReports" class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Reîncarcă</button>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Data stop</label>
+                        <input type="date" id="reportEnd" class="px-3 py-2 border border-gray-300 rounded-md" />
+                    </div>
+                    <div class="md:flex-1">
+                        <label class="block text-sm text-gray-600 mb-1">Zile săptămână</label>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="1" class="mr-2" checked>
+                                <span class="text-sm">Luni</span>
+                            </label>
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="2" class="mr-2" checked>
+                                <span class="text-sm">Marți</span>
+                            </label>
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="3" class="mr-2" checked>
+                                <span class="text-sm">Miercuri</span>
+                            </label>
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="4" class="mr-2" checked>
+                                <span class="text-sm">Joi</span>
+                            </label>
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="5" class="mr-2" checked>
+                                <span class="text-sm">Vineri</span>
+                            </label>
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="6" class="mr-2" checked>
+                                <span class="text-sm">Sâmbătă</span>
+                            </label>
+                            <label class="flex items-center px-3 py-1.5 bg-gray-50 rounded-md cursor-pointer hover:bg-gray-100 border border-gray-300">
+                                <input type="checkbox" name="weekdays" value="0" class="mr-2" checked>
+                                <span class="text-sm">Duminică</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Selectează zilele săptămânii pentru filtrare</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-transparent mb-1">&nbsp;</label>
+                        <button id="reloadReports" class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Reîncarcă</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <div class="flex items-center">
-                <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
-                    <i class="fas fa-chart-pie text-indigo-600"></i>
+        
+        <!-- Reports Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover mb-6">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-chart-pie text-indigo-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-900">Rapoarte</h2>
                 </div>
-                <h2 class="text-xl font-bold text-gray-900">Rapoarte</h2>
+            </div>
+            <div class="p-6">
+                <div id="reports" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-gray-50 rounded p-4 text-center">
+                        <div class="text-sm text-gray-600">% sesiuni < 1h</div>
+                        <div id="bucket_lt1h" class="text-2xl font-bold">-</div>
+                    </div>
+                    <div class="bg-gray-50 rounded p-4 text-center">
+                        <div class="text-sm text-gray-600">% sesiuni 1-2h</div>
+                        <div id="bucket_1_2" class="text-2xl font-bold">-</div>
+                    </div>
+                    <div class="bg-gray-50 rounded p-4 text-center">
+                        <div class="text-sm text-gray-600">% sesiuni 2-3h</div>
+                        <div id="bucket_2_3" class="text-2xl font-bold">-</div>
+                    </div>
+                    <div class="bg-gray-50 rounded p-4 text-center">
+                        <div class="text-sm text-gray-600">% sesiuni > 3h</div>
+                        <div id="bucket_gt3h" class="text-2xl font-bold">-</div>
+                    </div>
+                </div>
+                <div class="mt-4 bg-gray-50 rounded p-4 text-center">
+                    <div class="text-sm text-gray-600">Vârsta medie a copiilor</div>
+                    <div id="avg_age" class="text-2xl font-bold">-</div>
+                </div>
             </div>
         </div>
-        <div class="p-6">
-            <div id="reports" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-gray-50 rounded p-4 text-center">
-                    <div class="text-sm text-gray-600">% sesiuni < 1h</div>
-                    <div id="bucket_lt1h" class="text-2xl font-bold">-</div>
-                </div>
-                <div class="bg-gray-50 rounded p-4 text-center">
-                    <div class="text-sm text-gray-600">% sesiuni 1-2h</div>
-                    <div id="bucket_1_2" class="text-2xl font-bold">-</div>
-                </div>
-                <div class="bg-gray-50 rounded p-4 text-center">
-                    <div class="text-sm text-gray-600">% sesiuni 2-3h</div>
-                    <div id="bucket_2_3" class="text-2xl font-bold">-</div>
-                </div>
-                <div class="bg-gray-50 rounded p-4 text-center">
-                    <div class="text-sm text-gray-600">% sesiuni > 3h</div>
-                    <div id="bucket_gt3h" class="text-2xl font-bold">-</div>
+        
+        <!-- Traffic Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-chart-bar text-emerald-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-900">Trafic pe Ore</h2>
                 </div>
             </div>
-            <div class="mt-4 bg-gray-50 rounded p-4 text-center">
-                <div class="text-sm text-gray-600">Vârsta medie a copiilor</div>
-                <div id="avg_age" class="text-2xl font-bold">-</div>
+            <div class="p-6">
+                <div class="w-full">
+                    <canvas id="hourlyTrafficChart" height="80"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Entries Report Section (separate) -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover">
         <div class="px-6 py-4 border-b border-gray-200">
-            <div class="flex items-center">
-                <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mr-3">
-                    <i class="fas fa-chart-bar text-emerald-600"></i>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-chart-line text-purple-600"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-900">Raport Intrări</h2>
                 </div>
-                <h2 class="text-xl font-bold text-gray-900">Trafic pe Ore</h2>
             </div>
         </div>
         <div class="p-6">
+            <div class="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0 mb-6">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Tip perioadă</label>
+                    <select id="entriesPeriodType" class="px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="daily">Zilnic</option>
+                        <option value="weekly">Săptămânal</option>
+                        <option value="monthly">Lunar</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Număr perioade</label>
+                    <input type="number" id="entriesCount" min="1" max="365" value="7" class="px-3 py-2 border border-gray-300 rounded-md w-24" />
+                </div>
+                <div>
+                    <label class="block text-sm text-transparent mb-1">&nbsp;</label>
+                    <button id="loadEntriesReport" class="px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700">Încarcă</button>
+                </div>
+            </div>
             <div class="w-full">
-                <canvas id="hourlyTrafficChart" height="80"></canvas>
+                <canvas id="entriesChart" height="80"></canvas>
             </div>
         </div>
     </div>
@@ -283,6 +326,148 @@
     });
 
     loadReports();
+
+    // Entries Report Chart
+    let entriesChart;
+    async function loadEntriesReport() {
+        try {
+            const periodType = document.getElementById('entriesPeriodType').value;
+            const count = parseInt(document.getElementById('entriesCount').value) || 7;
+
+            const qs = new URLSearchParams();
+            qs.append('period', periodType);
+            qs.append('count', count);
+
+            const entriesData = await apiCall('/reports-api/entries?' + qs.toString());
+            
+            if (entriesData.success && entriesData.entries) {
+                renderEntriesChart(entriesData.entries);
+            } else {
+                console.error('Eroare la încărcarea raportului de intrări:', entriesData);
+            }
+        } catch (e) {
+            console.error('Eroare:', e);
+        }
+    }
+
+    function renderEntriesChart(entriesData) {
+        const ctx = document.getElementById('entriesChart').getContext('2d');
+        
+        const labels = entriesData.labels || [];
+        const data = entriesData.data || [];
+        const growth = entriesData.growth || [];
+
+        // Create background colors based on growth
+        const backgroundColors = growth.map((g, index) => {
+            if (index === 0) return 'rgba(99, 102, 241, 0.8)'; // First period - neutral
+            if (g > 0) return 'rgba(34, 197, 94, 0.8)'; // Growth - green
+            if (g < 0) return 'rgba(239, 68, 68, 0.8)'; // Decline - red
+            return 'rgba(99, 102, 241, 0.8)'; // No change - neutral
+        });
+
+        const borderColors = growth.map((g, index) => {
+            if (index === 0) return 'rgba(99, 102, 241, 1)';
+            if (g > 0) return 'rgba(34, 197, 94, 1)';
+            if (g < 0) return 'rgba(239, 68, 68, 1)';
+            return 'rgba(99, 102, 241, 1)';
+        });
+
+        const chartData = {
+            labels: labels,
+            datasets: [{
+                label: 'Număr intrări',
+                data: data,
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 2,
+                pointBackgroundColor: backgroundColors,
+                pointBorderColor: borderColors,
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                fill: true,
+                tension: 0.4
+            }]
+        };
+
+        if (entriesChart) {
+            entriesChart.data = chartData;
+            entriesChart.update();
+        } else {
+            entriesChart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const entryCount = context.parsed.y;
+                                    const growthValue = growth[index];
+                                    let growthText = '';
+                                    if (index === 0) {
+                                        growthText = ' (perioadă inițială)';
+                                    } else if (growthValue > 0) {
+                                        growthText = ' (+' + growthValue + '% vs perioada anterioară)';
+                                    } else if (growthValue < 0) {
+                                        growthText = ' (' + growthValue + '% vs perioada anterioară)';
+                                    } else {
+                                        growthText = ' (fără schimbare)';
+                                    }
+                                    return 'Intrări: ' + entryCount + growthText;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                precision: 0
+                            },
+                            title: {
+                                display: true,
+                                text: 'Număr intrări'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Perioadă'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Load entries report on button click
+    document.getElementById('loadEntriesReport').addEventListener('click', function(){
+        loadEntriesReport();
+    });
+
+    // Load entries report on period type change
+    document.getElementById('entriesPeriodType').addEventListener('change', function(){
+        loadEntriesReport();
+    });
+
+    // Load initial entries report
+    loadEntriesReport();
 </script>
 @endsection
 

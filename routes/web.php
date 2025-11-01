@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
         Route::prefix('reports-api')->group(function () {
             Route::get('/activity', [App\Http\Controllers\DashboardApiController::class, 'recentActivity']);
             Route::get('/reports', [App\Http\Controllers\DashboardApiController::class, 'reports']);
+            Route::get('/entries', [App\Http\Controllers\DashboardApiController::class, 'entriesReport']);
         });
 
     // Scan API (session-auth via web guard)
