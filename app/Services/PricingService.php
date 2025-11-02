@@ -55,19 +55,29 @@ class PricingService
     }
 
     /**
-     * Round duration UP to the nearest half hour (0.5 hours)
-     * Minimum duration is 0.5 hours
-     * Always rounds up (ceiling)
-     * Examples:
-     * - 0.1 hours (6 min) -> 0.5 hours (minimum)
-     * - 0.26 hours (15.6 min) -> 0.5 hours
-     * - 0.52 hours (31 min) -> 1.0 hours (rounded up)
-     * - 0.75 hours (45 min) -> 1.0 hours (rounded up)
-     * - 1.01 hours (60.6 min) -> 1.5 hours (rounded up)
-     * - 1.52 hours (91 min) -> 2.0 hours (rounded up)
+     * Round duration according to pricing rules:
+     * - First hour: always charged as 1 full hour (regardless of actual duration)
+     * - After first hour: specific rounding rules apply
      * 
-     * @param float $hours
-     * @return float Rounded hours UP to nearest 0.5 (minimum 0.5)
+     * Rules:
+     * - Duration ≤ 1 hour → 1.0 hours (always)
+     * - Duration > 1 hour:
+     *   - Additional time < 15 minutes → round down (1.0 hours total)
+     *   - Additional time ≥ 15 minutes and ≤ 30 minutes → add 0.5 hours (1.5 hours total)
+     *   - Additional time > 30 minutes → add 1 hour (2.0 hours total)
+     * 
+     * Examples:
+     * - 0.17 hours (10 min) -> 1.0 hours (first hour always full)
+     * - 0.67 hours (40 min) -> 1.0 hours (first hour always full)
+     * - 1.17 hours (1h 10min) -> 1.0 hours (10 min < 15 min, rounded down)
+     * - 1.25 hours (1h 15min) -> 1.5 hours (15 min = 15 min, add 0.5 hours)
+     * - 1.33 hours (1h 20min) -> 1.5 hours (20 min between 15-30 min, add 0.5 hours)
+     * - 1.5 hours (1h 30min) -> 1.5 hours (30 min = 30 min, add 0.5 hours)
+     * - 1.58 hours (1h 35min) -> 2.0 hours (35 min > 30 min, add 1 hour)
+     * - 1.75 hours (1h 45min) -> 2.0 hours (45 min > 30 min, add 1 hour)
+     * 
+     * @param float $hours Duration in hours
+     * @return float Rounded hours according to pricing rules
      */
     public function roundToHalfHour(float $hours): float
     {
@@ -75,13 +85,25 @@ class PricingService
             return 0.0;
         }
 
-        // Minimum is 0.5 hours
-        if ($hours < 0.5) {
-            return 0.5;
+        // First hour: always charged as 1 full hour
+        if ($hours <= 1.0) {
+            return 1.0;
         }
 
-        // Round UP to nearest 0.5 (ceiling)
-        return ceil($hours * 2) / 2;
+        // Calculate minutes over the first hour
+        $minutesOverHour = ($hours - 1.0) * 60;
+
+        // Apply rounding rules for additional time
+        if ($minutesOverHour < 15) {
+            // Less than 15 minutes: round down (stay at 1 hour)
+            return 1.0;
+        } elseif ($minutesOverHour <= 30) {
+            // Between 15 and 30 minutes (inclusive): add 0.5 hours
+            return 1.5;
+        } else {
+            // More than 30 minutes: add 1 hour
+            return 2.0;
+        }
     }
 
     /**

@@ -217,19 +217,19 @@
         <!-- Main Content -->
         <div id="main-content" class="flex-1 flex flex-col overflow-hidden lg:ml-0">
             <!-- Top Header -->
-            <header class="bg-white shadow-sm border-b border-gray-200">
-                <div class="flex items-center justify-between px-6 py-4">
+            <header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+                <div class="flex items-center justify-between px-3 md:px-4 lg:px-6 py-3 md:py-4">
                     <div class="flex items-center">
                         <button id="sidebar-toggle" class="text-gray-500 hover:text-gray-700 lg:hidden">
                             <i class="fas fa-bars text-xl"></i>
                         </button>
-                        <h2 class="text-2xl font-semibold text-gray-800 ml-4 lg:ml-0">@yield('page-title', 'Dashboard')</h2>
+                        <h2 class="text-lg md:text-xl lg:text-2xl font-semibold text-gray-800 ml-3 md:ml-4 lg:ml-0">@yield('page-title', 'Dashboard')</h2>
                     </div>
                     
-                    <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 md:space-x-4">
                         <!-- User Menu -->
                         <div class="relative">
-                            <button id="user-menu-button" class="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
+                            <button id="user-menu-button" class="flex items-center space-x-2 md:space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500">
                                 <div class="w-8 h-8 bg-sky-600 rounded-full flex items-center justify-center">
                                     <span class="text-white font-medium text-sm">{{ substr(Auth::user()->name, 0, 1) }}</span>
                                 </div>
@@ -237,7 +237,7 @@
                                     <p class="font-medium text-gray-700">{{ Auth::user()->name }}</p>
                                     <p class="text-sm text-gray-500">{{ Auth::user()->role->display_name ?? 'N/A' }}</p>
                                 </div>
-                                <i class="fas fa-chevron-down text-gray-400"></i>
+                                <i class="fas fa-chevron-down text-gray-400 hidden md:block"></i>
                             </button>
                             
                             <!-- Dropdown Menu -->
@@ -266,7 +266,7 @@
 
             <!-- Page Content -->
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
-                <div class="container mx-auto px-6 py-8">
+                <div class="container mx-auto px-3 md:px-4 lg:px-6 py-4 md:py-6 lg:py-8">
                     @if(session('success'))
                         <div class="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
                             <i class="fas fa-check-circle mr-2"></i>
