@@ -402,6 +402,20 @@ document.addEventListener('DOMContentLoaded', function() {
         margin: 0;
         border-radius: 0;
     }
+    
+    /* Fix date and time inputs in modal */
+    #reservationModal input[type="date"],
+    #reservationModal input[type="time"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure modal content doesn't overflow */
+    #reservationModal .space-y-4 {
+        overflow-x: hidden;
+    }
 }
 </style>
 @endsection

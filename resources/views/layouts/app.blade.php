@@ -135,6 +135,25 @@
         /* Choices.js minimal styling overrides (optional) */
         .choices__inner { min-height: 42px; padding-top: 6px; padding-bottom: 6px; }
         .choices__list--dropdown .choices__item { font-size: 0.9rem; }
+        
+        /* Fix date and time inputs overflow on mobile */
+        input[type="date"],
+        input[type="time"],
+        input[type="datetime-local"] {
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        /* Ensure containers don't cause overflow on mobile */
+        @media (max-width: 768px) {
+            input[type="date"],
+            input[type="time"],
+            input[type="datetime-local"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
