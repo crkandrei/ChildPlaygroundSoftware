@@ -25,7 +25,6 @@ class CreateChildRequest extends FormRequest
             'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
             'guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian_phone' => ['nullable', 'string', 'max:20'],
-            'guardian_email' => ['nullable', 'email', 'max:255'],
             'bracelet_code' => ['required', 'string', 'size:10'],
         ];
     }
@@ -36,7 +35,6 @@ class CreateChildRequest extends FormRequest
         $this->merge([
             'guardian_name' => $this->normalizeEmpty($this->input('guardian_name')),
             'guardian_phone' => $this->normalizeEmpty($this->input('guardian_phone')),
-            'guardian_email' => $this->normalizeEmpty($this->input('guardian_email')),
         ]);
     }
 

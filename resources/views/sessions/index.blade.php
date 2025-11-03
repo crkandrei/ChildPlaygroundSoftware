@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Sesiuni')
-@section('page-title', 'Sesiuni (doar vizualizare)')
+@section('page-title', 'Sesiuni')
 
 @section('content')
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
@@ -24,7 +24,7 @@
                 </select>
             </div>
             <div class="relative">
-                <input id="searchInput" type="text" placeholder="Caută (copil, părinte, telefon)" class="w-64 px-3 py-2 border border-gray-300 rounded-md pr-8">
+                <input id="searchInput" type="text" placeholder="Caută copil" class="w-64 px-3 py-2 border border-gray-300 rounded-md pr-8">
                 <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
         </div>
@@ -35,9 +35,6 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="child_name">Copil <span class="sort-ind" data-col="child_name"></span></th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="guardian_name">Părinte <span class="sort-ind" data-col="guardian_name"></span></th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="guardian_phone">Telefon <span class="sort-ind" data-col="guardian_phone"></span></th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="started_at">Început la <span class="sort-ind" data-col="started_at"></span></th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durată live</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preț</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acțiuni</th>
@@ -147,9 +144,6 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${row.child_name || '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${row.guardian_name || '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${row.guardian_phone || '-'}</td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${formatDateTime(row.started_at)}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-mono" id="timer-${row.id}">--:--:--</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                     ${row.formatted_price ? `<span class="font-semibold ${row.ended_at ? 'text-green-600' : 'text-amber-600'}">${row.formatted_price}</span>` : '-'}

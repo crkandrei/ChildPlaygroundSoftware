@@ -82,7 +82,7 @@
                         </select>
                     </div>
                     <div class="relative">
-                        <input id="guardiansSearchInput" type="text" placeholder="Caută (nume, telefon, email, note)" class="w-64 px-3 py-2 border border-gray-300 rounded-md pr-8">
+                        <input id="guardiansSearchInput" type="text" placeholder="Caută (nume, telefon, note)" class="w-64 px-3 py-2 border border-gray-300 rounded-md pr-8">
                         <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"></i>
                     </div>
                 </div>
@@ -166,16 +166,6 @@
                     </div>
 
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                            Email
-                        </label>
-                        <input type="email" id="email" name="email" value="{{ old('email') }}" maxlength="255" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('email') border-red-500 @enderror" placeholder="Ex: maria.popescu@email.com">
-                        @error('email')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
                         <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
                             Note (opțional)
                         </label>
@@ -255,17 +245,6 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
                             </svg>
                             ${g.phone}
-                        </div>
-                    `);
-                }
-                
-                if (g.email) {
-                    contactHtml.push(`
-                        <div class="flex items-center ${g.phone ? 'mt-1' : ''}">
-                            <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                            </svg>
-                            ${g.email}
                         </div>
                     `);
                 }

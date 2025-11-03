@@ -58,6 +58,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/recent-completed', [App\Http\Controllers\ScanPageController::class, 'recentCompletedSessions']);
         Route::get('/children-with-sessions', [App\Http\Controllers\ScanPageController::class, 'searchChildrenWithActiveSessions']);
         Route::get('/child-session/{childId}', [App\Http\Controllers\ScanPageController::class, 'lookupChildSession']);
+        Route::post('/check-guardian-terms', [App\Http\Controllers\ScanPageController::class, 'checkGuardianTerms']);
+        Route::post('/accept-guardian-terms', [App\Http\Controllers\ScanPageController::class, 'acceptGuardianTerms']);
     });
     
     // Children management
@@ -74,4 +76,23 @@ Route::middleware('auth')->group(function () {
     // Bracelets management
     Route::resource('bracelets', App\Http\Controllers\BraceletController::class);
     Route::post('/bracelets/{bracelet}/unassign', [App\Http\Controllers\BraceletController::class, 'unassign'])->name('bracelets.unassign');
+    
+    // Legal documents (accessible without auth for parents to read)
+    Route::get('/legal/terms', [App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
+    Route::get('/legal/gdpr', [App\Http\Controllers\LegalController::class, 'gdpr'])->name('legal.gdpr');
+    
+    // Birthday reservations (super admin only)
+    Route::get('/birthday-reservations', [App\Http\Controllers\BirthdayReservationController::class, 'index'])->name('birthday-reservations.index');
+    Route::post('/birthday-reservations', [App\Http\Controllers\BirthdayReservationController::class, 'store'])->name('birthday-reservations.store');
+    Route::put('/birthday-reservations/{id}', [App\Http\Controllers\BirthdayReservationController::class, 'update'])->name('birthday-reservations.update');
+    Route::delete('/birthday-reservations/{id}', [App\Http\Controllers\BirthdayReservationController::class, 'destroy'])->name('birthday-reservations.destroy');
+    
+    // Birthday reservations API
+    Route::prefix('birthday-reservations-api')->group(function () {
+        Route::get('/calendar', [App\Http\Controllers\BirthdayReservationController::class, 'calendar'])->name('birthday-reservations-api.calendar');
+    });
 });
+
+// Legal documents accessible without authentication
+Route::get('/legal/terms', [App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms.public');
+Route::get('/legal/gdpr', [App\Http\Controllers\LegalController::class, 'gdpr'])->name('legal.gdpr.public');

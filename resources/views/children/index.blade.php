@@ -662,7 +662,6 @@
                 const firstName = document.getElementById('guardian_first_name').value.trim();
                 const lastName = document.getElementById('guardian_last_name').value.trim();
                 const phone = document.getElementById('guardian_phone').value.trim();
-                const email = document.getElementById('guardian_email').value.trim();
 
                 if (!firstName || !lastName) {
                     alert('Prenumele și numele părintelui sunt obligatorii.');
@@ -682,7 +681,7 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
-                        body: JSON.stringify({ name, phone, email })
+                        body: JSON.stringify({ name, phone })
                     });
 
                     const data = await response.json();
@@ -740,10 +739,6 @@
                         <input id="guardian_phone" type="tel" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: 0712345678">
                         <p class="mt-1 text-sm text-gray-500">Format: 0712345678 (10 cifre)</p>
                     </div>
-                    <div>
-                        <label for="guardian_email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input id="guardian_email" type="email" maxlength="255" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: maria@email.com">
-                    </div>
                     <div class="flex items-center justify-end space-x-2 pt-4 border-t border-gray-200">
                         <button type="button" id="cancel-add-guardian" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Anulează</button>
                         <button type="submit" class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Salvează Părinte</button>
@@ -755,3 +750,4 @@
 </div>
 @endif
 @endsection
+

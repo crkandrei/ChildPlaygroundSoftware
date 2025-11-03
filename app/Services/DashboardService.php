@@ -20,6 +20,7 @@ class DashboardService
     {
         $now = now();
         $startOfDay = $now->copy()->startOfDay();
+        $endOfDay = $now->copy()->endOfDay();
 
         $activeSessions = $this->sessions->countActiveSessionsByTenant($tenantId);
         $sessionsToday = $this->sessions->countSessionsStartedSince($tenantId, $startOfDay);
@@ -33,6 +34,16 @@ class DashboardService
         $totalMinutesAll = $allSessions->reduce(fn($c, $s) => $c + $s->getCurrentDurationMinutes(), 0);
         $avgAll = $allSessions->count() > 0 ? (int) floor($totalMinutesAll / $allSessions->count()) : 0;
 
+        // Calculate total income for sessions ended today
+        $sessionsEndedToday = PlaySession::where('tenant_id', $tenantId)
+            ->whereNotNull('ended_at')
+            ->whereNotNull('calculated_price')
+            ->where('ended_at', '>=', $startOfDay)
+            ->where('ended_at', '<=', $endOfDay)
+            ->get();
+        
+        $totalIncomeToday = $sessionsEndedToday->sum('calculated_price');
+
         return [
             'active_sessions' => $activeSessions,
             'sessions_today' => $sessionsToday,
@@ -40,6 +51,7 @@ class DashboardService
             'avg_session_today_minutes' => $avgToday,
             'avg_session_total_minutes' => $avgAll,
             'total_time_today' => $this->formatMinutes($totalMinutesToday),
+            'total_income_today' => round($totalIncomeToday, 2),
         ];
     }
 

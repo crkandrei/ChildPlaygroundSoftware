@@ -214,6 +214,11 @@ class ScanPageController extends Controller
                     if (!$guardian) {
                         throw new \Exception('Părintele selectat nu a fost găsit în acest tenant');
                     }
+                    
+                    // Verifică dacă părintele existent a acceptat termenii
+                    if ($guardian->needsToAcceptLegalDocuments()) {
+                        throw new \Exception('Părintele trebuie să accepte termenii și condițiile și politica GDPR înainte de a crea un copil. Te rog acceptă termenii mai întâi.');
+                    }
                 } else {
                     // Verifică dacă există deja un părinte cu același telefon
                     $existingGuardian = Guardian::where('tenant_id', $tenant->id)
@@ -227,11 +232,19 @@ class ScanPageController extends Controller
                         );
                     }
                     
+                    // Validate terms acceptance for new guardian
+                    if (!$request->boolean('terms_accepted') || !$request->boolean('gdpr_accepted')) {
+                        throw new \Exception('Trebuie să acceptați termenii și condițiile și politica GDPR');
+                    }
+                    
                     $guardian = Guardian::create([
                         'name' => $request->guardian_name,
                         'phone' => $request->guardian_phone,
-                        'email' => $request->guardian_email,
                         'tenant_id' => $tenant->id,
+                        'terms_accepted_at' => now(),
+                        'gdpr_accepted_at' => now(),
+                        'terms_version' => \App\Http\Controllers\LegalController::TERMS_VERSION,
+                        'gdpr_version' => \App\Http\Controllers\LegalController::GDPR_VERSION,
                     ]);
                 }
 
@@ -283,6 +296,76 @@ class ScanPageController extends Controller
         } catch (\Throwable $e) {
             return ApiResponder::error('Nu s-a putut crea copilul și porni sesiunea: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Check if guardian has accepted terms and conditions
+     */
+    public function checkGuardianTerms(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user || !$user->tenant) {
+            return ApiResponder::error('Neautentificat sau fără tenant', 401);
+        }
+
+        $request->validate([
+            'guardian_id' => 'required|integer|exists:guardians,id',
+        ]);
+
+        $tenant = $user->tenant;
+        $guardian = Guardian::where('id', $request->guardian_id)
+            ->where('tenant_id', $tenant->id)
+            ->first();
+
+        if (!$guardian) {
+            return ApiResponder::error('Părintele nu a fost găsit', 404);
+        }
+
+        $needsTerms = $guardian->needsToAcceptTerms();
+        $needsGdpr = $guardian->needsToAcceptGdpr();
+        $accepted = !$guardian->needsToAcceptLegalDocuments();
+
+        return ApiResponder::success([
+            'accepted' => $accepted,
+            'needs_terms' => $needsTerms,
+            'needs_gdpr' => $needsGdpr,
+        ]);
+    }
+
+    /**
+     * Save guardian terms acceptance
+     */
+    public function acceptGuardianTerms(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user || !$user->tenant) {
+            return ApiResponder::error('Neautentificat sau fără tenant', 401);
+        }
+
+        $request->validate([
+            'guardian_id' => 'required|integer|exists:guardians,id',
+        ]);
+
+        $tenant = $user->tenant;
+        $guardian = Guardian::where('id', $request->guardian_id)
+            ->where('tenant_id', $tenant->id)
+            ->first();
+
+        if (!$guardian) {
+            return ApiResponder::error('Părintele nu a fost găsit', 404);
+        }
+
+        // Update acceptance
+        $guardian->update([
+            'terms_accepted_at' => now(),
+            'gdpr_accepted_at' => now(),
+            'terms_version' => \App\Http\Controllers\LegalController::TERMS_VERSION,
+            'gdpr_version' => \App\Http\Controllers\LegalController::GDPR_VERSION,
+        ]);
+
+        return ApiResponder::success([
+            'message' => 'Termenii și condițiile au fost acceptate cu succes',
+        ]);
     }
 
     /**

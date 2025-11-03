@@ -6,6 +6,7 @@ use App\Models\Guardian;
 use App\Models\Child;
 use App\Models\PlaySession;
 use App\Support\ActionLogger;
+use App\Http\Controllers\LegalController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -67,16 +68,25 @@ class GuardianController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
             'notes' => 'nullable|string|max:1000',
+            'terms_accepted' => 'required|accepted',
+            'gdpr_accepted' => 'required|accepted',
+        ], [
+            'terms_accepted.required' => 'Trebuie să acceptați termenii și condițiile',
+            'terms_accepted.accepted' => 'Trebuie să acceptați termenii și condițiile',
+            'gdpr_accepted.required' => 'Trebuie să acceptați politica de protecție a datelor (GDPR)',
+            'gdpr_accepted.accepted' => 'Trebuie să acceptați politica de protecție a datelor (GDPR)',
         ]);
 
         $guardian = Guardian::create([
             'tenant_id' => $tenant->id,
             'name' => $request->name,
             'phone' => $request->phone,
-            'email' => $request->email,
             'notes' => $request->notes,
+            'terms_accepted_at' => now(),
+            'gdpr_accepted_at' => now(),
+            'terms_version' => LegalController::TERMS_VERSION,
+            'gdpr_version' => LegalController::GDPR_VERSION,
         ]);
 
         ActionLogger::logCrud('created', 'Guardian', $guardian->id, [
@@ -212,28 +222,24 @@ class GuardianController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
             'notes' => 'nullable|string|max:1000',
         ]);
 
         $dataBefore = [
             'name' => $guardian->name,
             'phone' => $guardian->phone,
-            'email' => $guardian->email,
             'notes' => $guardian->notes,
         ];
 
         $guardian->update([
             'name' => $request->name,
             'phone' => $request->phone,
-            'email' => $request->email,
             'notes' => $request->notes,
         ]);
 
         $dataAfter = [
             'name' => $guardian->name,
             'phone' => $guardian->phone,
-            'email' => $guardian->email,
             'notes' => $guardian->notes,
         ];
 
@@ -294,13 +300,12 @@ class GuardianController extends Controller
                 $like = "%" . str_replace(['%','_'], ['\\%','\\_'], $q) . "%";
                 $query->where(function ($inner) use ($like) {
                     $inner->where('name', 'LIKE', $like)
-                          ->orWhere('phone', 'LIKE', $like)
-                          ->orWhere('email', 'LIKE', $like);
+                          ->orWhere('phone', 'LIKE', $like);
                 });
             })
             ->orderBy('name')
             ->limit($limit)
-            ->get(['id','name','phone','email']);
+            ->get(['id','name','phone']);
 
         return response()->json([
             'success' => true,
@@ -341,7 +346,6 @@ class GuardianController extends Controller
                 $q->where(function ($inner) use ($like) {
                     $inner->where('name', 'LIKE', $like)
                           ->orWhere('phone', 'LIKE', $like)
-                          ->orWhere('email', 'LIKE', $like)
                           ->orWhere('notes', 'LIKE', $like);
                 });
             });
@@ -353,9 +357,6 @@ class GuardianController extends Controller
                 break;
             case 'phone':
                 $query->orderBy('phone', $sortDir);
-                break;
-            case 'email':
-                $query->orderBy('email', $sortDir);
                 break;
             case 'children_count':
                 $query->orderBy('children_count', $sortDir);
@@ -378,7 +379,6 @@ class GuardianController extends Controller
                 'id' => $g->id,
                 'name' => $g->name,
                 'phone' => $g->phone,
-                'email' => $g->email,
                 'notes' => $g->notes,
                 'children_count' => $g->children_count,
                 'created_at' => $g->created_at->format('d.m.Y'),

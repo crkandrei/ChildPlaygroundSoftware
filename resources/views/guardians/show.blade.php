@@ -62,18 +62,6 @@
                         @endif
                     </dd>
                 </div>
-                <div>
-                    <dt class="text-sm font-medium text-gray-500 mb-1">Email</dt>
-                    <dd class="text-gray-900">
-                        @if($guardian->email)
-                            <a href="mailto:{{ $guardian->email }}" class="text-indigo-600 hover:text-indigo-800">
-                                {{ $guardian->email }}
-                            </a>
-                        @else
-                            <span class="text-gray-400">-</span>
-                        @endif
-                    </dd>
-                </div>
             </dl>
             
             @if($guardian->notes)

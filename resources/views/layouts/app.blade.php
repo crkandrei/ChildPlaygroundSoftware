@@ -210,6 +210,15 @@
                         <span class="sidebar-text">Rapoarte</span>
                     </a>
                     @endif
+                    
+                    @if(Auth::user()->isSuperAdmin())
+                    <a href="{{ route('birthday-reservations.index') }}" 
+                       data-title="Rezervări Zile Naștere"
+                       class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('birthday-reservations.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                        <i class="fas fa-birthday-cake sidebar-icon mr-3"></i>
+                        <span class="sidebar-text">Rezervări Zile Naștere</span>
+                    </a>
+                    @endif
                 </div>
             </nav>
         </div>

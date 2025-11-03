@@ -76,6 +76,19 @@
                 </div>
             </div>
         </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">Total Încasări Astăzi</p>
+                    <p id="totalIncomeToday" class="text-3xl font-bold text-emerald-600">-</p>
+                    <p class="text-xs text-gray-500 mt-1">Sesiuni finalizate</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-emerald-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Quick Actions -->
@@ -164,6 +177,13 @@
                 document.getElementById('avgTotal').textContent = formatMinutesHuman(statsData.stats.avg_session_total_minutes);
                 const totalEl = document.getElementById('totalTimeToday');
                 if (totalEl) totalEl.textContent = statsData.stats.total_time_today || '0h 0m';
+                
+                // Format and display total income today
+                const totalIncomeEl = document.getElementById('totalIncomeToday');
+                if (totalIncomeEl) {
+                    const income = statsData.stats.total_income_today || 0;
+                    totalIncomeEl.textContent = income.toFixed(2) + ' RON';
+                }
             }
 
             // Load active sessions

@@ -60,22 +60,6 @@
                 </div>
             </div>
 
-            <!-- Email -->
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                </label>
-                <input type="email" 
-                       id="email" 
-                       name="email" 
-                       value="{{ old('email') }}"
-                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('email') border-red-500 @enderror"
-                       placeholder="Ex: maria.popescu@email.com">
-                @error('email')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                @enderror
-            </div>
-
             <!-- Notes -->
             <div>
                 <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
@@ -90,6 +74,67 @@
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
                 <p class="mt-1 text-sm text-gray-500">Máximo 1000 caractere</p>
+            </div>
+
+            <!-- Terms and GDPR Acceptance -->
+            <div class="pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Acceptare Termeni și Condiții</h3>
+                
+                <!-- Terms and Conditions -->
+                <div class="mb-4">
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input id="terms_accepted" 
+                                   name="terms_accepted" 
+                                   type="checkbox" 
+                                   value="1"
+                                   class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 @error('terms_accepted') border-red-500 @enderror"
+                                   required>
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="terms_accepted" class="font-medium text-gray-700">
+                                Accept Termenii și Condițiile <span class="text-red-500">*</span>
+                            </label>
+                            <p class="text-gray-600 mt-1">
+                                Am citit și accept 
+                                <a href="{{ route('legal.terms.public') }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 underline">
+                                    Termenii și Condițiile
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                    @error('terms_accepted')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <!-- GDPR Policy -->
+                <div class="mb-4">
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input id="gdpr_accepted" 
+                                   name="gdpr_accepted" 
+                                   type="checkbox" 
+                                   value="1"
+                                   class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 @error('gdpr_accepted') border-red-500 @enderror"
+                                   required>
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="gdpr_accepted" class="font-medium text-gray-700">
+                                Accept Politica de Protecție a Datelor (GDPR) <span class="text-red-500">*</span>
+                            </label>
+                            <p class="text-gray-600 mt-1">
+                                Am citit și accept 
+                                <a href="{{ route('legal.gdpr.public') }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 underline">
+                                    Politica de Protecție a Datelor cu Caracter Personal
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                    @error('gdpr_accepted')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
             <!-- Form Actions -->

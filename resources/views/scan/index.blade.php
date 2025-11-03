@@ -157,7 +157,6 @@
                             <label class="block text-xs font-medium text-green-800">Creează părinte nou</label>
                             <input id="guardianName" type="text" placeholder="Nume complet *" class="w-full h-10 px-3 border border-green-300 rounded-md">
                             <input id="guardianPhone" type="tel" placeholder="Telefon *" class="w-full h-10 px-3 border border-green-300 rounded-md">
-                            <input id="guardianEmail" type="email" placeholder="Email (opțional)" class="w-full h-10 px-3 border border-green-300 rounded-md">
                             <p class="text-xs text-gray-500">Completează minim nume și telefon</p>
                         </div>
                     </div>
@@ -177,6 +176,32 @@
                             class="w-full h-10 px-3 border border-blue-300 rounded-md">
                         <input id="childAllergies" type="text" placeholder="Alergii (opțional)" 
                             class="w-full h-10 px-3 border border-blue-300 rounded-md">
+                        
+                        <!-- Terms and GDPR Acceptance (only for new guardian) -->
+                        <div id="termsAcceptanceSection" class="hidden space-y-3 pt-2 border-t border-gray-200">
+                            <div class="flex items-start">
+                                <input id="terms_accepted" type="checkbox" value="1" 
+                                    class="mt-1 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                                <label for="terms_accepted" class="ml-2 text-sm text-gray-700">
+                                    Accept 
+                                    <a href="{{ route('legal.terms.public') }}" target="_blank" class="text-green-600 hover:text-green-800 underline">
+                                        Termenii și Condițiile
+                                    </a>
+                                    <span class="text-red-500">*</span>
+                                </label>
+                            </div>
+                            <div class="flex items-start">
+                                <input id="gdpr_accepted" type="checkbox" value="1" 
+                                    class="mt-1 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                                <label for="gdpr_accepted" class="ml-2 text-sm text-gray-700">
+                                    Accept 
+                                    <a href="{{ route('legal.gdpr.public') }}" target="_blank" class="text-green-600 hover:text-green-800 underline">
+                                        Politica GDPR
+                                    </a>
+                                    <span class="text-red-500">*</span>
+                                </label>
+                            </div>
+                        </div>
                         
                         <button 
                             id="createAndAssignBtn" 
@@ -199,6 +224,50 @@
         <div id="recentCompletedSection" class="hidden bg-white border border-gray-300 rounded-lg p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4"><i class="fas fa-history mr-2"></i>Ultimele sesiuni închise</h3>
             <div id="recentCompletedList" class="divide-y divide-gray-200"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pentru acceptare termeni (părinte existent) -->
+<div id="termsAcceptanceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Acceptare Termeni și Condiții</h3>
+        <p class="text-sm text-gray-600 mb-4">
+            Pentru a continua, trebuie să acceptați termenii și condițiile și politica GDPR.
+        </p>
+        
+        <div class="space-y-3 mb-4">
+            <div class="flex items-start">
+                <input id="modal_terms_accepted" type="checkbox" value="1" 
+                    class="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <label for="modal_terms_accepted" class="ml-2 text-sm text-gray-700">
+                    Accept 
+                    <a href="{{ route('legal.terms.public') }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 underline">
+                        Termenii și Condițiile
+                    </a>
+                    <span class="text-red-500">*</span>
+                </label>
+            </div>
+            <div class="flex items-start">
+                <input id="modal_gdpr_accepted" type="checkbox" value="1" 
+                    class="mt-1 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                <label for="modal_gdpr_accepted" class="ml-2 text-sm text-gray-700">
+                    Accept 
+                    <a href="{{ route('legal.gdpr.public') }}" target="_blank" class="text-indigo-600 hover:text-indigo-800 underline">
+                        Politica GDPR
+                    </a>
+                    <span class="text-red-500">*</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="flex justify-end space-x-3">
+            <button id="cancelTermsModalBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                Anulează
+            </button>
+            <button id="acceptTermsModalBtn" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                Accept
+            </button>
         </div>
     </div>
 </div>
@@ -1096,7 +1165,6 @@
         const guardianId = document.getElementById('guardianSelect').value;
         const guardianName = document.getElementById('guardianName').value.trim();
         const guardianPhone = document.getElementById('guardianPhone').value.trim();
-        const guardianEmail = document.getElementById('guardianEmail').value.trim();
         
         const childFirstName = document.getElementById('childFirstName').value.trim();
         const childLastName = document.getElementById('childLastName').value.trim();
@@ -1161,9 +1229,17 @@
                 alert('Te rog selectează un părinte existent');
                 return;
             }
+            // Terms check is already done when guardian is selected, so we can proceed
         } else {
             if (!guardianName || !guardianPhone) {
                 alert('Te rog completează Nume și Telefon pentru părinte nou');
+                return;
+            }
+            // Validate terms acceptance for new guardian
+            const termsAccepted = document.getElementById('terms_accepted').checked;
+            const gdprAccepted = document.getElementById('gdpr_accepted').checked;
+            if (!termsAccepted || !gdprAccepted) {
+                alert('Te rog acceptă termenii și condițiile și politica GDPR');
                 return;
             }
         }
@@ -1192,7 +1268,8 @@
             } else {
                 payload.guardian_name = guardianName;
                 payload.guardian_phone = guardianPhone;
-                payload.guardian_email = guardianEmail || null;
+                payload.terms_accepted = true;
+                payload.gdpr_accepted = true;
             }
             
             const result = await apiCall('/scan-api/create-child', {
@@ -1205,7 +1282,6 @@
                 document.getElementById('guardianSelect').value = '';
                 document.getElementById('guardianName').value = '';
                 document.getElementById('guardianPhone').value = '';
-                document.getElementById('guardianEmail').value = '';
                 document.getElementById('childFirstName').value = '';
                 document.getElementById('childLastName').value = '';
                 document.getElementById('childBirthDate').value = '';
@@ -1369,11 +1445,14 @@
         const isExistingMode = radioExistingGuardian.checked;
         const isNewMode = radioNewGuardian.checked;
 
+        const termsAcceptanceSection = document.getElementById('termsAcceptanceSection');
         if (isExistingMode) {
             // Show child section if a guardian is selected
             const guardianSelectEl = document.getElementById('guardianSelect');
             if (guardianSelectEl && guardianSelectEl.value) {
                 childSection.classList.remove('hidden');
+                // Hide terms acceptance section for existing guardian
+                if (termsAcceptanceSection) termsAcceptanceSection.classList.add('hidden');
             } else {
                 childSection.classList.add('hidden');
             }
@@ -1383,23 +1462,33 @@
             const guardianPhone = document.getElementById('guardianPhone').value.trim();
             if (guardianName && guardianPhone) {
                 childSection.classList.remove('hidden');
+                // Show terms acceptance section for new guardian
+                if (termsAcceptanceSection) termsAcceptanceSection.classList.remove('hidden');
             } else {
                 childSection.classList.add('hidden');
+                if (termsAcceptanceSection) termsAcceptanceSection.classList.add('hidden');
             }
         }
     }
 
     function switchGuardianMode(mode) {
+        const termsAcceptanceSection = document.getElementById('termsAcceptanceSection');
         if (mode === 'existing') {
             existingGuardianPanel.classList.remove('hidden');
             newGuardianPanel.classList.add('hidden');
+            // Hide terms acceptance section for existing guardian
+            if (termsAcceptanceSection) termsAcceptanceSection.classList.add('hidden');
             // clear new guardian inputs to avoid accidental submit
             document.getElementById('guardianName').value = '';
             document.getElementById('guardianPhone').value = '';
-            document.getElementById('guardianEmail').value = '';
+            // Clear terms checkboxes
+            document.getElementById('terms_accepted').checked = false;
+            document.getElementById('gdpr_accepted').checked = false;
         } else {
             existingGuardianPanel.classList.add('hidden');
             newGuardianPanel.classList.remove('hidden');
+            // Show terms acceptance section for new guardian
+            if (termsAcceptanceSection) termsAcceptanceSection.classList.remove('hidden');
             // clear selection in choices for guardian if exists
             const guardianSelectEl = document.getElementById('guardianSelect');
             if (guardianSelectEl) {
@@ -1426,7 +1515,38 @@
     // Listen for guardian selection changes (existing mode)
     const guardianSelectEl = document.getElementById('guardianSelect');
     if (guardianSelectEl) {
-        guardianSelectEl.addEventListener('change', checkAndShowChildSection);
+        guardianSelectEl.addEventListener('change', async function() {
+            checkAndShowChildSection();
+            // Check if selected guardian needs to accept terms
+            const guardianId = this.value;
+            if (guardianId) {
+                const termsCheck = await checkGuardianTerms(guardianId);
+                if (!termsCheck.accepted) {
+                    // Show modal for terms acceptance
+                    const accepted = await showTermsAcceptanceModal();
+                    if (accepted) {
+                        // Save acceptance
+                        const saved = await saveGuardianTermsAcceptance(guardianId);
+                        if (!saved) {
+                            alert('Eroare la salvarea acceptării termenilor. Te rog încearcă din nou.');
+                            // Clear selection
+                            if (guardianChoices) {
+                                guardianChoices.clearStore();
+                                guardianChoices.setChoices([{ value: '', label: 'Caută și selectează părinte...', selected: true }], 'value', 'label', true);
+                            }
+                            childSection.classList.add('hidden');
+                        }
+                    } else {
+                        // User cancelled - clear selection
+                        if (guardianChoices) {
+                            guardianChoices.clearStore();
+                            guardianChoices.setChoices([{ value: '', label: 'Caută și selectează părinte...', selected: true }], 'value', 'label', true);
+                        }
+                        childSection.classList.add('hidden');
+                    }
+                }
+            }
+        });
     }
 
     // Listen for input changes in new guardian fields (new mode)
@@ -1454,6 +1574,83 @@
         });
     });
     observer.observe(assignmentSection, { attributes: true });
+
+    // ===== TERMS ACCEPTANCE FUNCTIONS =====
+    
+    /**
+     * Check if guardian has accepted terms
+     */
+    async function checkGuardianTerms(guardianId) {
+        try {
+            const result = await apiCall(`/scan-api/check-guardian-terms`, {
+                method: 'POST',
+                body: JSON.stringify({ guardian_id: guardianId })
+            });
+            return result.success ? { accepted: result.accepted, needsTerms: result.needs_terms, needsGdpr: result.needs_gdpr } : { accepted: false };
+        } catch (e) {
+            console.error('Error checking guardian terms:', e);
+            return { accepted: false };
+        }
+    }
+
+    /**
+     * Show terms acceptance modal and return promise
+     */
+    function showTermsAcceptanceModal() {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('termsAcceptanceModal');
+            const acceptBtn = document.getElementById('acceptTermsModalBtn');
+            const cancelBtn = document.getElementById('cancelTermsModalBtn');
+            const termsCheckbox = document.getElementById('modal_terms_accepted');
+            const gdprCheckbox = document.getElementById('modal_gdpr_accepted');
+
+            // Reset checkboxes
+            termsCheckbox.checked = false;
+            gdprCheckbox.checked = false;
+
+            // Show modal
+            modal.classList.remove('hidden');
+
+            // Handle accept button
+            const handleAccept = () => {
+                if (!termsCheckbox.checked || !gdprCheckbox.checked) {
+                    alert('Te rog acceptă ambele checkbox-uri pentru a continua');
+                    return;
+                }
+                modal.classList.add('hidden');
+                acceptBtn.removeEventListener('click', handleAccept);
+                cancelBtn.removeEventListener('click', handleCancel);
+                resolve(true);
+            };
+
+            // Handle cancel button
+            const handleCancel = () => {
+                modal.classList.add('hidden');
+                acceptBtn.removeEventListener('click', handleAccept);
+                cancelBtn.removeEventListener('click', handleCancel);
+                resolve(false);
+            };
+
+            acceptBtn.addEventListener('click', handleAccept);
+            cancelBtn.addEventListener('click', handleCancel);
+        });
+    }
+
+    /**
+     * Save guardian terms acceptance
+     */
+    async function saveGuardianTermsAcceptance(guardianId) {
+        try {
+            const result = await apiCall('/scan-api/accept-guardian-terms', {
+                method: 'POST',
+                body: JSON.stringify({ guardian_id: guardianId })
+            });
+            return result.success;
+        } catch (e) {
+            console.error('Error saving guardian terms acceptance:', e);
+            return false;
+        }
+    }
 
 </script>
 @endsection
