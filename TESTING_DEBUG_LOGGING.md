@@ -185,3 +185,4 @@ Acest comand va afișa toate logurile în timp real cu culori.
 2. Încearcă să accesezi resursă inexistentă → Verifică eroare în Telescope
 3. Încearcă operațiune nepermisă → Verifică eroare cu context complet
 
+
