@@ -32,14 +32,6 @@ class ScanEvent extends Model
     }
 
     /**
-     * Get the bracelet that was scanned.
-     */
-    public function bracelet(): BelongsTo
-    {
-        return $this->belongsTo(Bracelet::class);
-    }
-
-    /**
      * Get the child that was scanned.
      */
     public function child(): BelongsTo

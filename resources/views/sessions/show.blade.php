@@ -30,8 +30,8 @@
                         Printează Bon
                     </a>
                     @endif
-                    <span class="px-3 py-1 text-sm font-medium rounded-full {{ $session->status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
-                        {{ $session->status === 'completed' ? 'Închisă' : ucfirst($session->status) }}
+                    <span class="px-3 py-1 text-sm font-medium rounded-full {{ $session->ended_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                        {{ $session->ended_at ? 'Închisă' : 'Activă' }}
                     </span>
                 </div>
             </div>
@@ -53,7 +53,7 @@
                 <div>
                     <div class="text-sm text-gray-600 mb-1">Brățară</div>
                     <div class="text-lg font-semibold text-gray-900 font-mono">
-                        {{ $session->bracelet ? $session->bracelet->code : '-' }}
+                        {{ $session->bracelet_code ?: '-' }}
                     </div>
                 </div>
                 <div>

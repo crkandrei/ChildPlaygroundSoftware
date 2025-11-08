@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Bracelet;
 use App\Models\Child;
 use App\Models\Guardian;
 use App\Models\PlaySession;
@@ -83,8 +82,8 @@ class ScanPageController extends Controller
      */
     public function lookupBracelet(LookupBraceletRequest $request)
     {
-        // Normalize code
-        $code = strtoupper(trim($request->code));
+        // Normalize code - only trim, preserve case for barcode
+        $code = trim($request->code);
 
         // Folosește tenant-ul utilizatorului autentificat
         $user = Auth::user();
@@ -100,7 +99,7 @@ class ScanPageController extends Controller
     }
 
     /**
-     * Assign bracelet to child
+     * Assign bracelet code to child and start session
      */
     public function assignBracelet(AssignBraceletRequest $request)
     {
@@ -114,20 +113,13 @@ class ScanPageController extends Controller
             return ApiResponder::error('Nu există niciun tenant în sistem', 400);
         }
 
-        $bracelet = Bracelet::where('code', $request->bracelet_code)
-            ->where('tenant_id', $tenant->id)
-            ->first();
-
+        $braceletCode = trim($request->bracelet_code);
         $child = Child::where('id', $request->child_id)
             ->where('tenant_id', $tenant->id)
             ->first();
 
-        if (!$bracelet || !$child) {
-            return ApiResponder::error('Brățară sau copil nu a fost găsit', 404);
-        }
-
-        if (!$bracelet->isAvailable()) {
-            return ApiResponder::error('Brățară nu este disponibilă', 400);
+        if (!$child) {
+            return ApiResponder::error('Copil nu a fost găsit', 404);
         }
 
         // Verifică dacă copilul are deja o sesiune activă
@@ -140,44 +132,29 @@ class ScanPageController extends Controller
             return ApiResponder::error(
                 "Copilul {$childName} are deja o sesiune activă care a început la " . 
                 $existingSession->started_at->format('d.m.Y H:i') . 
-                ". Te rog oprește sesiunea existentă înainte de a asigna o brățară nouă.",
+                ". Te rog oprește sesiunea existentă înainte de a începe una nouă.",
                 400
             );
         }
 
         try {
-            $result = DB::transaction(function () use ($tenant, $child, $bracelet) {
-                // Asignează brățara
-                $bracelet->update([
-                    'child_id' => $child->id,
-                    'status' => 'assigned',
-                    'assigned_at' => now(),
-                ]);
-
-                // Pornește sesiunea (dacă aruncă excepție, tranzacția se face rollback)
-                $session = $this->scanService->startPlaySession($tenant, $child, $bracelet);
-
-                return [
-                    'bracelet' => $bracelet->fresh(['child.guardian']),
-                    'session' => $session,
-                ];
-            });
+            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode);
 
             return ApiResponder::success([
-                'message' => 'Brățară asignată și sesiune pornită',
-                'bracelet' => $result['bracelet'],
+                'message' => 'Sesiune pornită cu succes',
                 'session' => [
-                    'id' => $result['session']->id,
-                    'started_at' => $result['session']->started_at->toISOString(),
+                    'id' => $session->id,
+                    'started_at' => $session->started_at->toISOString(),
+                    'bracelet_code' => $braceletCode,
                 ],
             ]);
         } catch (\Throwable $e) {
-            return ApiResponder::error('Nu s-a putut asigna brățara și porni sesiunea: ' . $e->getMessage(), 500);
+            return ApiResponder::error('Nu s-a putut porni sesiunea: ' . $e->getMessage(), 500);
         }
     }
 
     /**
-     * Create new child and assign bracelet
+     * Create new child and start session with bracelet code
      */
     public function createChild(CreateChildRequest $request)
     {
@@ -191,21 +168,10 @@ class ScanPageController extends Controller
             return ApiResponder::error('Nu există niciun tenant în sistem', 400);
         }
 
+        $braceletCode = trim($request->bracelet_code);
+
         try {
-            $data = DB::transaction(function () use ($request, $tenant) {
-                // Găsește brățara
-                $bracelet = Bracelet::where('code', $request->bracelet_code)
-                    ->where('tenant_id', $tenant->id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if (!$bracelet) {
-                    throw new \Exception('Brățară nu a fost găsită');
-                }
-                if ($bracelet->child_id) {
-                    throw new \Exception('Brățara este deja asignată unui copil');
-                }
-
+            $data = DB::transaction(function () use ($request, $tenant, $braceletCode) {
                 // Identifică sau creează părintele/tutorul în funcție de datele primite
                 if ($request->filled('guardian_id')) {
                     $guardian = Guardian::where('id', $request->guardian_id)
@@ -262,30 +228,23 @@ class ScanPageController extends Controller
                     'tenant_id' => $tenant->id,
                 ]);
 
-                // Asignează brățara copilului
-                $bracelet->update([
-                    'child_id' => $child->id,
-                    'status' => 'assigned',
-                    'assigned_at' => now(),
-                ]);
-
-                // Pornește sesiunea; dacă eșuează, tranzacția se va anula (nu rămâne asignare fără sesiune)
-                $session = $this->scanService->startPlaySession($tenant, $child, $bracelet);
+                // Pornește sesiunea cu codul de bare
+                $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode);
 
                 return [
                     'child' => $child,
                     'guardian' => $guardian,
-                    'bracelet' => $bracelet->fresh(),
+                    'bracelet_code' => $braceletCode,
                     'session' => $session,
                 ];
             });
 
             return ApiResponder::success([
-                'message' => 'Copil creat, brățară asignată și sesiune pornită',
+                'message' => 'Copil creat și sesiune pornită',
                 'data' => [
                     'child' => $data['child'],
                     'guardian' => $data['guardian'],
-                    'bracelet' => $data['bracelet'],
+                    'bracelet_code' => $data['bracelet_code'],
                     'session' => [
                         'id' => $data['session']->id,
                         'started_at' => $data['session']->started_at->toISOString(),
@@ -388,15 +347,12 @@ class ScanPageController extends Controller
                 ->where('tenant_id', $tenant->id)
                 ->first();
 
-            $bracelet = Bracelet::where('code', $request->bracelet_code)
-                ->where('tenant_id', $tenant->id)
-                ->first();
-
-            if (!$child || !$bracelet) {
-                return ApiResponder::error('Copil sau brățară nu a fost găsit', 404);
+            if (!$child) {
+                return ApiResponder::error('Copil nu a fost găsit', 404);
             }
 
-            $session = $this->scanService->startPlaySession($tenant, $child, $bracelet);
+            $braceletCode = trim($request->bracelet_code);
+            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode);
 
             return ApiResponder::success([
                 'message' => 'Sesiunea a început cu succes',
@@ -405,7 +361,7 @@ class ScanPageController extends Controller
                     'child_name' => $child->first_name . ' ' . $child->last_name,
                     'parent_name' => $child->guardian->name,
                     'started_at' => $session->started_at->toISOString(),
-                    'bracelet_code' => $bracelet->code,
+                    'bracelet_code' => $braceletCode,
                 ],
             ]);
 
@@ -420,20 +376,19 @@ class ScanPageController extends Controller
     public function stopSession(Request $request, $sessionId)
     {
         try {
-            // Get session first to verify bracelet
+            // Get session first to verify bracelet code
             $session = PlaySession::with('child')->findOrFail($sessionId);
             
             // Verify bracelet code if provided
             $braceletCode = $request->input('bracelet_code');
-            if ($braceletCode && $session->bracelet_id) {
-                $bracelet = Bracelet::find($session->bracelet_id);
-                if ($bracelet && $bracelet->code !== strtoupper(trim($braceletCode))) {
+            if ($braceletCode && $session->bracelet_code) {
+                if ($session->bracelet_code !== trim($braceletCode)) {
                     $child = $session->child;
                     $childName = $child ? ($child->first_name . ' ' . $child->last_name) : 'necunoscut';
                     return ApiResponder::error(
-                        "Brățara scanată ({$braceletCode}) nu corespunde cu sesiunea care se încearcă să fie oprită. " .
-                        "Sesiunea aparține copilului {$childName} cu brățara {$bracelet->code}. " .
-                        "Te rog scanează brățara corectă.",
+                        "Codul scanat ({$braceletCode}) nu corespunde cu sesiunea care se încearcă să fie oprită. " .
+                        "Sesiunea aparține copilului {$childName} cu codul {$session->bracelet_code}. " .
+                        "Te rog scanează codul corect.",
                         400
                     );
                 }
@@ -467,7 +422,6 @@ class ScanPageController extends Controller
                 'message' => 'Sesiunea a fost pusă pe pauză',
                 'session' => [
                     'id' => $session->id,
-                    'status' => $session->status,
                     'is_paused' => $session->isPaused(),
                     'effective_seconds' => $session->getEffectiveDurationSeconds(),
                 ],
@@ -489,7 +443,6 @@ class ScanPageController extends Controller
                 'message' => 'Sesiunea a fost reluată',
                 'session' => [
                     'id' => $session->id,
-                    'status' => $session->status,
                     'is_paused' => $session->isPaused(),
                     'effective_seconds' => $session->getEffectiveDurationSeconds(),
                     'current_interval_started_at' => optional($session->intervals()->whereNull('ended_at')->latest('started_at')->first())->started_at?->toISOString(),
@@ -598,7 +551,7 @@ class ScanPageController extends Controller
                 });
             })
             ->with(['guardian:id,name,phone', 'activeSessions' => function($q) {
-                $q->whereNull('ended_at')->with('intervals')->with('bracelet:id,code');
+                $q->whereNull('ended_at')->with('intervals');
             }])
             ->orderBy('first_name')
             ->orderBy('last_name')
@@ -616,7 +569,7 @@ class ScanPageController extends Controller
                 'internal_code' => $child->internal_code,
                 'guardian_name' => optional($child->guardian)->name,
                 'guardian_phone' => optional($child->guardian)->phone,
-                'bracelet_code' => $activeSession && $activeSession->bracelet ? $activeSession->bracelet->code : null,
+                'bracelet_code' => $activeSession ? $activeSession->bracelet_code : null,
                 'session_id' => $activeSession ? $activeSession->id : null,
                 'session_started_at' => $activeSession && $activeSession->started_at ? $activeSession->started_at->toISOString() : null,
                 'session_is_paused' => $activeSession ? $activeSession->isPaused() : false,
@@ -649,7 +602,7 @@ class ScanPageController extends Controller
 
         $child = Child::where('id', $childId)
             ->where('tenant_id', $tenant->id)
-            ->with(['guardian', 'bracelets'])
+            ->with(['guardian'])
             ->first();
 
         if (!$child) {
@@ -668,9 +621,6 @@ class ScanPageController extends Controller
 
         $currentInterval = $activeSession->intervals->whereStrict('ended_at', null)->sortByDesc('started_at')->first();
         
-        // Get bracelet for this session
-        $bracelet = Bracelet::find($activeSession->bracelet_id);
-
         return ApiResponder::success([
             'success' => true,
             'child' => [
@@ -679,14 +629,10 @@ class ScanPageController extends Controller
                 'last_name' => $child->last_name,
                 'guardian_name' => optional($child->guardian)->name,
             ],
-            'bracelet' => $bracelet ? [
-                'id' => $bracelet->id,
-                'code' => $bracelet->code,
-            ] : null,
+            'bracelet_code' => $activeSession->bracelet_code,
             'active_session' => [
                 'id' => $activeSession->id,
                 'started_at' => optional($activeSession->started_at)->toISOString(),
-                'status' => $activeSession->status ?? 'active',
                 'is_paused' => $activeSession->isPaused(),
                 'effective_seconds' => $activeSession->getEffectiveDurationSeconds(),
                 'current_interval_started_at' => $currentInterval && $currentInterval->started_at ? $currentInterval->started_at->toISOString() : null,

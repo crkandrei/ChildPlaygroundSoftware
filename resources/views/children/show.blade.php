@@ -215,65 +215,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Bracelets -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Brățări Asociate</h2>
-        </div>
-        <div class="p-6">
-            @if($child->bracelets->count() > 0)
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    @foreach($child->bracelets as $bracelet)
-                        <div class="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-colors">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <div class="text-sm text-gray-500 mb-1">Cod RFID</div>
-                                    <div class="font-mono text-lg font-semibold text-gray-900">{{ $bracelet->code }}</div>
-                                    <div class="mt-2">
-                                        @if($bracelet->status === 'assigned')
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                Asignată
-                                            </span>
-                                        @elseif($bracelet->status === 'available')
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                Disponibilă
-                                            </span>
-                                        @elseif($bracelet->status === 'lost')
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                                Pierdută
-                                            </span>
-                                        @elseif($bracelet->status === 'damaged')
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                                Deteriorată
-                                            </span>
-                                        @endif
-                                    </div>
-                                </div>
-                                <a href="{{ route('bracelets.show', $bracelet) }}" 
-                                   class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                                    Vezi →
-                                </a>
-                            </div>
-                            @if($bracelet->assigned_at)
-                                <div class="mt-3 text-xs text-gray-500">
-                                    Asignată la: {{ $bracelet->assigned_at->format('d.m.Y H:i') }}
-                                </div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            @else
-                <div class="text-center py-8">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">Nu există brățări asociate</h3>
-                    <p class="mt-1 text-sm text-gray-500">Acest copil nu are încă brățări RFID asignate.</p>
-                </div>
-            @endif
-        </div>
-    </div>
 </div>
 @endsection
 

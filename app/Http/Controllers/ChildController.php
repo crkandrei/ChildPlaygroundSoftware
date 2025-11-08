@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Child;
 use App\Models\Guardian;
-use App\Models\Bracelet;
 use App\Models\PlaySession;
 use App\Support\ApiResponder;
 use App\Support\ActionLogger;
@@ -29,9 +28,7 @@ class ChildController extends Controller
 
         // Get children with their guardians and active sessions
         $children = Child::where('tenant_id', $tenant->id)
-            ->with(['guardian', 'bracelets' => function($query) {
-                $query->where('status', 'assigned');
-            }])
+            ->with(['guardian'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -139,19 +136,14 @@ class ChildController extends Controller
             return redirect()->route('children.index')->with('error', 'Copilul nu a fost găsit');
         }
 
-        // Load guardian, bracelets, and recent scan events
+        // Load guardian and recent scan events
         $child->load([
-            'guardian',
-            'bracelets' => function($query) {
-                $query->with(['scanEvents' => function($q) {
-                    $q->orderBy('scanned_at', 'desc')->limit(10);
-                }]);
-            }
+            'guardian'
         ]);
 
-        // Load play sessions with intervals and bracelet, ordered by newest first
+        // Load play sessions with intervals, ordered by newest first
         $playSessions = PlaySession::where('child_id', $child->id)
-            ->with(['bracelet', 'intervals'])
+            ->with(['intervals'])
             ->orderBy('started_at', 'desc')
             ->get()
             ->map(function ($session) {
@@ -177,8 +169,7 @@ class ChildController extends Controller
                         'id' => $session->id,
                         'started_at' => $session->started_at,
                         'ended_at' => null,
-                        'status' => $session->status,
-                        'bracelet_code' => $session->bracelet->code ?? null,
+                        'bracelet_code' => $session->bracelet_code ?? null,
                         'effective_seconds' => $effectiveSeconds,
                         'is_paused' => $isPaused,
                         'current_interval_started_at' => $currentIntervalStartedAt,
@@ -197,8 +188,7 @@ class ChildController extends Controller
                         'id' => $session->id,
                         'started_at' => $session->started_at,
                         'ended_at' => $session->ended_at,
-                        'status' => $session->status,
-                        'bracelet_code' => $session->bracelet->code ?? null,
+                        'bracelet_code' => $session->bracelet_code ?? null,
                         'effective_seconds' => $effectiveSeconds,
                         'is_paused' => false,
                         'current_interval_started_at' => null,
@@ -310,8 +300,8 @@ class ChildController extends Controller
         }
 
         // Check if child has active sessions
-        $hasActiveSessions = $child->bracelets()
-            ->where('status', 'assigned')
+        $hasActiveSessions = PlaySession::where('child_id', $child->id)
+            ->whereNull('ended_at')
             ->exists();
 
         if ($hasActiveSessions) {
@@ -437,7 +427,7 @@ class ChildController extends Controller
 
         // Base query
         $query = Child::where('tenant_id', $tenantId)
-            ->with(['guardian:id,name,phone', 'bracelets:id,child_id,code,status'])
+            ->with(['guardian:id,name,phone'])
             ->with(['activeSessions' => function($q) {
                 $q->whereNull('ended_at')->with('intervals');
             }])
@@ -465,9 +455,6 @@ class ChildController extends Controller
                           ->orWhereHas('guardian', function ($g) use ($like) {
                               $g->where('name', 'LIKE', $like)
                                 ->orWhere('phone', 'LIKE', $like);
-                          })
-                          ->orWhereHas('bracelets', function ($b) use ($like) {
-                              $b->where('code', 'LIKE', $like);
                           });
                 });
             });
@@ -511,8 +498,6 @@ class ChildController extends Controller
                       ->get();
 
         $dataRows = $rows->map(function ($c) {
-            $braceletCodes = $c->bracelets->pluck('code')->values();
-            $firstStatus = optional($c->bracelets->first())->status;
             $activeStartedAt = $c->active_started_at ? Carbon::parse($c->active_started_at)->toISOString() : null;
             
             // Get effective duration (excluding pauses) for active session
@@ -520,10 +505,12 @@ class ChildController extends Controller
             $effectiveSeconds = null;
             $isPaused = false;
             $currentIntervalStartedAt = null;
+            $braceletCode = null;
             if ($c->activeSessions && $c->activeSessions->isNotEmpty()) {
                 $session = $c->activeSessions->first();
                 $effectiveSeconds = $session->getClosedIntervalsDurationSeconds();
                 $isPaused = $session->isPaused();
+                $braceletCode = $session->bracelet_code;
                 // Get current active interval start time
                 if (!$isPaused) {
                     $openInterval = $session->intervals()->whereNull('ended_at')->latest('started_at')->first();
@@ -542,8 +529,7 @@ class ChildController extends Controller
                 'guardian_phone' => optional($c->guardian)->phone,
                 'internal_code' => $c->internal_code,
                 'birth_date' => optional($c->birth_date)->format('Y-m-d'),
-                'bracelet_codes' => $braceletCodes,
-                'bracelet_status' => $firstStatus,
+                'bracelet_code' => $braceletCode,
                 'active_session_id' => $c->active_session_id,
                 'active_started_at' => $activeStartedAt,
                 'effective_seconds' => $effectiveSeconds,

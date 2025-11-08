@@ -68,7 +68,7 @@ class DashboardService
                     'parent_name' => $guardian->name ?? '-',
                     'started_at' => $session->started_at ? $session->started_at->toISOString() : null,
                     'duration' => $session->getFormattedDuration(),
-                    'bracelet_code' => $session->bracelet->code ?? null,
+                    'bracelet_code' => $session->bracelet_code ?? null,
                 ];
             })
             ->toArray();

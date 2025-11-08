@@ -251,7 +251,7 @@
             
             <div class="receipt-section">
                 <div class="label">Brățară</div>
-                <div class="value">{{ $session->bracelet ? $session->bracelet->code : '-' }}</div>
+                <div class="value">{{ $session->bracelet_code ?: '-' }}</div>
             </div>
             
             <div class="divider"></div>
@@ -313,5 +313,6 @@
     </script>
 </body>
 </html>
+
 
 

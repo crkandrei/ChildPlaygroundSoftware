@@ -55,7 +55,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
     {
         return PlaySession::where('tenant_id', $tenantId)
             ->whereNull('ended_at')
-            ->with(['child.guardian', 'bracelet'])
+            ->with(['child.guardian'])
             ->get();
     }
 

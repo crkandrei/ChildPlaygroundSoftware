@@ -73,10 +73,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/guardians-search', [App\Http\Controllers\GuardianController::class, 'search'])->name('guardians.search');
     Route::get('/guardians-data', [App\Http\Controllers\GuardianController::class, 'data'])->name('guardians.data');
     
-    // Bracelets management
-    Route::resource('bracelets', App\Http\Controllers\BraceletController::class);
-    Route::post('/bracelets/{bracelet}/unassign', [App\Http\Controllers\BraceletController::class, 'unassign'])->name('bracelets.unassign');
-    
     // Legal documents (accessible without auth for parents to read)
     Route::get('/legal/terms', [App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');
     Route::get('/legal/gdpr', [App\Http\Controllers\LegalController::class, 'gdpr'])->name('legal.gdpr');

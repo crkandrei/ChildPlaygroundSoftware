@@ -11,9 +11,9 @@
             <!-- RFID Code Search -->
             <div class="flex items-center gap-3 relative">
                 <label for="rfidCode" class="sr-only">Cod RFID</label>
-                <input id="rfidCode" maxlength="10" autocomplete="off"
+                <input id="rfidCode" maxlength="255" autocomplete="off"
                        class="flex-1 h-12 px-4 text-2xl tracking-widest font-mono border border-gray-300 rounded-md focus:outline-none focus:ring-4 focus:ring-gray-900/20"
-                       placeholder="ABC1234567">
+                       placeholder="Scanează cod de bare">
                 <button id="searchBtn" disabled
                         class="h-12 px-6 text-lg bg-gray-900 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
                     Caută
@@ -424,7 +424,7 @@
         document.getElementById('sessionChildName').textContent = 
             data.child ? `${data.child.first_name} ${data.child.last_name}` : '-';
         document.getElementById('sessionBraceletCode').textContent = 
-            data.bracelet && data.bracelet.code ? data.bracelet.code : '-';
+            data.bracelet_code || data.active_session?.bracelet_code || '-';
         document.getElementById('sessionStartedAt').textContent = 
             formatDateTime(data.active_session.started_at);
         
@@ -480,7 +480,9 @@
             return;
         }
 
-        currentBracelet = data.bracelet;
+        // Store bracelet code from response
+        const braceletCode = data.bracelet_code || (data.bracelet && data.bracelet.code);
+        currentBracelet = braceletCode ? { code: braceletCode } : null;
         
         // Dacă are sesiune activă, ascunde cardul și secțiunea de asignare
         if (data.active_session) {
@@ -488,6 +490,10 @@
             assignmentSection.classList.add('hidden');
             renderActiveSession(data);
             updateStatusChip('În joc', 'warn');
+            // Prepare input for next scan (but keep current code visible for reference)
+            setTimeout(() => {
+                prepareInputForScanning();
+            }, 100);
             return;
         }
         
@@ -502,6 +508,10 @@
             updateStatusChip('Disponibilă', 'warn');
             // Update button state when assignment section becomes visible
             updateAssignButtonState();
+            // Prepare input for next scan (but keep current code visible for reference)
+            setTimeout(() => {
+                prepareInputForScanning();
+            }, 100);
         } else {
             assignmentSection.classList.add('hidden');
             updateStatusChip('OK', undefined);
@@ -553,21 +563,179 @@
     const childrenSearchResultsList = document.getElementById('childrenSearchResultsList');
     let childrenSearchTimeout;
     let currentChildrenResults = [];
+    let barcodeScanTimeout;
+    let lastInputTime = 0;
+    let inputLengthBefore = 0;
+    let rapidInputStartLength = 0; // Track when rapid input starts
+    
+    // Function to prepare input for scanning (focus only, don't auto-select)
+    function prepareInputForScanning() {
+        codeInput.focus();
+        // Don't auto-select - let the focus handler do it if needed
+    }
+    
+    // Function to clear input and prepare for next scan
+    function clearInputForNextScan() {
+        codeInput.value = '';
+        codeInput.dispatchEvent(new Event('input'));
+        prepareInputForScanning();
+    }
+    
+    // Track input changes to detect barcode scanner (rapid input)
+    codeInput.addEventListener('focus', function() {
+        // Auto-select content when input gets focus (but only if it has content)
+        setTimeout(() => {
+            if (codeInput.value.length > 0) {
+                codeInput.select();
+            }
+        }, 10);
+    });
     
     codeInput.addEventListener('input', function(e) {
-        const value = e.target.value.toUpperCase().slice(0, 10);
+        const now = Date.now();
+        const currentLength = e.target.value.length;
+        const timeSinceLastInput = now - lastInputTime;
+        const fullValue = e.target.value;
+        
+        // Detect rapid input (barcode scanner) - characters coming in < 50ms apart
+        const isRapidInput = timeSinceLastInput < 50 && currentLength > inputLengthBefore;
+        
+        // PREVENT concatenation: When new scan starts (after pause > 200ms) and there's existing content,
+        // clear the old content immediately before scanner writes new characters
+        if (timeSinceLastInput > 200 && inputLengthBefore > 0 && currentLength > inputLengthBefore) {
+            // New scan starting over existing content - clear old content and keep only new scan
+            const newChars = fullValue.substring(inputLengthBefore);
+            e.target.value = newChars;
+            inputLengthBefore = newChars.length;
+            rapidInputStartLength = 0;
+            lastInputTime = now;
+            
+            // Continue with trimmed value
+            const value = e.target.value.trim();
+            e.target.value = value;
+            
+            // Update button state
+            if (searchBtn) {
+                searchBtn.disabled = value.length === 0;
+            }
+            
+            // Handle auto-submit for barcode scanner
+            clearTimeout(barcodeScanTimeout);
+            if (value.length >= 3) {
+                barcodeScanTimeout = setTimeout(() => {
+                    const currentValue = codeInput.value.trim();
+                    if (currentValue.length > 0 && searchBtn) {
+                        searchBtn.disabled = false;
+                        searchBtn.click();
+                    }
+                }, 500);
+            }
+            return; // Exit early, already processed
+        }
+        
+        // Track when rapid input starts (after a pause > 200ms)
+        if (timeSinceLastInput > 200 && currentLength > inputLengthBefore) {
+            // New input sequence starting - mark the start length
+            rapidInputStartLength = inputLengthBefore;
+        }
+        
+        // Fix concatenation if it still happened (fallback)
+        if (isRapidInput && rapidInputStartLength > 0 && currentLength > rapidInputStartLength + 1) {
+            // Scanner concatenated over existing content - extract only new scan
+            const newScan = fullValue.substring(rapidInputStartLength);
+            e.target.value = newScan;
+            inputLengthBefore = newScan.length;
+            rapidInputStartLength = 0; // Reset after fixing
+            lastInputTime = now;
+        } else {
+            // Normal input - just track
+            lastInputTime = now;
+            inputLengthBefore = currentLength;
+            // Reset rapid input start if input stopped (pause > 500ms)
+            if (timeSinceLastInput > 500) {
+                rapidInputStartLength = 0;
+            }
+        }
+        
+        const value = e.target.value.trim();
         e.target.value = value;
         
-        if (searchBtn) searchBtn.disabled = value.length !== 10;
+        // Enable search button if code has at least 1 character
+        if (searchBtn) {
+            searchBtn.disabled = value.length === 0;
+        }
         
-        // If input is not a valid RFID code (10 chars), search for children
-        if (value.length > 0 && value.length < 10) {
+        // Clear previous barcode scan timeout
+        clearTimeout(barcodeScanTimeout);
+        
+        // If input is not empty but short, search for children
+        if (value.length > 0 && value.length < 3) {
             clearTimeout(childrenSearchTimeout);
             childrenSearchTimeout = setTimeout(() => {
                 searchChildrenWithSessions(value);
             }, 300);
         } else {
             hideChildrenSearchResults();
+            // Auto-submit after 500ms of no typing (barcode scanner finished)
+            if (value.length >= 3) {
+                barcodeScanTimeout = setTimeout(() => {
+                    const currentValue = codeInput.value.trim();
+                    if (currentValue.length > 0) {
+                        if (searchBtn) {
+                            searchBtn.disabled = false;
+                            searchBtn.click();
+                        }
+                    }
+                }, 500);
+            }
+        }
+    });
+    
+    // Also handle keyup to ensure button is enabled
+    codeInput.addEventListener('keyup', function(e) {
+        const value = e.target.value.trim();
+        if (searchBtn && value.length > 0) {
+            searchBtn.disabled = false;
+        }
+    });
+    
+    // Handle paste event (for barcode scanners)
+    codeInput.addEventListener('paste', function(e) {
+        setTimeout(() => {
+            const value = codeInput.value.trim();
+            codeInput.value = value;
+            if (searchBtn && value.length > 0) {
+                searchBtn.disabled = false;
+            }
+            // Auto-submit if code is long enough (likely a barcode scan)
+            if (value.length >= 3) {
+                setTimeout(() => {
+                    const currentValue = codeInput.value.trim();
+                    if (currentValue.length > 0) {
+                        if (!searchBtn.disabled) {
+                            searchBtn.click();
+                        } else {
+                            searchBtn.disabled = false;
+                            searchBtn.click();
+                        }
+                    }
+                }, 150);
+            }
+        }, 10);
+    });
+    
+    // Handle change event (for programmatic changes or barcode scanners)
+    codeInput.addEventListener('change', function(e) {
+        const value = codeInput.value.trim();
+        codeInput.value = value;
+        if (searchBtn && value.length > 0) {
+            searchBtn.disabled = false;
+            // Auto-submit if code is long enough
+            if (value.length >= 3) {
+                setTimeout(() => {
+                    searchBtn.click();
+                }, 100);
+            }
         }
     });
     
@@ -587,7 +755,7 @@
     
     searchBtn.addEventListener('click', async function() {
         const code = codeInput.value.trim();
-        if (code.length !== 10) return;
+        if (code.length === 0) return;
         this.disabled = true;
         const prev = this.textContent;
         this.textContent = 'Se caută...';
@@ -596,6 +764,10 @@
             renderBraceletInfo(data);
             // Load recent completed (in case a previous stop just happened)
             loadRecentCompleted();
+            // Prepare input for next scan after successful search
+            setTimeout(() => {
+                prepareInputForScanning();
+            }, 200);
         } catch (err) {
             // Extract exact error message from API response
             let errorMessage = 'Eroare la căutare';
@@ -607,6 +779,10 @@
                 errorMessage = err.message;
             }
             renderBraceletInfo({ success: false, message: errorMessage });
+            // Prepare input for next scan even after error
+            setTimeout(() => {
+                prepareInputForScanning();
+            }, 200);
         } finally {
             this.disabled = false;
             this.textContent = prev;
@@ -615,9 +791,17 @@
 
     // Enter key to search
     codeInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !searchBtn.disabled) {
-            searchBtn.click();
-            hideChildrenSearchResults();
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const code = codeInput.value.trim();
+            if (code.length > 0) {
+                // Force enable button if code exists
+                if (searchBtn) {
+                    searchBtn.disabled = false;
+                    searchBtn.click();
+                }
+                hideChildrenSearchResults();
+            }
         } else if (e.key === 'ArrowDown' && childrenSearchResults.classList.contains('hidden') === false && currentChildrenResults.length > 0) {
             e.preventDefault();
             const firstChild = childrenSearchResultsList.querySelector('.child-result-item');
@@ -739,20 +923,17 @@
             const result = await apiCall(`/scan-api/child-session/${childId}`);
             
             if (result.success && result.active_session) {
-                // Set current bracelet from session
-                currentBracelet = result.bracelet ? {
-                    id: result.bracelet.id,
-                    code: result.bracelet.code
-                } : null;
+                // Set current bracelet code from session
+                const braceletCode = result.bracelet_code || (result.bracelet && result.bracelet.code);
+                currentBracelet = braceletCode ? { code: braceletCode } : null;
                 
-                // Clear input
-                codeInput.value = '';
-                codeInput.dispatchEvent(new Event('input'));
+                // Clear input and prepare for next scan
+                clearInputForNextScan();
                 
                 // Render active session using existing function
                 renderBraceletInfo({
                     success: true,
-                    bracelet: currentBracelet,
+                    bracelet_code: braceletCode,
                     child: result.child,
                     active_session: result.active_session
                 });
@@ -809,6 +990,10 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                // Prepare input for next scan after pause/resume
+                setTimeout(() => {
+                    prepareInputForScanning();
+                }, 200);
             } else {
                 alert('Eroare: ' + (result.message || `Nu s-a putut ${isPaused ? 'relua' : 'pune pe pauză'} sesiunea`));
                 this.innerHTML = originalContent;
@@ -870,9 +1055,8 @@
                 // Reset bracelet reference
                 currentBracelet = null;
                 
-                // Clear input field
-                codeInput.value = '';
-                codeInput.dispatchEvent(new Event('input'));
+                // Clear input field and prepare for next scan
+                clearInputForNextScan();
                 
                 // Reset interface - hide assignment section and show ready message
                 const card = document.getElementById('stateCard');
@@ -1118,7 +1302,7 @@
             const result = await apiCall('/scan-api/assign', {
                 method: 'POST',
                 body: JSON.stringify({
-                    bracelet_code: currentBracelet.code,
+                    bracelet_code: currentBracelet ? currentBracelet.code : null,
                     child_id: childId
                 })
             });
@@ -1135,6 +1319,10 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                // Clear input and prepare for next scan after successful assignment
+                setTimeout(() => {
+                    clearInputForNextScan();
+                }, 300);
             } else {
                 alert('Eroare: ' + (result.message || 'Nu s-a putut asigna'));
             }
@@ -1295,6 +1483,10 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                // Clear input and prepare for next scan after successful creation
+                setTimeout(() => {
+                    clearInputForNextScan();
+                }, 300);
             } else {
                 alert('Eroare: ' + (result.message || 'Nu s-a putut crea'));
             }

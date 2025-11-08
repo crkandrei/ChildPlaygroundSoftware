@@ -47,14 +47,6 @@ class Tenant extends Model
     }
 
     /**
-     * Get the bracelets for the tenant.
-     */
-    public function bracelets(): HasMany
-    {
-        return $this->hasMany(Bracelet::class);
-    }
-
-    /**
      * Get the scan events for the tenant.
      */
     public function scanEvents(): HasMany

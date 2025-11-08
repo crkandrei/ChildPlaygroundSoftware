@@ -25,7 +25,7 @@ class CreateChildRequest extends FormRequest
             'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
             'guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian_phone' => ['nullable', 'string', 'max:20'],
-            'bracelet_code' => ['required', 'string', 'size:10'],
+            'bracelet_code' => ['required', 'string', 'min:1', 'max:255'],
         ];
     }
 

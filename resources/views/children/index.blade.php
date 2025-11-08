@@ -41,7 +41,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-600 mb-1">Sesiuni Active</p>
-                    <p class="text-3xl font-bold text-green-600">{{ $children->where('bracelets', '!=', null)->count() }}</p>
+                    <p class="text-3xl font-bold text-green-600">{{ \App\Models\PlaySession::where('tenant_id', Auth::user()->tenant->id)->whereNull('ended_at')->count() }}</p>
                     <p class="text-xs text-gray-500 mt-1">În desfășurare</p>
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">

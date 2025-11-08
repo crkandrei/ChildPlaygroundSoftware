@@ -29,11 +29,6 @@
             @csrf
             @method('PUT')
 
-            @if($child->bracelets()->whereNotNull('child_id')->count() > 0)
-                <div class="bg-yellow-50 border border-yellow-200 rounded p-4 text-yellow-800">
-                    Acest copil are brățări asignate. Modificările vor afecta toate înregistrările asociate.
-                </div>
-            @endif
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- First Name -->

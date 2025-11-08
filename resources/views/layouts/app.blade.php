@@ -215,13 +215,6 @@
                         <span class="sidebar-text">Părinți</span>
                     </a>
                     
-                    <a href="{{ route('bracelets.index') }}" 
-                       data-title="Brățări"
-                       class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('bracelets.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
-                        <i class="fas fa-qrcode sidebar-icon mr-3"></i>
-                        <span class="sidebar-text">Brățări</span>
-                    </a>
-                    
                     <a href="{{ route('reports.index') }}" 
                        data-title="Rapoarte"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('reports.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">

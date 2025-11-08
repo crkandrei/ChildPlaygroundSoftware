@@ -14,7 +14,7 @@ class LookupBraceletRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'size:10'],
+            'code' => ['required', 'string', 'min:1', 'max:255'],
         ];
     }
 

@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\ScanEvent;
 use App\Models\PlaySession;
-use App\Models\Bracelet;
-use App\Repositories\Contracts\BraceletRepositoryInterface;
 use App\Models\Child;
 use App\Models\Tenant;
 use App\Support\ActionLogger;
@@ -14,10 +12,6 @@ use Illuminate\Support\Str;
 
 class ScanService
 {
-    public function __construct(private ?BraceletRepositoryInterface $bracelets = null)
-    {
-        // allow existing usages; repository is optional DI
-    }
     /**
      * Charset pentru generarea codurilor (fără O/0, I/1)
      */
@@ -196,75 +190,61 @@ class ScanService
     }
 
     /**
-     * Caută brățara în baza de date și returnează informațiile despre copil și sesiune
+     * Caută codul de bare și returnează informațiile despre copil și sesiune
+     * Verifică dacă codul a fost deja folosit (single-use)
      */
     public function lookupBracelet(string $code, Tenant $tenant): array
     {
-        $bracelet = Bracelet::where('code', $code)
+        // Normalize code - only trim, preserve case for barcode
+        $code = trim($code);
+
+        // Verifică dacă există o sesiune activă cu acest cod
+        $activeSession = PlaySession::where('bracelet_code', $code)
             ->where('tenant_id', $tenant->id)
-            ->with(['child.guardian'])
+            ->whereNull('ended_at')
+            ->with(['child.guardian', 'intervals'])
             ->first();
 
-        if (!$bracelet) {
-            return [
-                'success' => false,
-                'message' => 'Brățară nu a fost găsită',
-                'bracelet' => null,
+        if ($activeSession) {
+            // Există o sesiune activă - o returnăm
+            $currentInterval = $activeSession->intervals->whereStrict('ended_at', null)->sortByDesc('started_at')->first();
+            $activePayload = [
+                'id' => $activeSession->id,
+                'started_at' => optional($activeSession->started_at)->toISOString(),
+                'is_paused' => $activeSession->isPaused(),
+                'effective_seconds' => $activeSession->getEffectiveDurationSeconds(),
+                'current_interval_started_at' => $currentInterval && $currentInterval->started_at ? $currentInterval->started_at->toISOString() : null,
             ];
-        }
-
-        if ($bracelet->isAvailable()) {
-            return [
-                'success' => true,
-                'message' => 'Brățară disponibilă - poate fi asignată unui copil nou',
-                'bracelet' => $bracelet,
-                'can_assign' => true,
-            ];
-        }
-
-        if ($bracelet->isAssigned()) {
-            // Verifică dacă copilul are o sesiune activă (ended_at NULL)
-            $activeSession = PlaySession::where('child_id', $bracelet->child_id)
-                ->whereNull('ended_at')
-                ->with('intervals')
-                ->first();
-
-            $activePayload = null;
-            if ($activeSession) {
-                $currentInterval = $activeSession->intervals->whereStrict('ended_at', null)->sortByDesc('started_at')->first();
-                $activePayload = [
-                    'id' => $activeSession->id,
-                    'started_at' => optional($activeSession->started_at)->toISOString(),
-                    'status' => $activeSession->status ?? 'active',
-                    'is_paused' => $activeSession->isPaused(),
-                    'effective_seconds' => $activeSession->getEffectiveDurationSeconds(),
-                    'current_interval_started_at' => $currentInterval && $currentInterval->started_at ? $currentInterval->started_at->toISOString() : null,
-                ];
-            }
 
             return [
                 'success' => true,
-                'message' => 'Brățară asignată - poate fi folosită pentru sesiune',
-                'bracelet' => $bracelet,
-                'child' => $bracelet->child,
-                'guardian' => $bracelet->child->guardian,
+                'message' => 'Cod deja folosit - sesiune activă',
+                'bracelet_code' => $code,
+                'child' => $activeSession->child,
+                'guardian' => $activeSession->child->guardian,
                 'active_session' => $activePayload,
-                'can_start_session' => true,
+                'can_start_session' => false,
             ];
         }
 
+        // Nu există sesiune activă - codul poate fi folosit pentru o sesiune nouă
+        // (permite reutilizarea codurilor după închiderea sesiunii)
         return [
-            'success' => false,
-            'message' => 'Brățară nu este disponibilă (pierdută sau deteriorată)',
-            'bracelet' => $bracelet,
+            'success' => true,
+            'message' => 'Cod disponibil - poate fi folosit pentru o sesiune nouă',
+            'bracelet_code' => $code,
+            'can_assign' => true,
         ];
     }
 
     /**
-     * Începe o sesiune de joacă pentru un copil
+     * Începe o sesiune de joacă pentru un copil cu un cod de bare
      */
-    public function startPlaySession(Tenant $tenant, Child $child, Bracelet $bracelet): PlaySession
+    public function startPlaySession(Tenant $tenant, Child $child, string $braceletCode): PlaySession
     {
+        // Normalize code - only trim, preserve case for barcode
+        $braceletCode = trim($braceletCode);
+
         // Verifică dacă copilul are deja o sesiune activă
         $existingSession = PlaySession::where('child_id', $child->id)
             ->whereNull('ended_at')
@@ -274,18 +254,23 @@ class ScanService
             throw new \Exception('Copilul are deja o sesiune activă');
         }
 
-        // Verifică dacă brățara este asignată copilului
-        if ($bracelet->child_id !== $child->id) {
-            throw new \Exception('Brățara nu este asignată acestui copil');
+        // Permite reutilizarea codurilor după închiderea sesiunii
+        // Verifică doar dacă există o sesiune activă cu acest cod
+        $activeSessionWithCode = PlaySession::where('bracelet_code', $braceletCode)
+            ->where('tenant_id', $tenant->id)
+            ->whereNull('ended_at')
+            ->first();
+
+        if ($activeSessionWithCode) {
+            throw new \Exception('Codul este deja folosit într-o sesiune activă. Te rog oprește sesiunea existentă înainte.');
         }
 
-        $session = PlaySession::startSession($tenant, $child, $bracelet);
+        $session = PlaySession::startSession($tenant, $child, $braceletCode);
 
         ActionLogger::logSession('started', $session->id, [
             'child_id' => $child->id,
             'child_name' => $child->first_name . ' ' . $child->last_name,
-            'bracelet_id' => $bracelet->id,
-            'bracelet_code' => $bracelet->code,
+            'bracelet_code' => $braceletCode,
         ]);
 
         return $session;
@@ -346,28 +331,10 @@ class ScanService
         return $session;
     }
 
-    /** Stop session and unassign bracelet */
+    /** Stop session (bracelets are single-use, no unassign needed) */
     public function stopAndUnassign(int $sessionId): PlaySession
     {
-        $session = $this->stopPlaySession($sessionId);
-        if ($session && $session->bracelet_id) {
-            if ($this->bracelets) {
-                $this->bracelets->markAvailable($session->bracelet_id);
-            } else {
-                $bracelet = \App\Models\Bracelet::find($session->bracelet_id);
-                if ($bracelet) {
-                    $bracelet->update([
-                        'status' => 'available',
-                        'child_id' => null,
-                        'assigned_at' => null,
-                    ]);
-                }
-            }
-            ActionLogger::log('bracelet.unassigned', 'Bracelet', $session->bracelet_id, [
-                'session_id' => $sessionId,
-            ]);
-        }
-        return $session;
+        return $this->stopPlaySession($sessionId);
     }
 
     /**
@@ -377,7 +344,7 @@ class ScanService
     {
         return PlaySession::where('tenant_id', $tenant->id)
             ->whereNull('ended_at')
-            ->with(['child.guardian', 'bracelet', 'intervals'])
+            ->with(['child.guardian', 'intervals'])
             ->get()
             ->map(function ($session) {
                 $child = $session->child;
@@ -391,11 +358,10 @@ class ScanService
                     'parent_name' => $guardian->name ?? '-',
                     'started_at' => $session->started_at ? $session->started_at->toISOString() : null,
                     'duration' => $session->getFormattedDuration(),
-                    'status' => $session->status ?? 'active',
                     'is_paused' => $session->isPaused(),
                     'effective_seconds' => $effectiveSeconds,
                     'current_interval_started_at' => $currentInterval && $currentInterval->started_at ? $currentInterval->started_at->toISOString() : null,
-                    'bracelet_code' => $session->bracelet->code ?? null,
+                    'bracelet_code' => $session->bracelet_code,
                     'estimated_price' => $session->calculatePrice(),
                     'formatted_estimated_price' => $session->getFormattedPrice(),
                 ];
@@ -449,7 +415,7 @@ class ScanService
     {
         $sessions = PlaySession::where('tenant_id', $tenant->id)
             ->whereNotNull('ended_at')
-            ->with(['child.guardian', 'bracelet', 'intervals'])
+            ->with(['child.guardian', 'intervals'])
             ->orderByDesc('ended_at')
             ->limit($limit)
             ->get();
@@ -464,7 +430,7 @@ class ScanService
                 'ended_at' => $session->ended_at ? $session->ended_at->toISOString() : null,
                 'effective_seconds' => $session->getEffectiveDurationSeconds(),
                 'duration_formatted' => $session->getFormattedDuration(),
-                'bracelet_code' => $session->bracelet->code ?? null,
+                'bracelet_code' => $session->bracelet_code,
             ];
         })->toArray();
     }

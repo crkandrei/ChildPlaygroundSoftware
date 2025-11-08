@@ -14,10 +14,9 @@ class PlaySession extends Model
     protected $fillable = [
         'tenant_id',
         'child_id',
-        'bracelet_id',
+        'bracelet_code',
         'started_at',
         'ended_at',
-        'status',
         'calculated_price',
         'price_per_hour_at_calculation',
     ];
@@ -45,13 +44,6 @@ class PlaySession extends Model
         return $this->belongsTo(Child::class);
     }
 
-    /**
-     * Get the bracelet used for this play session.
-     */
-    public function bracelet(): BelongsTo
-    {
-        return $this->belongsTo(Bracelet::class);
-    }
 
     /** Intervals for this session */
     public function intervals(): HasMany
@@ -134,14 +126,13 @@ class PlaySession extends Model
     /**
      * Start a new play session
      */
-    public static function startSession(Tenant $tenant, Child $child, Bracelet $bracelet): self
+    public static function startSession(Tenant $tenant, Child $child, string $braceletCode): self
     {
         $session = self::create([
             'tenant_id' => $tenant->id,
             'child_id' => $child->id,
-            'bracelet_id' => $bracelet->id,
+            'bracelet_code' => $braceletCode,
             'started_at' => now(),
-            'status' => 'active',
         ]);
 
         // Create initial open interval
@@ -170,7 +161,6 @@ class PlaySession extends Model
 
         $this->update([
             'ended_at' => $now,
-            'status' => 'completed',
         ]);
 
         // Calculate and save price
@@ -197,7 +187,7 @@ class PlaySession extends Model
                 'duration_seconds' => $duration,
             ]);
         }
-        $this->update(['status' => 'paused']);
+        // Session is paused when there's no open interval
         return $this;
     }
 
@@ -211,7 +201,6 @@ class PlaySession extends Model
             return $this; // already running
         }
         $this->intervals()->create(['started_at' => now()]);
-        $this->update(['status' => 'active']);
         return $this;
     }
 

@@ -116,15 +116,15 @@ class GuardianController extends Controller
             return redirect()->route('guardians.index')->with('error', 'Părintele nu a fost găsit');
         }
 
-        // Load children with their bracelets
+        // Load children
         $guardian->load(['children' => function($query) {
-            $query->orderBy('created_at', 'desc')->with('bracelets');
+            $query->orderBy('created_at', 'desc');
         }]);
 
         // Load play sessions for all children of this guardian
         $childIds = $guardian->children->pluck('id');
         $playSessions = PlaySession::whereIn('child_id', $childIds)
-            ->with(['child', 'bracelet', 'intervals'])
+            ->with(['child', 'intervals'])
             ->orderBy('started_at', 'desc')
             ->get()
             ->map(function ($session) {
@@ -152,8 +152,7 @@ class GuardianController extends Controller
                         'child_name' => $session->child ? trim(($session->child->first_name ?? '') . ' ' . ($session->child->last_name ?? '')) : '-',
                         'started_at' => $session->started_at,
                         'ended_at' => null,
-                        'status' => $session->status,
-                        'bracelet_code' => $session->bracelet->code ?? null,
+                        'bracelet_code' => $session->bracelet_code ?? null,
                         'effective_seconds' => $effectiveSeconds,
                         'is_paused' => $isPaused,
                         'current_interval_started_at' => $currentIntervalStartedAt,
@@ -174,8 +173,7 @@ class GuardianController extends Controller
                         'child_name' => $session->child ? trim(($session->child->first_name ?? '') . ' ' . ($session->child->last_name ?? '')) : '-',
                         'started_at' => $session->started_at,
                         'ended_at' => $session->ended_at,
-                        'status' => $session->status,
-                        'bracelet_code' => $session->bracelet->code ?? null,
+                        'bracelet_code' => $session->bracelet_code ?? null,
                         'effective_seconds' => $effectiveSeconds,
                         'is_paused' => false,
                         'current_interval_started_at' => null,

@@ -98,7 +98,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nume Copil</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vârstă</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cod Intern</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brățări</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acțiuni</th>
                     </tr>
                 </thead>
@@ -144,23 +143,6 @@
                                 </span>
                             @else
                                 <span class="text-gray-400 text-sm">-</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @php
-                                $bracelets = $child->bracelets;
-                            @endphp
-                            @if($bracelets->count() > 0)
-                                <div class="flex flex-col space-y-1">
-                                    @foreach($bracelets as $bracelet)
-                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-mono 
-                                            {{ $bracelet->status === 'assigned' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600' }}">
-                                            {{ $bracelet->code }}
-                                        </span>
-                                    @endforeach
-                                </div>
-                            @else
-                                <span class="text-gray-400 text-sm">Fără brățară</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">

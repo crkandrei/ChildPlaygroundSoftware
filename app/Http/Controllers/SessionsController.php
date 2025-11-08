@@ -73,7 +73,7 @@ class SessionsController extends Controller
 
         $session = PlaySession::where('id', $id)
             ->where('tenant_id', $user->tenant->id)
-            ->with(['child.guardian', 'bracelet', 'intervals' => function($query) {
+            ->with(['child.guardian', 'intervals' => function($query) {
                 $query->orderBy('started_at', 'asc');
             }])
             ->first();
@@ -95,7 +95,7 @@ class SessionsController extends Controller
 
         $session = PlaySession::where('id', $id)
             ->where('tenant_id', $user->tenant->id)
-            ->with(['child.guardian', 'bracelet', 'tenant', 'intervals' => function($query) {
+            ->with(['child.guardian', 'tenant', 'intervals' => function($query) {
                 $query->orderBy('started_at', 'asc');
             }])
             ->first();

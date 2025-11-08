@@ -186,3 +186,4 @@ Acest comand va afișa toate logurile în timp real cu culori.
 3. Încearcă operațiune nepermisă → Verifică eroare cu context complet
 
 
+

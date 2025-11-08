@@ -40,14 +40,6 @@ class Child extends Model
     }
 
     /**
-     * Get the bracelets for the child.
-     */
-    public function bracelets(): HasMany
-    {
-        return $this->hasMany(Bracelet::class);
-    }
-
-    /**
      * Get the scan events for the child.
      */
     public function scanEvents(): HasMany
