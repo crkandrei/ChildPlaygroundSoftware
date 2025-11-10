@@ -102,7 +102,7 @@
         
         .receipt-row .value {
             display: inline-block;
-            font-weight: 500;
+            font-weight: 700;
         }
         
         .divider {
@@ -132,7 +132,7 @@
             font-size: 9px;
             color: #000;
             line-height: 1.4;
-            font-weight: 500;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -188,7 +188,7 @@
             @if($session->price_per_hour_at_calculation)
             <div class="receipt-row">
                 <span class="label">Preț/oră:</span>
-                <span class="value">{{ number_format($session->price_per_hour_at_calculation, 2, '.', '') }} RON</span>
+                <span class="value" style="font-weight: 700;">{{ number_format($session->price_per_hour_at_calculation, 2, '.', '') }} RON</span>
             </div>
             @endif
             
@@ -201,8 +201,8 @@
             @foreach($session->products as $sessionProduct)
             <div class="receipt-row" style="padding-left: 8px; margin-bottom: 2px;">
                 <div style="display: flex; justify-content: space-between;">
-                    <span style="font-weight: 500;">{{ $sessionProduct->product->name ?? 'Produs' }} x{{ $sessionProduct->quantity }}</span>
-                    <span style="font-weight: 600;">{{ number_format($sessionProduct->total_price, 2, '.', '') }} RON</span>
+                    <span style="font-weight: 700;">{{ $sessionProduct->product->name ?? 'Produs' }} x{{ $sessionProduct->quantity }}</span>
+                    <span style="font-weight: 700;">{{ number_format($sessionProduct->total_price, 2, '.', '') }} RON</span>
                 </div>
             </div>
             @endforeach
