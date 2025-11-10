@@ -15,7 +15,7 @@
             }
             @page {
                 size: 80mm auto;
-                margin: 5mm;
+                margin: 2mm;
             }
         }
         
@@ -43,7 +43,7 @@
         @media print {
             .receipt-container {
                 max-width: 100%;
-                padding: 5mm;
+                padding: 2mm;
                 box-shadow: none;
             }
         }
@@ -71,65 +71,68 @@
         .receipt-header {
             text-align: center;
             border-bottom: 1px dashed #000;
-            padding-bottom: 8px;
-            margin-bottom: 8px;
+            padding-bottom: 6px;
+            margin-bottom: 6px;
         }
         
         .receipt-header h1 {
             font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 3px;
+            font-weight: 900;
+            margin-bottom: 2px;
             color: #000;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .receipt-body {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         
         .receipt-row {
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             font-size: 11px;
-            line-height: 1.4;
+            line-height: 1.3;
         }
         
         .receipt-row .label {
-            font-weight: bold;
+            font-weight: 700;
             display: inline-block;
             min-width: 90px;
         }
         
         .receipt-row .value {
             display: inline-block;
+            font-weight: 500;
         }
         
         .divider {
             border-top: 1px dashed #000;
-            margin: 8px 0;
+            margin: 5px 0;
         }
         
         .total-section {
             border-top: 1px solid #000;
-            padding-top: 8px;
-            margin-top: 8px;
+            padding-top: 6px;
+            margin-top: 6px;
         }
         
         .total-row {
             display: flex;
             justify-content: space-between;
             font-size: 12px;
-            font-weight: bold;
-            padding: 4px 0;
+            font-weight: 900;
+            padding: 3px 0;
         }
         
         .receipt-footer {
             text-align: center;
-            margin-top: 12px;
-            padding-top: 8px;
+            margin-top: 8px;
+            padding-top: 6px;
             border-top: 1px dashed #000;
             font-size: 9px;
             color: #000;
-            line-height: 1.5;
+            line-height: 1.4;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -192,14 +195,14 @@
             <div class="divider"></div>
             
             @if($session->products && $session->products->count() > 0)
-            <div class="receipt-row" style="font-weight: bold; margin-bottom: 4px;">
+            <div class="receipt-row" style="font-weight: 700; margin-bottom: 3px;">
                 <span>Produse:</span>
             </div>
             @foreach($session->products as $sessionProduct)
-            <div class="receipt-row" style="padding-left: 10px; margin-bottom: 3px;">
+            <div class="receipt-row" style="padding-left: 8px; margin-bottom: 2px;">
                 <div style="display: flex; justify-content: space-between;">
-                    <span>{{ $sessionProduct->product->name ?? 'Produs' }} x{{ $sessionProduct->quantity }}</span>
-                    <span>{{ number_format($sessionProduct->total_price, 2, '.', '') }} RON</span>
+                    <span style="font-weight: 500;">{{ $sessionProduct->product->name ?? 'Produs' }} x{{ $sessionProduct->quantity }}</span>
+                    <span style="font-weight: 600;">{{ number_format($sessionProduct->total_price, 2, '.', '') }} RON</span>
                 </div>
             </div>
             @endforeach
@@ -208,11 +211,11 @@
             
             <div class="total-section">
                 @if($session->products && $session->products->count() > 0)
-                <div class="total-row" style="font-size: 11px; font-weight: normal; padding: 2px 0;">
+                <div class="total-row" style="font-size: 11px; font-weight: 600; padding: 2px 0;">
                     <span>Timp de joacă:</span>
                     <span>{{ $session->getFormattedPrice() }}</span>
                 </div>
-                <div class="total-row" style="font-size: 11px; font-weight: normal; padding: 2px 0;">
+                <div class="total-row" style="font-size: 11px; font-weight: 600; padding: 2px 0;">
                     <span>Produse:</span>
                     <span>{{ number_format($session->getProductsTotalPrice(), 2, '.', '') }} RON</span>
                 </div>
