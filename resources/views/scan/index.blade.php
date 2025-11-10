@@ -7,7 +7,24 @@
 <div class="space-y-6">
     <!-- Sticky input bar -->
     <div class="sticky top-0 z-30 bg-white border-b border-gray-200 py-4 -mx-6 px-6">
-        <div class="max-w-6xl mx-auto px-0">
+        <div class="max-w-6xl mx-auto px-0 space-y-3">
+            <!-- Sesiuni active info (mic, discret) -->
+            <div id="activeSessionsInfo" class="bg-gray-50 border border-gray-200 rounded-md px-4 py-2 text-xs text-gray-600">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span>
+                            <i class="fas fa-play-circle text-green-600 mr-1"></i>
+                            <span id="activeSessionsCount">0</span> copii activi
+                        </span>
+                        <span>
+                            <i class="fas fa-pause-circle text-amber-600 mr-1"></i>
+                            <span id="pausedSessionsCount">0</span> copii în pauză
+                        </span>
+                    </div>
+                    <span id="activeSessionsLastUpdate" class="text-gray-400"></span>
+                </div>
+            </div>
+            
             <!-- RFID Code Search -->
             <div class="flex items-center gap-3 relative">
                 <label for="rfidCode" class="sr-only">Cod RFID</label>
@@ -87,7 +104,7 @@
             <div class="mb-4 border-b border-gray-200">
                 <nav class="flex gap-2" role="tablist" aria-label="Assignment tabs">
                     <button id="tabAssignExisting" type="button" aria-controls="assignExistingPanel" aria-selected="true"
-                        class="px-4 py-2 text-sm font-medium rounded-t-md bg-gray-100 text-gray-900"><i class="fas fa-user-check mr-2"></i>Asignează existent</button>
+                        class="px-4 py-2 text-base font-semibold rounded-t-md bg-gray-100 text-gray-900"><i class="fas fa-user-check mr-2"></i>Asignează <span class="font-bold">COPIL</span> existent</button>
                     <button id="tabCreateNew" type="button" aria-controls="createNewPanel" aria-selected="false"
                         class="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-gray-900"><i class="fas fa-user-plus mr-2"></i>Creează copil nou</button>
                 </nav>
@@ -121,12 +138,35 @@
 
             <!-- Opțiune 2: Creează copil nou -->
             <div id="createNewPanel" class="hidden">
+                <!-- Informație statică despre pași - în afara zonei afectate de Choices.js -->
+                <div class="grid grid-cols-2 gap-6 mb-4">
+                    <!-- Banner PASUL 1: PĂRINTE -->
+                    <div class="bg-green-50 border-2 border-green-300 rounded-lg p-4" id="guardianInfoBanner" style="position: relative; z-index: 1;">
+                        <h5 class="text-xl font-bold text-green-900 mb-2">
+                            <i class="fas fa-user-shield mr-2"></i>PASUL 1: PĂRINTE
+                        </h5>
+                        <p class="text-sm font-semibold text-green-800">
+                            ⚠️ ATENȚIE: Aici se creează sau selectează <span class="font-bold text-green-900">PĂRINTELE</span>, NU copilul!
+                        </p>
+                        <p class="text-xs text-green-700 mt-2">
+                            Copilul va apărea în pasul următor, după ce completezi numele și telefonul părintelui.
+                        </p>
+                    </div>
+                    
+                    <!-- Banner PASUL 2: COPIL (apare când se completează părintele) -->
+                    <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 opacity-0 pointer-events-none transition-opacity duration-200" id="childInfoBanner" style="position: relative; z-index: 1;">
+                        <h5 class="text-xl font-bold text-blue-900 mb-2">
+                            <i class="fas fa-child mr-2"></i>PASUL 2: COPIL
+                        </h5>
+                        <p class="text-sm font-semibold text-blue-800">
+                            Acum completează datele copilului
+                        </p>
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Părinte -->
                     <div class="space-y-3" id="guardianSection">
-                        <h5 class="font-medium text-green-900">Părinte</h5>
-
                         <!-- Radio buttons pentru a selecta modul -->
                         <div class="mb-3">
                             <div class="flex gap-4">
@@ -143,7 +183,7 @@
 
                         <!-- Panel: Părinte existent -->
                         <div id="existingGuardianPanel" class="space-y-2">
-                            <label class="block text-xs font-medium text-green-800">Selectează părinte existent</label>
+                            <label class="block text-sm font-semibold text-green-800">Selectează părinte existent</label>
                             <div id="guardianSelectWrapper">
                                 <select id="guardianSelect" class="w-full">
                                     <option value="">Caută și selectează părinte...</option>
@@ -154,7 +194,7 @@
 
                         <!-- Panel: Părinte nou -->
                         <div id="newGuardianPanel" class="space-y-2 hidden">
-                            <label class="block text-xs font-medium text-green-800">Creează părinte nou</label>
+                            <label class="block text-sm font-semibold text-green-800">Creează părinte nou</label>
                             <input id="guardianName" type="text" placeholder="Nume complet *" class="w-full h-10 px-3 border border-green-300 rounded-md">
                             <input id="guardianPhone" type="tel" placeholder="Telefon *" class="w-full h-10 px-3 border border-green-300 rounded-md">
                             <p class="text-xs text-gray-500">Completează minim nume și telefon</p>
@@ -163,17 +203,24 @@
 
                     <!-- Copil (apare doar după ce ai selectat/completat părinte) -->
                     <div id="childSection" class="space-y-3 hidden">
-                        <h5 class="font-medium text-blue-900">Copil</h5>
                         
                         <input id="childFirstName" type="text" placeholder="Prenume *" 
                             class="w-full h-10 px-3 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <input id="childLastName" type="text" placeholder="Nume *" 
                             class="w-full h-10 px-3 border border-blue-300 rounded-md">
-                        <input id="childBirthDate" type="date" 
-                            min="{{ \Carbon\Carbon::now()->subYears(18)->format('Y-m-d') }}"
-                            max="{{ \Carbon\Carbon::now()->subDay()->format('Y-m-d') }}"
-                            placeholder="Data nașterii *"
-                            class="w-full h-10 px-3 border border-blue-300 rounded-md">
+                        
+                        <!-- Data nașterii cu label clar -->
+                        <div class="space-y-1">
+                            <label for="childBirthDate" class="block text-sm font-semibold text-blue-900">
+                                <i class="fas fa-calendar-alt mr-1"></i>Data nașterii copilului <span class="text-red-500">*</span>
+                            </label>
+                            <input id="childBirthDate" type="date" 
+                                min="{{ \Carbon\Carbon::now()->subYears(18)->format('Y-m-d') }}"
+                                max="{{ \Carbon\Carbon::now()->subDay()->format('Y-m-d') }}"
+                                class="w-full h-10 px-3 border border-blue-300 rounded-md">
+                            <p class="text-xs text-gray-500">Selectează data nașterii din calendar</p>
+                        </div>
+                        
                         <input id="childAllergies" type="text" placeholder="Alergii (opțional)" 
                             class="w-full h-10 px-3 border border-blue-300 rounded-md">
                         
@@ -959,6 +1006,53 @@
     codeInput.focus();
     // Load recent completed sessions on page load
     loadRecentCompleted();
+    // Load active sessions info on page load
+    loadActiveSessionsInfo();
+
+    // ===== ACTIVE SESSIONS INFO =====
+    let activeSessionsInterval = null;
+
+    async function loadActiveSessionsInfo() {
+        try {
+            const result = await apiCall('/scan-api/active-sessions');
+            if (result.success && result.sessions) {
+                const sessions = result.sessions;
+                const activeCount = sessions.filter(s => !s.is_paused).length;
+                const pausedCount = sessions.filter(s => s.is_paused).length;
+                
+                document.getElementById('activeSessionsCount').textContent = activeCount;
+                document.getElementById('pausedSessionsCount').textContent = pausedCount;
+                
+                // Update last update time
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('activeSessionsLastUpdate').textContent = `Actualizat: ${timeStr}`;
+            }
+        } catch (e) {
+            console.error('Error loading active sessions info:', e);
+        }
+    }
+
+    // Start auto-refresh for active sessions info (every 10 seconds)
+    function startActiveSessionsAutoRefresh() {
+        if (activeSessionsInterval) {
+            clearInterval(activeSessionsInterval);
+        }
+        activeSessionsInterval = setInterval(() => {
+            loadActiveSessionsInfo();
+        }, 10000); // Refresh every 10 seconds
+    }
+
+    // Stop auto-refresh
+    function stopActiveSessionsAutoRefresh() {
+        if (activeSessionsInterval) {
+            clearInterval(activeSessionsInterval);
+            activeSessionsInterval = null;
+        }
+    }
+
+    // Start auto-refresh on page load
+    startActiveSessionsAutoRefresh();
 
     // ===== SESSION CONTROL BUTTONS =====
     
@@ -990,6 +1084,8 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                // Refresh active sessions info
+                loadActiveSessionsInfo();
                 // Prepare input for next scan after pause/resume
                 setTimeout(() => {
                     prepareInputForScanning();
@@ -1071,6 +1167,8 @@
                 
                 // Refresh recent completed list
                 loadRecentCompleted();
+                // Refresh active sessions info
+                loadActiveSessionsInfo();
             } else {
                 alert('Eroare: ' + (result.message || 'Nu s-a putut opri sesiunea'));
                 this.innerHTML = originalContent;
@@ -1098,6 +1196,8 @@
 
     let childChoices = null;
     let guardianChoices = null;
+    let childSearchTimeout = null;
+    let guardianSearchTimeout = null;
 
     // Initialize Choices.js for searchable selects
     function initializeChoices() {
@@ -1125,6 +1225,11 @@
             childChoices.passedElement.element.addEventListener('removeItem', function(event) {
                 updateAssignButtonState();
             });
+            
+            // Setup search listener after Choices is initialized
+            setTimeout(() => {
+                setupChoicesSearch();
+            }, 100);
         }
 
         // Guardian select with search
@@ -1147,9 +1252,160 @@
                     if (!document.getElementById('subTabExistingGuardian')) {
                         console.error('CRITICAL: subTabExistingGuardian was removed by Choices.js!');
                     }
+                    // Ensure guardian info banner still exists
+                    if (!document.getElementById('guardianInfoBanner')) {
+                        console.error('CRITICAL: guardianInfoBanner was removed by Choices.js!');
+                    }
                 }
             });
+            
+            // Setup search listener after Choices is initialized
+            setTimeout(() => {
+                setupChoicesSearch();
+            }, 100);
+            
+            // Protect guardian info banner from being removed by Choices.js
+            // This function can be called multiple times safely
+            protectGuardianInfoBanner();
         }
+    }
+
+    // Function to protect and restore guardian info banner
+    // Use a flag to prevent multiple observers
+    if (!window.guardianBannerProtected) {
+        window.guardianBannerProtected = true;
+        window.guardianBannerObserver = null;
+        window.guardianBannerVisibilityObserver = null;
+    }
+    
+    function protectGuardianInfoBanner() {
+        const createNewPanel = document.getElementById('createNewPanel');
+        if (!createNewPanel) return;
+        
+        const guardianInfoBanner = document.getElementById('guardianInfoBanner');
+        
+        // Store banner content if it exists
+        let bannerContent = null;
+        if (guardianInfoBanner) {
+            bannerContent = guardianInfoBanner.innerHTML;
+        } else {
+            // Banner doesn't exist, create default content
+            bannerContent = `
+                <h5 class="text-xl font-bold text-green-900 mb-2">
+                    <i class="fas fa-user-shield mr-2"></i>PASUL 1: PĂRINTE
+                </h5>
+                <p class="text-sm font-semibold text-green-800">
+                    ⚠️ ATENȚIE: Aici se creează sau selectează <span class="font-bold text-green-900">PĂRINTELE</span>, NU copilul!
+                </p>
+                <p class="text-xs text-green-700 mt-2">
+                    Copilul va apărea în pasul următor, după ce completezi numele și telefonul părintelui.
+                </p>
+            `;
+        }
+        
+        // Function to ensure banner exists
+        const ensureBannerExists = () => {
+            if (!createNewPanel) return;
+            
+            // Find the grid container that should contain both banners
+            const gridContainer = createNewPanel.querySelector('.grid.grid-cols-2');
+            if (!gridContainer) return;
+            
+            // Check if banner exists
+            let banner = document.getElementById('guardianInfoBanner');
+            
+            if (!banner) {
+                // Banner doesn't exist, create it
+                banner = document.createElement('div');
+                banner.id = 'guardianInfoBanner';
+                banner.className = 'bg-green-50 border-2 border-green-300 rounded-lg p-4';
+                banner.style.cssText = 'position: relative; z-index: 1;';
+                banner.innerHTML = bannerContent;
+                
+                // Insert as first child of grid container (first column)
+                const childInfoBanner = document.getElementById('childInfoBanner');
+                if (childInfoBanner) {
+                    // Insert before child banner (first position in grid)
+                    gridContainer.insertBefore(banner, childInfoBanner);
+                } else {
+                    // If child banner doesn't exist, append to grid
+                    gridContainer.insertBefore(banner, gridContainer.firstChild);
+                }
+            } else {
+                // Banner exists, check if it's in the right place
+                const isInGrid = gridContainer.contains(banner);
+                
+                if (!isInGrid) {
+                    // Banner exists but is not in grid, move it to the correct position
+                    const childInfoBanner = document.getElementById('childInfoBanner');
+                    if (childInfoBanner) {
+                        gridContainer.insertBefore(banner, childInfoBanner);
+                    } else {
+                        gridContainer.insertBefore(banner, gridContainer.firstChild);
+                    }
+                } else {
+                    // Banner is in grid, ensure it's in the first position
+                    const childInfoBanner = document.getElementById('childInfoBanner');
+                    if (childInfoBanner && banner.nextSibling !== childInfoBanner) {
+                        // Reorder: banner should be before childInfoBanner
+                        gridContainer.insertBefore(banner, childInfoBanner);
+                    }
+                }
+                
+                // Update content if needed
+                if (banner.innerHTML !== bannerContent) {
+                    banner.innerHTML = bannerContent;
+                }
+                
+                // Ensure classes and styles are correct
+                if (!banner.className.includes('bg-green-50')) {
+                    banner.className = 'bg-green-50 border-2 border-green-300 rounded-lg p-4';
+                }
+                if (banner.style.position !== 'relative' || banner.style.zIndex !== '1') {
+                    banner.style.cssText = 'position: relative; z-index: 1;';
+                }
+            }
+        };
+        
+        // Ensure banner exists immediately
+        ensureBannerExists();
+        
+        // Disconnect existing observers if they exist
+        if (window.guardianBannerObserver) {
+            window.guardianBannerObserver.disconnect();
+        }
+        if (window.guardianBannerVisibilityObserver) {
+            window.guardianBannerVisibilityObserver.disconnect();
+        }
+        
+        // Monitor createNewPanel for changes
+        window.guardianBannerObserver = new MutationObserver(function(mutations) {
+            ensureBannerExists();
+        });
+        
+        // Observe createNewPanel for child list changes
+        window.guardianBannerObserver.observe(createNewPanel, { 
+            childList: true, 
+            subtree: true,
+            attributes: false
+        });
+        
+        // Also check when panel becomes visible
+        window.guardianBannerVisibilityObserver = new MutationObserver(function(mutations) {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'class') {
+                    if (!createNewPanel.classList.contains('hidden')) {
+                        // Panel is now visible, ensure banner exists
+                        setTimeout(ensureBannerExists, 50);
+                    }
+                }
+            });
+        });
+        
+        window.guardianBannerVisibilityObserver.observe(createNewPanel, { 
+            attributes: true,
+            attributeFilter: ['class']
+        });
     }
 
     // Load and populate children
@@ -1319,6 +1575,8 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                // Refresh active sessions info
+                loadActiveSessionsInfo();
                 // Clear input and prepare for next scan after successful assignment
                 setTimeout(() => {
                     clearInputForNextScan();
@@ -1476,6 +1734,11 @@
                 document.getElementById('childAllergies').value = '';
                 // Hide child section again
                 childSection.classList.add('hidden');
+                const childInfoBanner = document.getElementById('childInfoBanner');
+                if (childInfoBanner) {
+                    childInfoBanner.classList.add('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.remove('opacity-100');
+                }
                 
                 // Refresh bracelet info - sesiunea activă va apărea automat
                 const data = await apiCall('/scan-api/lookup', {
@@ -1483,6 +1746,8 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                // Refresh active sessions info
+                loadActiveSessionsInfo();
                 // Clear input and prepare for next scan after successful creation
                 setTimeout(() => {
                     clearInputForNextScan();
@@ -1568,26 +1833,50 @@
 
     // Setup search listeners for Choices.js
     function setupChoicesSearch() {
-        // Children search
-        const childSelect = document.getElementById('childSelect');
-        if (childSelect) {
-            childSelect.addEventListener('search', function(event) {
-                clearTimeout(childSearchTimeout);
-                childSearchTimeout = setTimeout(() => {
-                    loadChildren(event.detail.value);
-                }, 300);
-            });
+        // Use event delegation on document to catch input events from Choices.js search fields
+        // This approach is safer and doesn't interfere with Choices.js functionality
+        
+        // Children search - use event delegation
+        if (childChoices) {
+            // Remove any existing listener first by using a flag
+            if (!window.childSearchHandlerAttached) {
+                document.addEventListener('input', function childSearchHandler(event) {
+                    // Check if the input is from the child choices search field
+                    const target = event.target;
+                    if (target && target.classList && target.classList.contains('choices__input')) {
+                        // Check if it's the child select input by checking if it's in the child select container
+                        const childContainer = childChoices?.containerOuter?.element;
+                        if (childContainer && childContainer.contains(target)) {
+                            const searchValue = target.value || '';
+                            clearTimeout(childSearchTimeout);
+                            childSearchTimeout = setTimeout(() => {
+                                loadChildren(searchValue);
+                            }, 300);
+                        }
+                    }
+                });
+                window.childSearchHandlerAttached = true;
+            }
         }
 
-        // Guardian search
-        const guardianSelect = document.getElementById('guardianSelect');
-        if (guardianSelect) {
-            guardianSelect.addEventListener('search', function(event) {
-                clearTimeout(guardianSearchTimeout);
-                guardianSearchTimeout = setTimeout(() => {
-                    loadGuardians(event.detail.value);
-                }, 300);
-            });
+        // Guardian search - use event delegation
+        if (guardianChoices) {
+            if (!window.guardianSearchHandlerAttached) {
+                document.addEventListener('input', function guardianSearchHandler(event) {
+                    const target = event.target;
+                    if (target && target.classList && target.classList.contains('choices__input')) {
+                        const guardianContainer = guardianChoices?.containerOuter?.element;
+                        if (guardianContainer && guardianContainer.contains(target)) {
+                            const searchValue = target.value || '';
+                            clearTimeout(guardianSearchTimeout);
+                            guardianSearchTimeout = setTimeout(() => {
+                                loadGuardians(searchValue);
+                            }, 300);
+                        }
+                    }
+                });
+                window.guardianSearchHandlerAttached = true;
+            }
         }
     }
 
@@ -1601,7 +1890,7 @@
     function switchTab(which) {
         if (which === 'assign') {
             tabAssignExisting.setAttribute('aria-selected', 'true');
-            tabAssignExisting.className = 'px-4 py-2 text-sm font-medium rounded-t-md bg-gray-100 text-gray-900';
+            tabAssignExisting.className = 'px-4 py-2 text-base font-semibold rounded-t-md bg-gray-100 text-gray-900';
             tabCreateNew.setAttribute('aria-selected', 'false');
             tabCreateNew.className = 'px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-gray-900';
             panelAssignExisting.classList.remove('hidden');
@@ -1613,7 +1902,7 @@
             updateAssignButtonState();
         } else {
             tabAssignExisting.setAttribute('aria-selected', 'false');
-            tabAssignExisting.className = 'px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-gray-900';
+            tabAssignExisting.className = 'px-4 py-2 text-base font-semibold rounded-t-md text-gray-600 hover:text-gray-900';
             tabCreateNew.setAttribute('aria-selected', 'true');
             tabCreateNew.className = 'px-4 py-2 text-sm font-medium rounded-t-md bg-gray-100 text-gray-900';
             panelAssignExisting.classList.add('hidden');
@@ -1622,6 +1911,10 @@
             initializeChoices();
             setupChoicesSearch();
             loadGuardians();
+            // Ensure banner exists when switching to create tab
+            setTimeout(() => {
+                protectGuardianInfoBanner();
+            }, 100);
         }
     }
 
@@ -1636,6 +1929,7 @@
     function checkAndShowChildSection() {
         const isExistingMode = radioExistingGuardian.checked;
         const isNewMode = radioNewGuardian.checked;
+        const childInfoBanner = document.getElementById('childInfoBanner');
 
         const termsAcceptanceSection = document.getElementById('termsAcceptanceSection');
         if (isExistingMode) {
@@ -1643,10 +1937,18 @@
             const guardianSelectEl = document.getElementById('guardianSelect');
             if (guardianSelectEl && guardianSelectEl.value) {
                 childSection.classList.remove('hidden');
+                if (childInfoBanner) {
+                    childInfoBanner.classList.remove('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.add('opacity-100');
+                }
                 // Hide terms acceptance section for existing guardian
                 if (termsAcceptanceSection) termsAcceptanceSection.classList.add('hidden');
             } else {
                 childSection.classList.add('hidden');
+                if (childInfoBanner) {
+                    childInfoBanner.classList.add('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.remove('opacity-100');
+                }
             }
         } else if (isNewMode) {
             // Show child section if name AND phone are filled
@@ -1654,10 +1956,18 @@
             const guardianPhone = document.getElementById('guardianPhone').value.trim();
             if (guardianName && guardianPhone) {
                 childSection.classList.remove('hidden');
+                if (childInfoBanner) {
+                    childInfoBanner.classList.remove('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.add('opacity-100');
+                }
                 // Show terms acceptance section for new guardian
                 if (termsAcceptanceSection) termsAcceptanceSection.classList.remove('hidden');
             } else {
                 childSection.classList.add('hidden');
+                if (childInfoBanner) {
+                    childInfoBanner.classList.add('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.remove('opacity-100');
+                }
                 if (termsAcceptanceSection) termsAcceptanceSection.classList.add('hidden');
             }
         }
@@ -1727,6 +2037,11 @@
                                 guardianChoices.setChoices([{ value: '', label: 'Caută și selectează părinte...', selected: true }], 'value', 'label', true);
                             }
                             childSection.classList.add('hidden');
+                            const childInfoBanner = document.getElementById('childInfoBanner');
+                            if (childInfoBanner) {
+                    childInfoBanner.classList.add('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.remove('opacity-100');
+                }
                         }
                     } else {
                         // User cancelled - clear selection
@@ -1735,6 +2050,11 @@
                             guardianChoices.setChoices([{ value: '', label: 'Caută și selectează părinte...', selected: true }], 'value', 'label', true);
                         }
                         childSection.classList.add('hidden');
+                        const childInfoBanner = document.getElementById('childInfoBanner');
+                        if (childInfoBanner) {
+                    childInfoBanner.classList.add('opacity-0', 'pointer-events-none');
+                    childInfoBanner.classList.remove('opacity-100');
+                }
                     }
                 }
             }
@@ -1761,6 +2081,10 @@
                     switchTab('assign');
                     switchGuardianMode('existing');
                     assignmentInitialized = true;
+                    // Ensure banner is protected when assignment section is initialized
+                    setTimeout(() => {
+                        protectGuardianInfoBanner();
+                    }, 200);
                 }
             }
         });
