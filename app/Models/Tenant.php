@@ -61,4 +61,12 @@ class Tenant extends Model
     {
         return $this->hasMany(AuditLog::class);
     }
+
+    /**
+     * Get the products for the tenant.
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
+    }
 }

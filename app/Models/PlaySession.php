@@ -51,6 +51,12 @@ class PlaySession extends Model
         return $this->hasMany(PlaySessionInterval::class);
     }
 
+    /** Products for this session */
+    public function products(): HasMany
+    {
+        return $this->hasMany(PlaySessionProduct::class);
+    }
+
     /** Determine if the session is currently active. */
     public function isActive(): bool
     {
@@ -226,6 +232,44 @@ class PlaySession extends Model
         $price = $this->calculated_price ?? $this->calculatePrice();
         $pricingService = app(PricingService::class);
         return $pricingService->formatPrice($price);
+    }
+
+    /**
+     * Calculate total price for all products in this session
+     * 
+     * @return float Total products price in RON
+     */
+    public function getProductsTotalPrice(): float
+    {
+        $products = $this->relationLoaded('products') ? $this->products : $this->products()->get();
+        $total = 0;
+        foreach ($products as $product) {
+            $total += $product->total_price;
+        }
+        return round($total, 2);
+    }
+
+    /**
+     * Get total session price including time and products
+     * 
+     * @return float Total price in RON
+     */
+    public function getTotalPrice(): float
+    {
+        $timePrice = $this->calculated_price ?? $this->calculatePrice();
+        $productsPrice = $this->getProductsTotalPrice();
+        return round($timePrice + $productsPrice, 2);
+    }
+
+    /**
+     * Get formatted total price string including products
+     * 
+     * @return string Formatted price (e.g., "35.50 RON")
+     */
+    public function getFormattedTotalPrice(): string
+    {
+        $pricingService = app(PricingService::class);
+        return $pricingService->formatPrice($this->getTotalPrice());
     }
 
     /**

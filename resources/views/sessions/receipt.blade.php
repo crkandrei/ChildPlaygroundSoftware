@@ -191,10 +191,35 @@
             
             <div class="divider"></div>
             
+            @if($session->products && $session->products->count() > 0)
+            <div class="receipt-row" style="font-weight: bold; margin-bottom: 4px;">
+                <span>Produse:</span>
+            </div>
+            @foreach($session->products as $sessionProduct)
+            <div class="receipt-row" style="padding-left: 10px; margin-bottom: 3px;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>{{ $sessionProduct->product->name ?? 'Produs' }} x{{ $sessionProduct->quantity }}</span>
+                    <span>{{ number_format($sessionProduct->total_price, 2, '.', '') }} RON</span>
+                </div>
+            </div>
+            @endforeach
+            <div class="divider"></div>
+            @endif
+            
             <div class="total-section">
+                @if($session->products && $session->products->count() > 0)
+                <div class="total-row" style="font-size: 11px; font-weight: normal; padding: 2px 0;">
+                    <span>Timp de joacă:</span>
+                    <span>{{ $session->getFormattedPrice() }}</span>
+                </div>
+                <div class="total-row" style="font-size: 11px; font-weight: normal; padding: 2px 0;">
+                    <span>Produse:</span>
+                    <span>{{ number_format($session->getProductsTotalPrice(), 2, '.', '') }} RON</span>
+                </div>
+                @endif
                 <div class="total-row">
                     <span>TOTAL DE PLATĂ:</span>
-                    <span>{{ $session->getFormattedPrice() }}</span>
+                    <span>{{ $session->getFormattedTotalPrice() }}</span>
                 </div>
             </div>
         </div>

@@ -26,6 +26,9 @@ Route::prefix('scan')->group(function () {
     Route::post('/stop-session/{id}', [App\Http\Controllers\ScanPageController::class, 'stopSession']);
     Route::post('/pause-session/{id}', [App\Http\Controllers\ScanPageController::class, 'pauseSession']);
     Route::post('/resume-session/{id}', [App\Http\Controllers\ScanPageController::class, 'resumeSession']);
+    Route::post('/add-products', [App\Http\Controllers\ScanPageController::class, 'addProductsToSession']);
+    Route::get('/available-products', [App\Http\Controllers\ScanPageController::class, 'getAvailableProducts']);
+    Route::get('/session-products/{sessionId}', [App\Http\Controllers\ScanPageController::class, 'getSessionProducts']);
     Route::get('/active-sessions', [App\Http\Controllers\ScanPageController::class, 'getActiveSessions']);
     Route::get('/session-stats', [App\Http\Controllers\ScanPageController::class, 'getSessionStats']);
     Route::post('/validate', [ScanController::class, 'validateCode']);

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Child;
 use App\Models\Guardian;
 use App\Models\PlaySession;
+use App\Models\PlaySessionProduct;
+use App\Models\Product;
 use App\Models\Tenant;
 use App\Services\ScanService;
 use App\Support\ApiResponder;
@@ -13,6 +15,7 @@ use App\Http\Requests\Scan\LookupBraceletRequest;
 use App\Http\Requests\Scan\AssignBraceletRequest;
 use App\Http\Requests\Scan\CreateChildRequest;
 use App\Http\Requests\Scan\StartSessionRequest;
+use App\Http\Requests\AddProductsToSessionRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -638,5 +641,158 @@ class ScanPageController extends Controller
                 'current_interval_started_at' => $currentInterval && $currentInterval->started_at ? $currentInterval->started_at->toISOString() : null,
             ],
         ]);
+    }
+
+    /**
+     * Add products to a session
+     */
+    public function addProductsToSession(AddProductsToSessionRequest $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return ApiResponder::error('Neautentificat', 401);
+        }
+        $tenant = $user->tenant;
+        
+        if (!$tenant) {
+            return ApiResponder::error('Nu există niciun tenant în sistem', 400);
+        }
+
+        try {
+            $session = PlaySession::where('id', $request->session_id)
+                ->where('tenant_id', $tenant->id)
+                ->first();
+
+            if (!$session) {
+                return ApiResponder::error('Sesiunea nu a fost găsită', 404);
+            }
+
+            // Verifică că sesiunea este activă (nu este oprită)
+            if ($session->ended_at) {
+                return ApiResponder::error('Nu se pot adăuga produse la o sesiune oprită', 400);
+            }
+
+            // Verifică că produsele aparțin tenant-ului și sunt active
+            $productIds = collect($request->products)->pluck('product_id')->unique();
+            $products = Product::whereIn('id', $productIds)
+                ->where('tenant_id', $tenant->id)
+                ->where('is_active', true)
+                ->get()
+                ->keyBy('id');
+
+            if ($products->count() !== $productIds->count()) {
+                return ApiResponder::error('Unul sau mai multe produse nu au fost găsite sau nu sunt active', 400);
+            }
+
+            // Adaugă produsele la sesiune
+            $addedProducts = [];
+            foreach ($request->products as $productData) {
+                $product = $products->get($productData['product_id']);
+                if (!$product) {
+                    continue;
+                }
+
+                $sessionProduct = PlaySessionProduct::create([
+                    'play_session_id' => $session->id,
+                    'product_id' => $product->id,
+                    'quantity' => $productData['quantity'],
+                    'unit_price' => $product->price, // Salvează prețul la momentul adăugării
+                ]);
+
+                $addedProducts[] = [
+                    'id' => $sessionProduct->id,
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'quantity' => $sessionProduct->quantity,
+                    'unit_price' => $sessionProduct->unit_price,
+                    'total_price' => $sessionProduct->total_price,
+                ];
+            }
+
+            return ApiResponder::success([
+                'message' => 'Produse adăugate cu succes',
+                'products' => $addedProducts,
+            ]);
+
+        } catch (\Throwable $e) {
+            return ApiResponder::error('Nu s-au putut adăuga produsele: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get available products for the tenant
+     */
+    public function getAvailableProducts()
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return ApiResponder::error('Neautentificat', 401);
+        }
+        $tenant = $user->tenant;
+        
+        if (!$tenant) {
+            return ApiResponder::error('Nu există niciun tenant în sistem', 400);
+        }
+
+        try {
+            $products = Product::where('tenant_id', $tenant->id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'price']);
+
+            return ApiResponder::success([
+                'products' => $products,
+            ]);
+
+        } catch (\Throwable $e) {
+            return ApiResponder::error('Nu s-au putut încărca produsele: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Get products for a session
+     */
+    public function getSessionProducts($sessionId)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return ApiResponder::error('Neautentificat', 401);
+        }
+        $tenant = $user->tenant;
+        
+        if (!$tenant) {
+            return ApiResponder::error('Nu există niciun tenant în sistem', 400);
+        }
+
+        try {
+            $session = PlaySession::where('id', $sessionId)
+                ->where('tenant_id', $tenant->id)
+                ->first();
+
+            if (!$session) {
+                return ApiResponder::error('Sesiunea nu a fost găsită', 404);
+            }
+
+            $products = PlaySessionProduct::where('play_session_id', $session->id)
+                ->with('product')
+                ->get()
+                ->map(function ($sp) {
+                    return [
+                        'id' => $sp->id,
+                        'product_id' => $sp->product_id,
+                        'product_name' => $sp->product->name ?? 'Produs',
+                        'quantity' => $sp->quantity,
+                        'unit_price' => $sp->unit_price,
+                        'total_price' => $sp->total_price,
+                    ];
+                });
+
+            return ApiResponder::success([
+                'products' => $products,
+            ]);
+
+        } catch (\Throwable $e) {
+            return ApiResponder::error('Nu s-au putut încărca produsele: ' . $e->getMessage(), 500);
+        }
     }
 }

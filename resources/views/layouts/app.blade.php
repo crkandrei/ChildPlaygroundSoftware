@@ -207,6 +207,15 @@
                         <span class="sidebar-text">Copii</span>
                     </a>
                     
+                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff())
+                    <a href="{{ route('products.index') }}" 
+                       data-title="Produse"
+                       class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('products.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                        <i class="fas fa-box sidebar-icon mr-3"></i>
+                        <span class="sidebar-text">Produse</span>
+                    </a>
+                    @endif
+                    
                     @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
                     <a href="{{ route('guardians.index') }}" 
                        data-title="Părinți"

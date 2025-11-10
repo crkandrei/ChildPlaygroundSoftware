@@ -53,6 +53,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/stop-session/{id}', [App\Http\Controllers\ScanPageController::class, 'stopSession']);
         Route::post('/pause-session/{id}', [App\Http\Controllers\ScanPageController::class, 'pauseSession']);
         Route::post('/resume-session/{id}', [App\Http\Controllers\ScanPageController::class, 'resumeSession']);
+        Route::post('/add-products', [App\Http\Controllers\ScanPageController::class, 'addProductsToSession']);
         Route::get('/active-sessions', [App\Http\Controllers\ScanPageController::class, 'getActiveSessions']);
         Route::get('/session-stats', [App\Http\Controllers\ScanPageController::class, 'getSessionStats']);
         Route::get('/recent-completed', [App\Http\Controllers\ScanPageController::class, 'recentCompletedSessions']);
@@ -60,6 +61,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/child-session/{childId}', [App\Http\Controllers\ScanPageController::class, 'lookupChildSession']);
         Route::post('/check-guardian-terms', [App\Http\Controllers\ScanPageController::class, 'checkGuardianTerms']);
         Route::post('/accept-guardian-terms', [App\Http\Controllers\ScanPageController::class, 'acceptGuardianTerms']);
+        Route::post('/add-products', [App\Http\Controllers\ScanPageController::class, 'addProductsToSession']);
+        Route::get('/available-products', [App\Http\Controllers\ScanPageController::class, 'getAvailableProducts']);
+        Route::get('/session-products/{sessionId}', [App\Http\Controllers\ScanPageController::class, 'getSessionProducts']);
     });
     
     // Children management
@@ -72,6 +76,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('guardians', App\Http\Controllers\GuardianController::class);
     Route::get('/guardians-search', [App\Http\Controllers\GuardianController::class, 'search'])->name('guardians.search');
     Route::get('/guardians-data', [App\Http\Controllers\GuardianController::class, 'data'])->name('guardians.data');
+    
+    // Products management
+    Route::resource('products', App\Http\Controllers\ProductController::class);
     
     // Legal documents (accessible without auth for parents to read)
     Route::get('/legal/terms', [App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms');

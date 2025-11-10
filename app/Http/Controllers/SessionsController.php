@@ -75,7 +75,7 @@ class SessionsController extends Controller
             ->where('tenant_id', $user->tenant->id)
             ->with(['child.guardian', 'intervals' => function($query) {
                 $query->orderBy('started_at', 'asc');
-            }])
+            }, 'products.product'])
             ->first();
 
         if (!$session) {
@@ -112,6 +112,11 @@ class SessionsController extends Controller
         if (!$session->calculated_price) {
             $session->saveCalculatedPrice();
             $session->refresh();
+        }
+
+        // Load products relationship if not already loaded
+        if (!$session->relationLoaded('products')) {
+            $session->load('products.product');
         }
 
         return view('sessions.receipt', compact('session'));

@@ -96,6 +96,23 @@
                     <div id="sessionStatus" class="mt-3 text-sm font-medium"></div>
                 </div>
             </div>
+
+            <!-- Products Section -->
+            <div id="productsSection" class="mt-6 border-t border-gray-200 pt-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-md font-semibold text-gray-900">Produse</h4>
+                    <button 
+                        id="addProductsBtn"
+                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i>
+                        Adaugă Produse
+                    </button>
+                </div>
+                
+                <div id="productsList" class="space-y-2">
+                    <p class="text-sm text-gray-500">Nu sunt produse adăugate</p>
+                </div>
+            </div>
         </div>
 
         <!-- Assignment section (hidden by default) -->
@@ -318,6 +335,55 @@
         </div>
     </div>
 </div>
+
+<!-- Add Products Modal -->
+<div id="addProductsModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div id="addProductsOverlay" class="fixed inset-0 bg-black bg-opacity-50"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900">Adaugă Produs la Sesiune</h3>
+                <button id="closeAddProductsModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label for="productsSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                            Selectează Produs <span class="text-red-500">*</span>
+                        </label>
+                        <select id="productsSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">Selectează produs...</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="productQuantity" class="block text-sm font-medium text-gray-700 mb-2">
+                            Cantitate (bucăți) <span class="text-red-500">*</span>
+                        </label>
+                        <input type="number" 
+                               id="productQuantity" 
+                               min="1" 
+                               value="1" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
+                    <button type="button" id="cancelAddProducts" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                        Anulează
+                    </button>
+                    <button type="button" id="saveAddProducts" class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">
+                        <i class="fas fa-plus mr-2"></i>
+                        Adaugă
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -466,6 +532,11 @@
         currentSession = data.active_session;
         // Salvăm momentul când am primit datele pentru calcul corect al timer-ului
         currentSession.fetched_at = Date.now();
+        
+        // Initialize products for this session
+        if (currentSession && currentSession.id) {
+            initializeProductsForSession(currentSession.id);
+        }
         
         // Update session info
         document.getElementById('sessionChildName').textContent = 
@@ -1147,6 +1218,9 @@
                 // Clear the session view
                 renderActiveSession({ active_session: null });
                 currentSession = null;
+                currentSessionId = null;
+                sessionProducts = [];
+                renderProductsList();
                 
                 // Reset bracelet reference
                 currentBracelet = null;
@@ -1575,6 +1649,12 @@
                     body: JSON.stringify({ code: currentBracelet.code })
                 });
                 renderBraceletInfo(data);
+                
+                // Initialize products if session was created
+                if (data.active_session && data.active_session.id) {
+                    initializeProductsForSession(data.active_session.id);
+                }
+                
                 // Refresh active sessions info
                 loadActiveSessionsInfo();
                 // Clear input and prepare for next scan after successful assignment
@@ -2167,6 +2247,174 @@
             return false;
         }
     }
+
+    // ===== PRODUCTS MANAGEMENT =====
+    
+    let currentSessionId = null;
+    let availableProducts = [];
+    let sessionProducts = [];
+
+    // Load available products
+    async function loadAvailableProducts() {
+        try {
+            const result = await apiCall('/scan-api/available-products');
+            if (result.success && result.products) {
+                availableProducts = result.products;
+            }
+        } catch (e) {
+            console.error('Error loading products:', e);
+        }
+    }
+
+    // Load session products
+    async function loadSessionProducts(sessionId) {
+        if (!sessionId) return;
+        try {
+            const result = await apiCall(`/scan-api/session-products/${sessionId}`);
+            if (result.success && result.products) {
+                sessionProducts = result.products;
+                renderProductsList();
+            }
+        } catch (e) {
+            console.error('Error loading session products:', e);
+            sessionProducts = [];
+            renderProductsList();
+        }
+    }
+
+    // Render products list
+    function renderProductsList() {
+        const productsListEl = document.getElementById('productsList');
+        if (!productsListEl) return;
+
+        if (sessionProducts.length === 0) {
+            productsListEl.innerHTML = '<p class="text-sm text-gray-500">Nu sunt produse adăugate</p>';
+            return;
+        }
+
+        productsListEl.innerHTML = sessionProducts.map(product => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                <div>
+                    <div class="font-medium text-gray-900">${product.product_name}</div>
+                    <div class="text-sm text-gray-500">${product.quantity} buc × ${parseFloat(product.unit_price).toFixed(2)} RON</div>
+                </div>
+                <div class="text-right">
+                    <div class="font-semibold text-gray-900">${parseFloat(product.total_price).toFixed(2)} RON</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Open add products modal
+    function openAddProductsModal() {
+        if (!currentSessionId) {
+            alert('Nu există o sesiune activă');
+            return;
+        }
+
+        const modal = document.getElementById('addProductsModal');
+        if (!modal) return;
+
+        // Populate products dropdown
+        const productsSelect = document.getElementById('productsSelect');
+        if (productsSelect && availableProducts.length > 0) {
+            productsSelect.innerHTML = '<option value="">Selectează produs...</option>' +
+                availableProducts.map(p => `<option value="${p.id}" data-price="${p.price}">${p.name} - ${parseFloat(p.price).toFixed(2)} RON</option>`).join('');
+        }
+
+        // Reset form
+        document.getElementById('productQuantity').value = '1';
+        productsSelect.value = '';
+
+        modal.classList.remove('hidden');
+    }
+
+    // Close add products modal
+    function closeAddProductsModal() {
+        const modal = document.getElementById('addProductsModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    // Add product to session
+    async function addProductToSession() {
+        const productsSelect = document.getElementById('productsSelect');
+        const quantityInput = document.getElementById('productQuantity');
+        
+        if (!productsSelect || !quantityInput || !currentSessionId) {
+            return;
+        }
+
+        const productId = productsSelect.value;
+        const quantity = parseInt(quantityInput.value);
+
+        if (!productId || quantity < 1) {
+            alert('Te rog selectează un produs și introdu o cantitate validă');
+            return;
+        }
+
+        try {
+            const result = await apiCall('/scan-api/add-products', {
+                method: 'POST',
+                body: JSON.stringify({
+                    session_id: currentSessionId,
+                    products: [{
+                        product_id: parseInt(productId),
+                        quantity: quantity
+                    }]
+                })
+            });
+
+            if (result.success) {
+                // Add to local list
+                if (result.products && result.products.length > 0) {
+                    sessionProducts.push(...result.products);
+                    renderProductsList();
+                }
+                closeAddProductsModal();
+            } else {
+                alert('Eroare: ' + (result.message || 'Nu s-a putut adăuga produsul'));
+            }
+        } catch (e) {
+            console.error('Error adding product:', e);
+            alert('Eroare la adăugarea produsului');
+        }
+    }
+
+    // Initialize products when session is loaded
+    function initializeProductsForSession(sessionId) {
+        currentSessionId = sessionId;
+        loadSessionProducts(sessionId);
+    }
+
+    // Bind add products button
+    const addProductsBtn = document.getElementById('addProductsBtn');
+    if (addProductsBtn) {
+        addProductsBtn.addEventListener('click', openAddProductsModal);
+    }
+
+    // Bind modal close buttons
+    const closeAddProductsModalBtn = document.getElementById('closeAddProductsModal');
+    const cancelAddProductsBtn = document.getElementById('cancelAddProducts');
+    const saveAddProductsBtn = document.getElementById('saveAddProducts');
+    const addProductsOverlay = document.getElementById('addProductsOverlay');
+
+    if (closeAddProductsModalBtn) {
+        closeAddProductsModalBtn.addEventListener('click', closeAddProductsModal);
+    }
+    if (cancelAddProductsBtn) {
+        cancelAddProductsBtn.addEventListener('click', closeAddProductsModal);
+    }
+    if (saveAddProductsBtn) {
+        saveAddProductsBtn.addEventListener('click', addProductToSession);
+    }
+    if (addProductsOverlay) {
+        addProductsOverlay.addEventListener('click', closeAddProductsModal);
+    }
+
+    // Load products on page load
+    loadAvailableProducts();
 
 </script>
 @endsection
