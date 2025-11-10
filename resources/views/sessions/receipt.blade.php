@@ -206,12 +206,8 @@
     </div>
     
     <script>
-        // Auto-print when page loads (optional)
-        // window.onload = function() {
-        //     setTimeout(function() {
-        //         window.print();
-        //     }, 500);
-        // };
+        // Print-ul este controlat din JavaScript prin iframe
+        // Nu mai este nevoie de auto-print aici
     </script>
 </body>
 </html>

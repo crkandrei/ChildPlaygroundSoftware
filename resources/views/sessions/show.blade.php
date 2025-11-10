@@ -25,10 +25,10 @@
                 </div>
                 <div class="flex items-center gap-3">
                     @if($session->ended_at)
-                    <a href="{{ route('sessions.receipt', $session->id) }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
+                    <button onclick="printReceipt({{ $session->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
                         <i class="fas fa-receipt mr-2"></i>
                         Printează Bon
-                    </a>
+                    </button>
                     @endif
                     <span class="px-3 py-1 text-sm font-medium rounded-full {{ $session->ended_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
                         {{ $session->ended_at ? 'Închisă' : 'Activă' }}
@@ -172,5 +172,85 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+let printInProgress = false;
+
+function printReceipt(sessionId) {
+    // Previne declanșarea multiplă
+    if (printInProgress) {
+        return;
+    }
+    
+    printInProgress = true;
+    const url = `/sessions/${sessionId}/receipt`;
+    
+    // Creează un iframe invizibil
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    iframe.src = url;
+    
+    document.body.appendChild(iframe);
+    
+    // Funcție pentru resetarea flag-ului și ștergerea iframe-ului
+    const cleanup = function() {
+        printInProgress = false;
+        if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+        }
+    };
+    
+    iframe.onload = function() {
+        // Redus la 100ms pentru răspuns mai rapid
+        setTimeout(function() {
+            try {
+                // Detectează când dialogul de print se închide (fie prin print, fie prin cancel)
+                const mediaQueryList = iframe.contentWindow.matchMedia('print');
+                
+                const handlePrintChange = function(mql) {
+                    if (!mql.matches) {
+                        // Dialogul s-a închis
+                        cleanup();
+                        mediaQueryList.removeListener(handlePrintChange);
+                    }
+                };
+                
+                // Adaugă listener pentru schimbări
+                if (mediaQueryList.addEventListener) {
+                    mediaQueryList.addEventListener('change', handlePrintChange);
+                } else {
+                    // Fallback pentru browsere mai vechi
+                    mediaQueryList.addListener(handlePrintChange);
+                }
+                
+                // Declanșează print-ul
+                iframe.contentWindow.print();
+                
+                // Fallback: resetează flag-ul după un timp dacă matchMedia nu funcționează
+                setTimeout(function() {
+                    if (printInProgress) {
+                        cleanup();
+                    }
+                }, 1500);
+            } catch (e) {
+                console.error('Eroare la print:', e);
+                cleanup();
+            }
+        }, 100);
+    };
+    
+    // Resetează flag-ul în caz de eroare
+    iframe.onerror = function() {
+        cleanup();
+    };
+}
+</script>
 @endsection
 

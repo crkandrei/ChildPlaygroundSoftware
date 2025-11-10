@@ -154,9 +154,9 @@
                             <i class="fas fa-eye mr-1"></i>Detalii
                         </a>
                         ${row.ended_at ? `
-                            <a href="/sessions/${row.id}/receipt" target="_blank" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
+                            <button onclick="printReceipt(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
                                 <i class="fas fa-receipt mr-1"></i>Bon
-                            </a>
+                            </button>
                         ` : ''}
                         ${row.ended_at ? '' : `
                             ${row.is_paused ? `
@@ -255,6 +255,83 @@
 
     // Initial load
     fetchData();
+    
+    // Function to print receipt directly
+    let printInProgress = false;
+    
+    function printReceipt(sessionId) {
+        // Previne declanșarea multiplă
+        if (printInProgress) {
+            return;
+        }
+        
+        printInProgress = true;
+        const url = `/sessions/${sessionId}/receipt`;
+        
+        // Creează un iframe invizibil
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.src = url;
+        
+        document.body.appendChild(iframe);
+        
+        // Funcție pentru resetarea flag-ului și ștergerea iframe-ului
+        const cleanup = function() {
+            printInProgress = false;
+            if (iframe.parentNode) {
+                document.body.removeChild(iframe);
+            }
+        };
+        
+        iframe.onload = function() {
+            // Redus la 100ms pentru răspuns mai rapid
+            setTimeout(function() {
+                try {
+                    // Detectează când dialogul de print se închide (fie prin print, fie prin cancel)
+                    const mediaQueryList = iframe.contentWindow.matchMedia('print');
+                    
+                    const handlePrintChange = function(mql) {
+                        if (!mql.matches) {
+                            // Dialogul s-a închis
+                            cleanup();
+                            mediaQueryList.removeListener(handlePrintChange);
+                        }
+                    };
+                    
+                    // Adaugă listener pentru schimbări
+                    if (mediaQueryList.addEventListener) {
+                        mediaQueryList.addEventListener('change', handlePrintChange);
+                    } else {
+                        // Fallback pentru browsere mai vechi
+                        mediaQueryList.addListener(handlePrintChange);
+                    }
+                    
+                    // Declanșează print-ul
+                    iframe.contentWindow.print();
+                    
+                    // Fallback: resetează flag-ul după un timp dacă matchMedia nu funcționează
+                    setTimeout(function() {
+                        if (printInProgress) {
+                            cleanup();
+                        }
+                    }, 1500);
+                } catch (e) {
+                    console.error('Eroare la print:', e);
+                    cleanup();
+                }
+            }, 100);
+        };
+        
+        // Resetează flag-ul în caz de eroare
+        iframe.onerror = function() {
+            cleanup();
+        };
+    }
 </script>
 @endsection
 
