@@ -8,11 +8,31 @@
     <div class="bg-white rounded-lg shadow p-6">
         <div class="flex items-center justify-between">
             <div class="flex items-center">
-                <a href="{{ route('guardians.index') }}" class="text-gray-400 hover:text-gray-600 mr-4">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                </a>
+                @if(Auth::user()->isStaff())
+                    @php
+                        // Pentru STAFF, verificăm dacă vine de la un view de copil prin parametrul from_child
+                        $fromChildId = request()->query('from_child');
+                    @endphp
+                    @if($fromChildId)
+                        <a href="{{ route('children.show', $fromChildId) }}" class="text-gray-400 hover:text-gray-600 mr-4">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </a>
+                    @else
+                        <a href="{{ route('scan') }}" class="text-gray-400 hover:text-gray-600 mr-4">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </a>
+                    @endif
+                @else
+                    <a href="{{ route('guardians.index') }}" class="text-gray-400 hover:text-gray-600 mr-4">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+                @endif
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900">{{ $guardian->name }}</h1>
                     <p class="text-gray-600">Detalii părinte/tutore și copii asociați</p>

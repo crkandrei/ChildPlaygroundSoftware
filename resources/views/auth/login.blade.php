@@ -34,17 +34,16 @@
                 @csrf
                 
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="email" name="email" required 
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('email') border-red-500 @enderror"
-                           value="{{ old('email', 'admin@bracelet-tracker.com') }}">
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="username" name="username" required 
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('username') border-red-500 @enderror"
+                           value="{{ old('username') }}" autofocus>
                 </div>
                 
                 <div>
                     <label for="password" class="block text-sm font-medium text-gray-700">Parolă</label>
                     <input type="password" id="password" name="password" required 
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('password') border-red-500 @enderror"
-                           value="admin123">
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('password') border-red-500 @enderror">
                 </div>
                 
                 <div class="flex items-center">
@@ -62,15 +61,6 @@
                     </button>
                 </div>
             </form>
-        </div>
-        
-        <div class="text-center text-white text-sm">
-            <p class="font-semibold mb-2">Credențiale demo:</p>
-            <div class="space-y-1">
-                <p><strong>Super Admin:</strong> admin@bracelet-tracker.com / admin123</p>
-                <p><strong>Company Admin:</strong> maria@florisoarele.ro / admin123</p>
-                <p><strong>Staff:</strong> ion@florisoarele.ro / staff123</p>
-            </div>
         </div>
     </div>
 </body>

@@ -69,4 +69,20 @@ class Tenant extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    /**
+     * Get the weekly rates for the tenant.
+     */
+    public function weeklyRates(): HasMany
+    {
+        return $this->hasMany(WeeklyRate::class);
+    }
+
+    /**
+     * Get the special period rates for the tenant.
+     */
+    public function specialPeriodRates(): HasMany
+    {
+        return $this->hasMany(SpecialPeriodRate::class);
+    }
 }

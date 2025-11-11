@@ -23,7 +23,7 @@ class ChildController extends Controller
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return $this->redirectToHome()->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         // Get children with their guardians and active sessions
@@ -47,7 +47,7 @@ class ChildController extends Controller
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return $this->redirectToHome()->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         // Get guardians for the tenant
@@ -78,7 +78,7 @@ class ChildController extends Controller
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return $this->redirectToHome()->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         $minDate = now()->subYears(18)->format('Y-m-d');
@@ -174,6 +174,7 @@ class ChildController extends Controller
                         'is_paused' => $isPaused,
                         'current_interval_started_at' => $currentIntervalStartedAt,
                         'is_active' => true,
+                        'status' => 'active',
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
                     ];
@@ -193,6 +194,7 @@ class ChildController extends Controller
                         'is_paused' => false,
                         'current_interval_started_at' => null,
                         'is_active' => false,
+                        'status' => 'completed',
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
                     ];

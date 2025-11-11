@@ -58,9 +58,9 @@ class PricingServiceTest extends TestCase
     }
 
     /**
-     * Test că timpul între 15 și 30 minute (inclusiv) se taxează ca jumătate de oră
+     * Test că timpul între 15 și 44 minute (inclusiv) se taxează ca jumătate de oră
      */
-    public function test_between_15_and_30_minutes_charges_half_hour(): void
+    public function test_between_15_and_44_minutes_charges_half_hour(): void
     {
         // 1:15 (1h 15min) -> 1.5 ore
         $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 15 / 60));
@@ -73,21 +73,30 @@ class PricingServiceTest extends TestCase
         
         // 1:30 (1h 30min) -> 1.5 ore
         $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 30 / 60));
+        
+        // 1:40 (1h 40min) -> 1.5 ore
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 40 / 60));
+        
+        // 1:44 (1h 44min) -> 1.5 ore
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 44 / 60));
+        
+        // 1:44.99 (1h 44.99min) -> 1.5 ore
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 44.99 / 60));
     }
 
     /**
-     * Test că timpul peste 30 minute se taxează ca o oră completă
+     * Test că timpul de la 45 minute în sus se taxează ca o oră completă
      */
-    public function test_over_30_minutes_charges_full_hour(): void
+    public function test_45_minutes_and_over_charges_full_hour(): void
     {
-        // 1:31 (1h 31min) -> 2.0 ore
-        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 31 / 60));
+        // 1:45 (1h 45min) -> 1.5 ore (45 min = prag, se rotunjește la 0.5h)
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 45 / 60));
         
-        // 1:35 (1h 35min) -> 2.0 ore
-        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 35 / 60));
+        // 1:46 (1h 46min) -> 2.0 ore (peste 45 min)
+        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 46 / 60));
         
-        // 1:45 (1h 45min) -> 2.0 ore
-        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 45 / 60));
+        // 1:50 (1h 50min) -> 2.0 ore
+        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 50 / 60));
         
         // 1:59 (1h 59min) -> 2.0 ore
         $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 59 / 60));
@@ -166,7 +175,7 @@ class PricingServiceTest extends TestCase
     }
 
     /**
-     * Test calcul preț pentru sesiune de 1:35 (2.0 ore)
+     * Test calcul preț pentru sesiune de 1:35 (1.5 ore)
      */
     public function test_calculate_session_price_one_hour_thirty_five_minutes(): void
     {
@@ -181,8 +190,8 @@ class PricingServiceTest extends TestCase
 
         $price = $this->pricingService->calculateSessionPrice($session);
         
-        // 2.0 ore * 50 RON = 100 RON
-        $this->assertEquals(100.00, $price);
+        // 1.5 ore * 50 RON = 75 RON
+        $this->assertEquals(75.00, $price);
     }
 
     /**
@@ -224,17 +233,23 @@ class PricingServiceTest extends TestCase
         // 2h 10min -> 2.0 ore (1 + 1 complete + 10min < 15min)
         $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(2.0 + 10 / 60));
         
-        // 2h 15min -> 2.5 ore (1 + 1 complete + 15min = 0.5h)
+        // 2h 15min -> 2.5 ore (1 + 1 complete + 15min ≥ 15min = +0.5h)
         $this->assertEquals(2.5, $this->pricingService->roundToHalfHour(2.0 + 15 / 60));
         
-        // 2h 20min -> 2.5 ore (1 + 1 complete + 20min între 15-30min = 0.5h)
+        // 2h 20min -> 2.5 ore (1 + 1 complete + 20min între 15-44min = +0.5h)
         $this->assertEquals(2.5, $this->pricingService->roundToHalfHour(2.0 + 20 / 60));
         
-        // 2h 30min -> 2.5 ore (1 + 1 complete + 30min = 0.5h)
+        // 2h 30min -> 2.5 ore (1 + 1 complete + 30min între 15-44min = +0.5h)
         $this->assertEquals(2.5, $this->pricingService->roundToHalfHour(2.0 + 30 / 60));
         
-        // 2h 35min -> 3.0 ore (1 + 1 complete + 35min > 30min = +1h)
-        $this->assertEquals(3.0, $this->pricingService->roundToHalfHour(2.0 + 35 / 60));
+        // 2h 35min -> 2.5 ore (1 + 1 complete + 35min între 15-44min = +0.5h)
+        $this->assertEquals(2.5, $this->pricingService->roundToHalfHour(2.0 + 35 / 60));
+        
+        // 2h 45min -> 2.5 ore (1 + 1 complete + 45min = 45min = +0.5h)
+        $this->assertEquals(2.5, $this->pricingService->roundToHalfHour(2.0 + 45 / 60));
+        
+        // 2h 46min -> 3.0 ore (1 + 1 complete + 46min ≥ 45min = +1h)
+        $this->assertEquals(3.0, $this->pricingService->roundToHalfHour(2.0 + 46 / 60));
         
         // Exact 3 ore -> 3.0 ore (1 + 2 complete hours)
         $this->assertEquals(3.0, $this->pricingService->roundToHalfHour(3.0));
@@ -242,7 +257,7 @@ class PricingServiceTest extends TestCase
         // 3h 10min -> 3.0 ore (1 + 2 complete + 10min < 15min)
         $this->assertEquals(3.0, $this->pricingService->roundToHalfHour(3.0 + 10 / 60));
         
-        // 3h 20min -> 3.5 ore (1 + 2 complete + 20min între 15-30min = 0.5h)
+        // 3h 20min -> 3.5 ore (1 + 2 complete + 20min între 15-44min = +0.5h)
         $this->assertEquals(3.5, $this->pricingService->roundToHalfHour(3.0 + 20 / 60));
         
         // Exact 8 ore -> 8.0 ore (1 + 7 complete hours)
@@ -251,11 +266,17 @@ class PricingServiceTest extends TestCase
         // 8h 10min -> 8.0 ore (1 + 7 complete + 10min < 15min)
         $this->assertEquals(8.0, $this->pricingService->roundToHalfHour(8.0 + 10 / 60));
         
-        // 8h 20min -> 8.5 ore (1 + 7 complete + 20min între 15-30min = 0.5h)
+        // 8h 20min -> 8.5 ore (1 + 7 complete + 20min între 15-44min = +0.5h)
         $this->assertEquals(8.5, $this->pricingService->roundToHalfHour(8.0 + 20 / 60));
         
-        // 8h 35min -> 9.0 ore (1 + 7 complete + 35min > 30min = +1h)
-        $this->assertEquals(9.0, $this->pricingService->roundToHalfHour(8.0 + 35 / 60));
+        // 8h 35min -> 8.5 ore (1 + 7 complete + 35min între 15-44min = +0.5h)
+        $this->assertEquals(8.5, $this->pricingService->roundToHalfHour(8.0 + 35 / 60));
+        
+        // 8h 45min -> 8.5 ore (1 + 7 complete + 45min = 45min = +0.5h)
+        $this->assertEquals(8.5, $this->pricingService->roundToHalfHour(8.0 + 45 / 60));
+        
+        // 8h 46min -> 9.0 ore (1 + 7 complete + 46min ≥ 45min = +1h)
+        $this->assertEquals(9.0, $this->pricingService->roundToHalfHour(8.0 + 46 / 60));
     }
 
     /**
@@ -312,14 +333,14 @@ class PricingServiceTest extends TestCase
         // Exact 15.01 minute peste prima oră -> +0.5h
         $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 15.01 / 60));
         
-        // Exact 29.99 minute peste prima oră -> +0.5h
-        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 29.99 / 60));
+        // Exact 44.99 minute peste prima oră -> +0.5h
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 44.99 / 60));
         
-        // Exact 30.00 minute peste prima oră -> +0.5h
-        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 30.00 / 60));
+        // Exact 45.00 minute peste prima oră -> +0.5h (45 min = prag, se rotunjește la 0.5h)
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour(1.0 + 45.00 / 60));
         
-        // Exact 30.01 minute peste prima oră -> +1h
-        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 30.01 / 60));
+        // Exact 45.01 minute peste prima oră -> +1h
+        $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 45.01 / 60));
         
         // Exact 59.99 minute peste prima oră -> +1h
         $this->assertEquals(2.0, $this->pricingService->roundToHalfHour(1.0 + 59.99 / 60));
@@ -351,11 +372,17 @@ class PricingServiceTest extends TestCase
         // 24h 10min -> 24.0 ore (10min < 15min)
         $this->assertEquals(24.0, $this->pricingService->roundToHalfHour(24.0 + 10 / 60));
         
-        // 24h 20min -> 24.5 ore (20min între 15-30min)
+        // 24h 20min -> 24.5 ore (20min între 15-44min)
         $this->assertEquals(24.5, $this->pricingService->roundToHalfHour(24.0 + 20 / 60));
         
-        // 24h 35min -> 25.0 ore (35min > 30min)
-        $this->assertEquals(25.0, $this->pricingService->roundToHalfHour(24.0 + 35 / 60));
+        // 24h 35min -> 24.5 ore (35min între 15-44min)
+        $this->assertEquals(24.5, $this->pricingService->roundToHalfHour(24.0 + 35 / 60));
+        
+        // 24h 45min -> 24.5 ore (45min = prag, se rotunjește la 0.5h)
+        $this->assertEquals(24.5, $this->pricingService->roundToHalfHour(24.0 + 45 / 60));
+        
+        // 24h 46min -> 25.0 ore (46min ≥ 45min)
+        $this->assertEquals(25.0, $this->pricingService->roundToHalfHour(24.0 + 46 / 60));
         
         // 100 ore exacte -> 100.0 ore
         $this->assertEquals(100.0, $this->pricingService->roundToHalfHour(100.0));
@@ -432,12 +459,22 @@ class PricingServiceTest extends TestCase
     }
 
     /**
-     * Test pentru durata exactă de 1h 30min 01sec (peste 30 min)
+     * Test pentru durata exactă de 1h 45min 00sec (exact 45 min)
      */
-    public function test_one_hour_thirty_minutes_one_second(): void
+    public function test_one_hour_forty_five_minutes_exact(): void
     {
-        // 1h 30min 1sec = 1 + 30/60 + 1/3600 = 1.500278... ore
-        $hours = 1.0 + 30/60 + 1/3600;
+        // 1h 45min = 1.75 ore exact -> 1.5 ore (45 min = prag, se rotunjește la 0.5h)
+        $hours = 1.0 + 45/60;
+        $this->assertEquals(1.5, $this->pricingService->roundToHalfHour($hours));
+    }
+
+    /**
+     * Test pentru durata exactă de 1h 45min 01sec (peste 45 min)
+     */
+    public function test_one_hour_forty_five_minutes_one_second(): void
+    {
+        // 1h 45min 1sec = 1 + 45/60 + 1/3600 = 1.750278... ore
+        $hours = 1.0 + 45/60 + 1/3600;
         $this->assertEquals(2.0, $this->pricingService->roundToHalfHour($hours));
     }
 

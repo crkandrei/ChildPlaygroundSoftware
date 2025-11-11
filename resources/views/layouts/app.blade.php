@@ -179,12 +179,14 @@
             
             <nav class="mt-8">
                 <div class="px-4 space-y-2">
+                    @if(!Auth::user()->isStaff())
                     <a href="{{ route('dashboard') }}" 
                        data-title="Dashboard"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                         <i class="fas fa-tachometer-alt sidebar-icon mr-3"></i>
                         <span class="sidebar-text">Dashboard</span>
                     </a>
+                    @endif
                     
                     <a href="{{ route('scan') }}" 
                        data-title="Scanare Brățară"
@@ -207,7 +209,7 @@
                         <span class="sidebar-text">Copii</span>
                     </a>
                     
-                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff())
+                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
                     <a href="{{ route('products.index') }}" 
                        data-title="Produse"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('products.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
@@ -238,6 +240,15 @@
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('birthday-reservations.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                         <i class="fas fa-birthday-cake sidebar-icon mr-3"></i>
                         <span class="sidebar-text">Rezervări Zile Naștere</span>
+                    </a>
+                    @endif
+                    
+                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                    <a href="{{ route('pricing.index') }}" 
+                       data-title="Gestionare Tarife"
+                       class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('pricing.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                        <i class="fas fa-dollar-sign sidebar-icon mr-3"></i>
+                        <span class="sidebar-text">Gestionare Tarife</span>
                     </a>
                     @endif
                 </div>

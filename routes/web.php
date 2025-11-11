@@ -13,8 +13,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected routes
 Route::middleware('auth')->group(function () {
+    // Dashboard - doar pentru SUPER_ADMIN și COMPANY_ADMIN (verificarea se face în controller)
     Route::get('/dashboard', [WebController::class, 'dashboard'])->name('dashboard');
-        Route::get('/rapoarte', [App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/rapoarte', [App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
+    
     Route::get('/change-password', [AuthController::class, 'showChangePasswordForm'])->name('change-password');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     
@@ -73,11 +75,18 @@ Route::middleware('auth')->group(function () {
         ->where(['child' => '[0-9]+']);
     
     // Guardians management
-    Route::resource('guardians', App\Http\Controllers\GuardianController::class);
+    // STAFF poate vedea doar view-ul (show), nu CRUD complet (verificarea se face în controller)
+    Route::get('/guardians/{guardian}', [App\Http\Controllers\GuardianController::class, 'show'])->name('guardians.show');
     Route::get('/guardians-search', [App\Http\Controllers\GuardianController::class, 'search'])->name('guardians.search');
+    Route::get('/guardians', [App\Http\Controllers\GuardianController::class, 'index'])->name('guardians.index');
+    Route::get('/guardians/create', [App\Http\Controllers\GuardianController::class, 'create'])->name('guardians.create');
+    Route::post('/guardians', [App\Http\Controllers\GuardianController::class, 'store'])->name('guardians.store');
+    Route::get('/guardians/{guardian}/edit', [App\Http\Controllers\GuardianController::class, 'edit'])->name('guardians.edit');
+    Route::put('/guardians/{guardian}', [App\Http\Controllers\GuardianController::class, 'update'])->name('guardians.update');
+    Route::delete('/guardians/{guardian}', [App\Http\Controllers\GuardianController::class, 'destroy'])->name('guardians.destroy');
     Route::get('/guardians-data', [App\Http\Controllers\GuardianController::class, 'data'])->name('guardians.data');
     
-    // Products management
+    // Products management - doar pentru SUPER_ADMIN și COMPANY_ADMIN (verificarea se face în controller)
     Route::resource('products', App\Http\Controllers\ProductController::class);
     
     // Legal documents (accessible without auth for parents to read)
@@ -94,6 +103,15 @@ Route::middleware('auth')->group(function () {
     Route::prefix('birthday-reservations-api')->group(function () {
         Route::get('/calendar', [App\Http\Controllers\BirthdayReservationController::class, 'calendar'])->name('birthday-reservations-api.calendar');
     });
+    
+    // Pricing management (super admin only)
+    Route::get('/pricing', [App\Http\Controllers\PricingController::class, 'index'])->name('pricing.index');
+    Route::get('/pricing/weekly-rates', [App\Http\Controllers\PricingController::class, 'showWeeklyRates'])->name('pricing.weekly-rates');
+    Route::post('/pricing/weekly-rates', [App\Http\Controllers\PricingController::class, 'updateWeeklyRates'])->name('pricing.weekly-rates.update');
+    Route::get('/pricing/special-periods', [App\Http\Controllers\PricingController::class, 'indexSpecialPeriods'])->name('pricing.special-periods');
+    Route::post('/pricing/special-periods', [App\Http\Controllers\PricingController::class, 'storeSpecialPeriod'])->name('pricing.special-periods.store');
+    Route::put('/pricing/special-periods/{id}', [App\Http\Controllers\PricingController::class, 'updateSpecialPeriod'])->name('pricing.special-periods.update');
+    Route::delete('/pricing/special-periods/{id}', [App\Http\Controllers\PricingController::class, 'destroySpecialPeriod'])->name('pricing.special-periods.destroy');
 });
 
 // Legal documents accessible without authentication

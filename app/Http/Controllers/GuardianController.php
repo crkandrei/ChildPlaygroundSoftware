@@ -17,11 +17,16 @@ class GuardianController extends Controller
      */
     public function index()
     {
+        // STAFF nu are acces la index-ul de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         // Stats for cards - only counts
@@ -43,11 +48,16 @@ class GuardianController extends Controller
      */
     public function create()
     {
+        // STAFF nu are acces la crearea de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         return view('guardians.create');
@@ -58,11 +68,16 @@ class GuardianController extends Controller
      */
     public function store(Request $request)
     {
+        // STAFF nu are acces la crearea de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         $request->validate([
@@ -113,6 +128,14 @@ class GuardianController extends Controller
         $tenant = $user->tenant;
         
         if (!$tenant || $guardian->tenant_id !== $tenant->id) {
+            // Pentru STAFF, redirecționăm la scan sau la copil dacă există parametrul from_child
+            if ($user->isStaff()) {
+                $fromChildId = request()->query('from_child');
+                if ($fromChildId) {
+                    return redirect()->route('children.show', $fromChildId)->with('error', 'Părintele nu a fost găsit');
+                }
+                return redirect()->route('scan')->with('error', 'Părintele nu a fost găsit');
+            }
             return redirect()->route('guardians.index')->with('error', 'Părintele nu a fost găsit');
         }
 
@@ -157,6 +180,7 @@ class GuardianController extends Controller
                         'is_paused' => $isPaused,
                         'current_interval_started_at' => $currentIntervalStartedAt,
                         'is_active' => true,
+                        'status' => 'active',
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
                     ];
@@ -178,6 +202,7 @@ class GuardianController extends Controller
                         'is_paused' => false,
                         'current_interval_started_at' => null,
                         'is_active' => false,
+                        'status' => 'completed',
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
                     ];
@@ -195,6 +220,11 @@ class GuardianController extends Controller
      */
     public function edit(Guardian $guardian)
     {
+        // STAFF nu are acces la editarea de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
@@ -210,6 +240,11 @@ class GuardianController extends Controller
      */
     public function update(Request $request, Guardian $guardian)
     {
+        // STAFF nu are acces la actualizarea de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
@@ -251,6 +286,11 @@ class GuardianController extends Controller
      */
     public function destroy(Guardian $guardian)
     {
+        // STAFF nu are acces la ștergerea de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
@@ -316,6 +356,11 @@ class GuardianController extends Controller
      */
     public function data(Request $request)
     {
+        // STAFF nu are acces la datele de părinți
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         if (!$user || !$user->tenant) {
             return response()->json([

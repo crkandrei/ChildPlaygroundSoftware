@@ -25,9 +25,10 @@ class SuperAdminSeeder extends Seeder
 
         // Creează utilizatorul super admin
         User::updateOrCreate(
-            ['email' => 'admin@bracelet-tracker.com'],
+            ['username' => 'admin'],
             [
                 'name' => 'Super Administrator',
+                'username' => 'admin',
                 'email' => 'admin@bracelet-tracker.com',
                 'password' => Hash::make('admin123'),
                 'role_id' => $superAdminRole->id,
@@ -37,7 +38,7 @@ class SuperAdminSeeder extends Seeder
         );
 
         $this->command->info('Super Administrator creat cu succes!');
-        $this->command->info('Email: admin@bracelet-tracker.com');
+        $this->command->info('Username: admin');
         $this->command->info('Parolă: admin123');
     }
 }

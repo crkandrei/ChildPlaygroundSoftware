@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\PlaySession;
 use App\Models\Tenant;
+use App\Models\SpecialPeriodRate;
+use Carbon\Carbon;
 
 class PricingService
 {
@@ -20,7 +22,7 @@ class PricingService
             return 0.00;
         }
 
-        $hourlyRate = $this->getHourlyRate($tenant);
+        $hourlyRate = $this->getHourlyRate($tenant, $session->started_at);
         if ($hourlyRate <= 0) {
             return 0.00;
         }
@@ -33,12 +35,42 @@ class PricingService
 
     /**
      * Get the hourly rate for a tenant
+     * Priority: Special Period Rate > Weekly Rate > Default price_per_hour
      * 
      * @param Tenant $tenant
+     * @param Carbon|null $date Date to check for special period and day of week. If null, uses current date.
      * @return float The hourly rate in RON
      */
-    public function getHourlyRate(Tenant $tenant): float
+    public function getHourlyRate(Tenant $tenant, $date = null): float
     {
+        $checkDate = $date ? Carbon::parse($date) : Carbon::now();
+
+        // 1. Check for special period rate first
+        $specialPeriodRate = SpecialPeriodRate::where('tenant_id', $tenant->id)
+            ->where('start_date', '<=', $checkDate->format('Y-m-d'))
+            ->where('end_date', '>=', $checkDate->format('Y-m-d'))
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if ($specialPeriodRate) {
+            return (float) $specialPeriodRate->hourly_rate;
+        }
+
+        // 2. Check for weekly rate
+        // Carbon: 0=Sunday, 1=Monday, ..., 6=Saturday
+        // Our system: 0=Monday, 1=Tuesday, ..., 6=Sunday
+        $dayOfWeek = $checkDate->dayOfWeek; // Carbon: 0=Sunday, 6=Saturday
+        $systemDayOfWeek = $dayOfWeek === 0 ? 6 : $dayOfWeek - 1; // Convert to our system (0=Monday)
+
+        $weeklyRate = $tenant->weeklyRates()
+            ->where('day_of_week', $systemDayOfWeek)
+            ->first();
+
+        if ($weeklyRate) {
+            return (float) $weeklyRate->hourly_rate;
+        }
+
+        // 3. Fallback to default price_per_hour
         return (float) $tenant->price_per_hour ?? 0.00;
     }
 
@@ -66,21 +98,23 @@ class PricingService
      *   - Each complete hour after the first: add 1.0 hours
      *   - Remaining minutes after complete hours:
      *     - < 15 minutes → round down (no additional charge)
-     *     - ≥ 15 minutes and ≤ 30 minutes → add 0.5 hours
-     *     - > 30 minutes → add 1.0 hours
+     *     - ≥ 15 minutes and ≤ 45 minutes → add 0.5 hours
+     *     - > 45 minutes → add 1.0 hours
      * 
      * Examples:
      * - 0.17 hours (10 min) -> 1.0 hours (first hour always full)
      * - 0.67 hours (40 min) -> 1.0 hours (first hour always full)
      * - 1.17 hours (1h 10min) -> 1.0 hours (10 min < 15 min, rounded down)
-     * - 1.25 hours (1h 15min) -> 1.5 hours (15 min = 15 min, add 0.5 hours)
-     * - 1.33 hours (1h 20min) -> 1.5 hours (20 min between 15-30 min, add 0.5 hours)
-     * - 1.5 hours (1h 30min) -> 1.5 hours (30 min = 30 min, add 0.5 hours)
-     * - 1.58 hours (1h 35min) -> 2.0 hours (35 min > 30 min, add 1 hour)
+     * - 1.25 hours (1h 15min) -> 1.5 hours (15 min ≥ 15 min, add 0.5 hours)
+     * - 1.33 hours (1h 20min) -> 1.5 hours (20 min between 15-45 min, add 0.5 hours)
+     * - 1.5 hours (1h 30min) -> 1.5 hours (30 min between 15-45 min, add 0.5 hours)
+     * - 1.75 hours (1h 45min) -> 1.5 hours (45 min = 45 min, add 0.5 hours)
+     * - 1.77 hours (1h 46min) -> 2.0 hours (46 min ≥ 45 min, add 1 hour)
      * - 2.0 hours (2h 0min) -> 2.0 hours (1 + 1 complete hours)
      * - 2.17 hours (2h 10min) -> 2.0 hours (1 + 1 complete + 10min < 15min)
-     * - 2.25 hours (2h 15min) -> 2.5 hours (1 + 1 complete + 15min = 0.5h)
-     * - 2.58 hours (2h 35min) -> 3.0 hours (1 + 1 complete + 35min > 30min = +1h)
+     * - 2.25 hours (2h 15min) -> 2.5 hours (1 + 1 complete + 15min ≥ 15min = +0.5h)
+     * - 2.75 hours (2h 45min) -> 2.5 hours (1 + 1 complete + 45min = 45min = +0.5h)
+     * - 2.77 hours (2h 46min) -> 3.0 hours (1 + 1 complete + 46min ≥ 45min = +1h)
      * - 8.0 hours (8h 0min) -> 8.0 hours (1 + 7 complete hours)
      * 
      * @param float $hours Duration in hours
@@ -113,11 +147,11 @@ class PricingService
         if ($remainingMinutes < 15) {
             // Less than 15 minutes: round down (no additional charge)
             // Total hours remain as calculated
-        } elseif ($remainingMinutes <= 30) {
-            // Between 15 and 30 minutes (inclusive): add 0.5 hours
+        } elseif ($remainingMinutes <= 45) {
+            // Between 15 and 45 minutes (inclusive): add 0.5 hours
             $totalHours += 0.5;
         } else {
-            // More than 30 minutes: add 1 hour
+            // More than 45 minutes: add 1 hour
             $totalHours += 1.0;
         }
 
@@ -149,7 +183,7 @@ class PricingService
             return $session;
         }
 
-        $hourlyRate = $this->getHourlyRate($tenant);
+        $hourlyRate = $this->getHourlyRate($tenant, $session->started_at);
         $calculatedPrice = $this->calculateSessionPrice($session);
 
         $session->update([

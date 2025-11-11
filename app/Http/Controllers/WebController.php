@@ -13,6 +13,12 @@ class WebController extends Controller
     public function dashboard()
     {
         $user = Auth::user()->load(['role', 'tenant']);
+        
+        // STAFF nu are acces la dashboard
+        if ($user->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         return view('dashboard', compact('user'));
     }
 
@@ -22,6 +28,10 @@ class WebController extends Controller
     public function index()
     {
         if (Auth::check()) {
+            // STAFF merge la scan, alții la dashboard
+            if (Auth::user()->isStaff()) {
+                return redirect('/scan');
+            }
             return redirect('/dashboard');
         }
         return redirect('/login');

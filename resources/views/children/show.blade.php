@@ -64,7 +64,7 @@
                     <dt class="text-sm font-medium text-gray-500 mb-1">Părinte/Tutore</dt>
                     <dd class="text-gray-900">
                         @if($child->guardian)
-                            <a href="{{ route('guardians.show', $child->guardian) }}" class="text-indigo-600 hover:text-indigo-800 font-medium">
+                            <a href="{{ route('guardians.show', ['guardian' => $child->guardian->id, 'from_child' => $child->id]) }}" class="text-indigo-600 hover:text-indigo-800 font-medium">
                                 {{ $child->guardian->name }}
                             </a>
                             @if($child->guardian->phone)

@@ -24,31 +24,37 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'username' => 'required|string',
             'password' => 'required',
         ]);
 
-        $credentials = $request->only('email', 'password');
-        $remember = true; // forcează sesiune persistentă
+        // Găsește utilizatorul după username
+        $user = User::where('username', $request->username)->first();
 
-        if (Auth::attempt($credentials, $remember)) {
-            $user = Auth::user();
-            
-            if (!$user->isActive()) {
-                Auth::logout();
-                return back()->withErrors([
-                    'email' => 'Contul este inactiv.',
-                ]);
-            }
-
-            $request->session()->regenerate();
-            
-            return redirect()->intended('/dashboard');
+        // Verifică dacă utilizatorul există și parola este corectă
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return back()->withErrors([
+                'username' => 'Credențialele furnizate sunt incorecte.',
+            ]);
         }
 
-        return back()->withErrors([
-            'email' => 'Credențialele furnizate sunt incorecte.',
-        ]);
+        // Verifică dacă utilizatorul este activ
+        if (!$user->isActive()) {
+            return back()->withErrors([
+                'username' => 'Contul este inactiv.',
+            ]);
+        }
+
+        // Autentifică utilizatorul
+        Auth::login($user, true); // true = remember me
+        $request->session()->regenerate();
+        
+        // Redirect bazat pe rol
+        if ($user->isStaff()) {
+            return redirect()->intended('/scan');
+        }
+        
+        return redirect()->intended('/dashboard');
     }
 
     /**

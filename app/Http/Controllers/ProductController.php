@@ -15,11 +15,16 @@ class ProductController extends Controller
      */
     public function index()
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         $products = Product::where('tenant_id', $tenant->id)
@@ -34,11 +39,16 @@ class ProductController extends Controller
      */
     public function create()
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         return view('products.create');
@@ -49,6 +59,11 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
@@ -84,11 +99,16 @@ class ProductController extends Controller
      */
     public function show($id)
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         $product = Product::where('id', $id)
@@ -103,11 +123,16 @@ class ProductController extends Controller
      */
     public function edit($id)
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
         if (!$tenant) {
-            return redirect()->route('dashboard')->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
+            return redirect($this->getHomeRoute())->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
         $product = Product::where('id', $id)
@@ -122,6 +147,11 @@ class ProductController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
@@ -160,6 +190,11 @@ class ProductController extends Controller
      */
     public function destroy($id)
     {
+        // STAFF nu are acces la produse
+        if (Auth::user()->isStaff()) {
+            abort(403, 'Acces interzis');
+        }
+        
         $user = Auth::user();
         $tenant = $user->tenant;
         
