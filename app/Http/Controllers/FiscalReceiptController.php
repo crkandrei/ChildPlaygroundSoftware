@@ -6,8 +6,6 @@ use App\Models\Tenant;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class FiscalReceiptController extends Controller
@@ -105,9 +103,10 @@ class FiscalReceiptController extends Controller
     }
 
     /**
-     * Send fiscal receipt to bridge
+     * Prepare fiscal receipt data for printing
+     * Returns calculated data that will be sent to bridge from client-side
      */
-    public function print(Request $request)
+    public function preparePrint(Request $request)
     {
         $this->checkSuperAdmin();
 
@@ -141,114 +140,67 @@ class FiscalReceiptController extends Controller
         // Product name
         $productName = 'Ora de joacă';
 
-        // Get bridge URL from config
-        $bridgeUrl = config('services.fiscal_bridge.url', 'http://localhost:9000');
-
-        try {
-            // Send request to bridge
-            $response = Http::timeout(15)->post("{$bridgeUrl}/print", [
+        // Return data for client-side bridge call
+        return response()->json([
+            'success' => true,
+            'data' => [
                 'productName' => $productName,
                 'duration' => $duration,
                 'price' => $price,
                 'paymentType' => $paymentType,
-            ]);
+            ],
+            'tenant' => [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+            ],
+        ]);
+    }
 
-            if ($response->successful()) {
-                $responseData = $response->json();
+    /**
+     * Handle print result from bridge and display message
+     * This endpoint receives the result from client-side bridge call
+     * and stores it in session for display
+     */
+    public function handlePrintResult(Request $request)
+    {
+        $this->checkSuperAdmin();
 
-                if ($responseData['status'] === 'success') {
-                    $fileName = $responseData['file'] ?? 'N/A';
-                    $successMessage = "Bon fiscal emis cu succes!";
-                    if ($fileName !== 'N/A') {
-                        $successMessage .= " Fișier generat: {$fileName}";
-                    }
+        $request->validate([
+            'status' => 'required|in:success,error',
+            'message' => 'required|string',
+            'file' => 'nullable|string',
+            'price' => 'nullable|numeric',
+            'duration' => 'nullable|string',
+            'paymentType' => 'nullable|in:CASH,CARD',
+            'details' => 'nullable|string',
+        ]);
 
-                    Log::info('Fiscal receipt printed successfully', [
-                        'user_id' => Auth::id(),
-                        'tenant_id' => $tenant->id,
-                        'tenant_name' => $tenant->name,
-                        'price' => $price,
-                        'duration' => $duration,
-                        'payment_type' => $paymentType,
-                        'file' => $fileName,
-                    ]);
-
-                    return redirect()->route('fiscal-receipts.index')
-                        ->with('success', $successMessage)
-                        ->with('receipt_details', [
-                            'file' => $fileName,
-                            'price' => $price,
-                            'duration' => $duration,
-                            'payment_type' => $paymentType,
-                            'tenant' => $tenant->name,
-                        ]);
-                } else {
-                    $errorMessage = $responseData['message'] ?? 'Eroare necunoscută';
-                    $details = $responseData['details'] ?? '';
-                    $fullErrorMessage = "Eroare la imprimare: {$errorMessage}";
-                    if ($details) {
-                        $fullErrorMessage .= " - Detalii: {$details}";
-                    }
-
-                    Log::error('Fiscal receipt print failed', [
-                        'user_id' => Auth::id(),
-                        'tenant_id' => $tenant->id,
-                        'tenant_name' => $tenant->name,
-                        'price' => $price,
-                        'duration' => $duration,
-                        'payment_type' => $paymentType,
-                        'error' => $errorMessage,
-                        'details' => $details,
-                    ]);
-
-                    return redirect()->route('fiscal-receipts.index')
-                        ->with('error', $fullErrorMessage);
-                }
-            } else {
-                $errorMessage = 'Eroare de comunicare cu bridge-ul fiscal';
-                $statusCode = $response->status();
-                $responseBody = $response->body();
-
-                Log::error('Fiscal bridge communication error', [
-                    'user_id' => Auth::id(),
-                    'tenant_id' => $tenant->id,
-                    'tenant_name' => $tenant->name,
-                    'status_code' => $statusCode,
-                    'response' => $responseBody,
-                ]);
-
-                $errorDetails = "Status HTTP: {$statusCode}";
-                if ($statusCode === 504) {
-                    $errorDetails .= " - Timeout: Bridge-ul nu a răspuns în timpul alocat";
-                } elseif ($statusCode === 500) {
-                    $errorDetails .= " - Eroare internă a bridge-ului";
-                }
-
-                return redirect()->route('fiscal-receipts.index')
-                    ->with('error', "{$errorMessage}. {$errorDetails}");
+        if ($request->status === 'success') {
+            $message = $request->message;
+            if ($request->file) {
+                $message .= " Fișier: {$request->file}";
             }
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('Fiscal bridge connection exception', [
-                'user_id' => Auth::id(),
-                'tenant_id' => $tenant->id,
-                'tenant_name' => $tenant->name,
-                'error' => $e->getMessage(),
-                'bridge_url' => $bridgeUrl,
-            ]);
-
+            if ($request->price) {
+                $message .= " | Preț: " . number_format($request->price, 2) . " RON";
+            }
+            if ($request->duration) {
+                $message .= " | Durată: {$request->duration}";
+            }
+            if ($request->paymentType) {
+                $paymentLabel = $request->paymentType === 'CASH' ? 'Cash' : 'Card';
+                $message .= " | Plată: {$paymentLabel}";
+            }
+            
             return redirect()->route('fiscal-receipts.index')
-                ->with('error', 'Nu s-a putut conecta la bridge-ul fiscal. Verifică că serviciul rulează pe ' . $bridgeUrl);
-        } catch (\Exception $e) {
-            Log::error('Fiscal receipt exception', [
-                'user_id' => Auth::id(),
-                'tenant_id' => $tenant->id,
-                'tenant_name' => $tenant->name,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
+                ->with('success', $message);
+        } else {
+            $errorMessage = $request->message;
+            if ($request->details) {
+                $errorMessage .= ' - ' . $request->details;
+            }
+            
             return redirect()->route('fiscal-receipts.index')
-                ->with('error', 'Eroare neașteptată: ' . $e->getMessage());
+                ->with('error', $errorMessage);
         }
     }
 

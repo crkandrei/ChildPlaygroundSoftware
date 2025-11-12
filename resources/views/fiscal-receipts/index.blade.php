@@ -5,6 +5,7 @@
 
 @section('content')
 <div class="space-y-6">
+
     <!-- Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
         <div class="flex justify-between items-center">
@@ -17,7 +18,7 @@
 
     <!-- Form -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <form id="fiscal-receipt-form" method="POST" action="{{ route('fiscal-receipts.print') }}">
+        <form id="fiscal-receipt-form">
             @csrf
 
             <!-- Tenant Selection -->
@@ -245,28 +246,171 @@
         });
     }
 
-    // Form submission
-    document.getElementById('fiscal-receipt-form').addEventListener('submit', function(e) {
+    // Form submission - send to bridge directly from browser
+    document.getElementById('fiscal-receipt-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
         const tenantId = document.getElementById('tenant_id').value;
         const hours = parseInt(document.getElementById('hours').value) || 0;
         const minutes = parseInt(document.getElementById('minutes').value) || 0;
+        const paymentType = document.querySelector('input[name="paymentType"]:checked').value;
 
+        // Validate inputs
         if (!tenantId) {
-            e.preventDefault();
             alert('Selectați un tenant');
             return false;
         }
 
         if (hours === 0 && minutes === 0) {
-            e.preventDefault();
             alert('Introduceți o durată (ore sau minute)');
             return false;
         }
 
         // Show loading state
         const submitBtn = document.getElementById('submit-btn');
+        const originalBtnText = submitBtn.innerHTML;
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Se emite bonul...';
+
+        try {
+            // Step 1: Get calculated data from Laravel backend
+            const prepareResponse = await fetch('{{ route("fiscal-receipts.prepare-print") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    tenant_id: tenantId,
+                    hours: hours,
+                    minutes: minutes,
+                    paymentType: paymentType
+                })
+            });
+
+            if (!prepareResponse.ok) {
+                const errorData = await prepareResponse.json();
+                throw new Error(errorData.message || 'Eroare la pregătirea datelor');
+            }
+
+            const prepareData = await prepareResponse.json();
+            
+            if (!prepareData.success || !prepareData.data) {
+                throw new Error('Date invalide de la server');
+            }
+
+            // Step 2: Send directly to local bridge from browser
+            const bridgeUrl = 'http://localhost:9000';
+            const bridgeResponse = await fetch(`${bridgeUrl}/print`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(prepareData.data)
+            });
+
+            if (!bridgeResponse.ok) {
+                const errorText = await bridgeResponse.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch {
+                    throw new Error(`Eroare HTTP ${bridgeResponse.status}: ${errorText.substring(0, 100)}`);
+                }
+                throw new Error(errorData.message || errorData.details || 'Eroare de la bridge-ul fiscal');
+            }
+
+            const bridgeData = await bridgeResponse.json();
+
+            // Step 3: Send result to Laravel backend for session message handling
+            let resultPayload;
+            if (bridgeData.status === 'success') {
+                resultPayload = {
+                    status: 'success',
+                    message: 'Bon fiscal emis cu succes!',
+                    file: bridgeData.file || null,
+                    price: prepareData.data.price,
+                    duration: prepareData.data.duration,
+                    paymentType: prepareData.data.paymentType,
+                };
+            } else {
+                resultPayload = {
+                    status: 'error',
+                    message: bridgeData.message || 'Eroare necunoscută',
+                    details: bridgeData.details || null,
+                };
+            }
+
+            // Send result to Laravel backend using form submit to follow redirects properly
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("fiscal-receipts.handle-result") }}';
+            
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+            
+            // Add all payload fields
+            for (const [key, value] of Object.entries(resultPayload)) {
+                if (value !== null && value !== undefined) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Send error to Laravel backend for proper display using form submit
+            try {
+                const errorPayload = {
+                    status: 'error',
+                    message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+                        ? 'Nu s-a putut conecta la bridge-ul fiscal local (localhost:9000). Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                        : error.message,
+                    details: null,
+                };
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route("fiscal-receipts.handle-result") }}';
+                
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = '{{ csrf_token() }}';
+                form.appendChild(csrfInput);
+                
+                // Add all payload fields
+                for (const [key, value] of Object.entries(errorPayload)) {
+                    if (value !== null && value !== undefined) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = value;
+                        form.appendChild(input);
+                    }
+                }
+                
+                document.body.appendChild(form);
+                form.submit();
+            } catch (fallbackError) {
+                // Last resort fallback
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                alert('Eroare: ' + error.message);
+            }
+        }
     });
 </script>
 @endsection

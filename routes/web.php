@@ -116,7 +116,8 @@ Route::middleware('auth')->group(function () {
     // Fiscal receipts (super admin only)
     Route::get('/fiscal-receipts', [App\Http\Controllers\FiscalReceiptController::class, 'index'])->name('fiscal-receipts.index');
     Route::post('/fiscal-receipts/calculate-price', [App\Http\Controllers\FiscalReceiptController::class, 'calculatePrice'])->name('fiscal-receipts.calculate-price');
-    Route::post('/fiscal-receipts/print', [App\Http\Controllers\FiscalReceiptController::class, 'print'])->name('fiscal-receipts.print');
+    Route::post('/fiscal-receipts/prepare-print', [App\Http\Controllers\FiscalReceiptController::class, 'preparePrint'])->name('fiscal-receipts.prepare-print');
+    Route::post('/fiscal-receipts/handle-result', [App\Http\Controllers\FiscalReceiptController::class, 'handlePrintResult'])->name('fiscal-receipts.handle-result');
 });
 
 // Legal documents accessible without authentication
