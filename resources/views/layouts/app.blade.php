@@ -179,7 +179,14 @@
             
             <nav class="mt-8">
                 <div class="px-4 space-y-2">
-                    @if(!Auth::user()->isStaff())
+                    @php
+                        // Ensure role is loaded for all menu checks
+                        $currentUser = Auth::user();
+                        if ($currentUser && !$currentUser->relationLoaded('role')) {
+                            $currentUser->load('role');
+                        }
+                    @endphp
+                    @if(!$currentUser || !$currentUser->isStaff())
                     <a href="{{ route('dashboard') }}" 
                        data-title="Dashboard"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('dashboard') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
@@ -209,7 +216,7 @@
                         <span class="sidebar-text">Copii</span>
                     </a>
                     
-                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                    @if($currentUser && ($currentUser->isSuperAdmin() || $currentUser->isCompanyAdmin()))
                     <a href="{{ route('products.index') }}" 
                        data-title="Produse"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('products.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
@@ -218,7 +225,7 @@
                     </a>
                     @endif
                     
-                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                    @if($currentUser && ($currentUser->isSuperAdmin() || $currentUser->isCompanyAdmin()))
                     <a href="{{ route('guardians.index') }}" 
                        data-title="Părinți"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('guardians.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
@@ -234,7 +241,7 @@
                     </a>
                     @endif
                     
-                    @if(Auth::user()->isSuperAdmin())
+                    @if($currentUser && $currentUser->isSuperAdmin())
                     <a href="{{ route('birthday-reservations.index') }}" 
                        data-title="Rezervări Zile Naștere"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('birthday-reservations.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
@@ -243,7 +250,16 @@
                     </a>
                     @endif
                     
-                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                    @if($currentUser && $currentUser->role && $currentUser->role->name === 'SUPER_ADMIN')
+                    <a href="{{ route('fiscal-receipts.index') }}" 
+                       data-title="Bon"
+                       class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('fiscal-receipts.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                        <i class="fas fa-receipt sidebar-icon mr-3"></i>
+                        <span class="sidebar-text">Bon</span>
+                    </a>
+                    @endif
+                    
+                    @if($currentUser && ($currentUser->isSuperAdmin() || $currentUser->isCompanyAdmin()))
                     <a href="{{ route('pricing.index') }}" 
                        data-title="Gestionare Tarife"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('pricing.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">

@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'fiscal_bridge' => [
+        'url' => env('FISCAL_BRIDGE_URL', 'http://localhost:9000'),
+    ],
+
 ];

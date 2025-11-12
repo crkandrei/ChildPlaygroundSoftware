@@ -112,6 +112,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/pricing/special-periods', [App\Http\Controllers\PricingController::class, 'storeSpecialPeriod'])->name('pricing.special-periods.store');
     Route::put('/pricing/special-periods/{id}', [App\Http\Controllers\PricingController::class, 'updateSpecialPeriod'])->name('pricing.special-periods.update');
     Route::delete('/pricing/special-periods/{id}', [App\Http\Controllers\PricingController::class, 'destroySpecialPeriod'])->name('pricing.special-periods.destroy');
+    
+    // Fiscal receipts (super admin only)
+    Route::get('/fiscal-receipts', [App\Http\Controllers\FiscalReceiptController::class, 'index'])->name('fiscal-receipts.index');
+    Route::post('/fiscal-receipts/calculate-price', [App\Http\Controllers\FiscalReceiptController::class, 'calculatePrice'])->name('fiscal-receipts.calculate-price');
+    Route::post('/fiscal-receipts/print', [App\Http\Controllers\FiscalReceiptController::class, 'print'])->name('fiscal-receipts.print');
 });
 
 // Legal documents accessible without authentication
