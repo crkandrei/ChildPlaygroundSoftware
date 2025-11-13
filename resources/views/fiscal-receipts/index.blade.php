@@ -145,6 +145,56 @@
             </div>
         </form>
     </div>
+
+    <!-- Quick Print 1 Leu Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 mb-1">Tipărire Rapidă</h2>
+                <p class="text-gray-600 text-sm">Emite rapid un bon fiscal de 1 leu</p>
+            </div>
+        </div>
+        
+        <form id="one-leu-form">
+            @csrf
+            
+            <!-- Payment Type for 1 Leu -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Tip plată <span class="text-red-500">*</span>
+                </label>
+                <div class="flex gap-4">
+                    <label class="flex items-center">
+                        <input type="radio" 
+                               name="paymentTypeOneLeu" 
+                               value="CASH" 
+                               checked
+                               required
+                               class="mr-2 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-gray-700">Cash</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" 
+                               name="paymentTypeOneLeu" 
+                               value="CARD" 
+                               required
+                               class="mr-2 text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-gray-700">Card</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="flex justify-end">
+                <button type="submit" 
+                        id="one-leu-btn"
+                        class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-receipt mr-2"></i>
+                    Tipărire Bon 1 Leu
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 @endsection
 
@@ -329,6 +379,156 @@
                 resultPayload = {
                     status: 'success',
                     message: 'Bon fiscal emis cu succes!',
+                    file: bridgeData.file || null,
+                    price: prepareData.data.price,
+                    duration: prepareData.data.duration,
+                    paymentType: prepareData.data.paymentType,
+                };
+            } else {
+                resultPayload = {
+                    status: 'error',
+                    message: bridgeData.message || 'Eroare necunoscută',
+                    details: bridgeData.details || null,
+                };
+            }
+
+            // Send result to Laravel backend using form submit to follow redirects properly
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route("fiscal-receipts.handle-result") }}';
+            
+            // Add CSRF token
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+            
+            // Add all payload fields
+            for (const [key, value] of Object.entries(resultPayload)) {
+                if (value !== null && value !== undefined) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = value;
+                    form.appendChild(input);
+                }
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Send error to Laravel backend for proper display using form submit
+            try {
+                const errorPayload = {
+                    status: 'error',
+                    message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+                        ? 'Nu s-a putut conecta la bridge-ul fiscal local (localhost:9000). Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                        : error.message,
+                    details: null,
+                };
+
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route("fiscal-receipts.handle-result") }}';
+                
+                // Add CSRF token
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = '{{ csrf_token() }}';
+                form.appendChild(csrfInput);
+                
+                // Add all payload fields
+                for (const [key, value] of Object.entries(errorPayload)) {
+                    if (value !== null && value !== undefined) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = value;
+                        form.appendChild(input);
+                    }
+                }
+                
+                document.body.appendChild(form);
+                form.submit();
+            } catch (fallbackError) {
+                // Last resort fallback
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
+                alert('Eroare: ' + error.message);
+            }
+        }
+    });
+
+    // Handle 1 leu receipt form submission
+    document.getElementById('one-leu-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const paymentType = document.querySelector('input[name="paymentTypeOneLeu"]:checked').value;
+
+        // Show loading state
+        const submitBtn = document.getElementById('one-leu-btn');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Se emite bonul...';
+
+        try {
+            // Step 1: Get prepared data from Laravel backend
+            const prepareResponse = await fetch('{{ route("fiscal-receipts.prepare-print-one-leu") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentType: paymentType
+                })
+            });
+
+            if (!prepareResponse.ok) {
+                const errorData = await prepareResponse.json();
+                throw new Error(errorData.message || 'Eroare la pregătirea datelor');
+            }
+
+            const prepareData = await prepareResponse.json();
+            
+            if (!prepareData.success || !prepareData.data) {
+                throw new Error('Date invalide de la server');
+            }
+
+            // Step 2: Send directly to local bridge from browser
+            const bridgeUrl = 'http://localhost:9000';
+            const bridgeResponse = await fetch(`${bridgeUrl}/print`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(prepareData.data)
+            });
+
+            if (!bridgeResponse.ok) {
+                const errorText = await bridgeResponse.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch {
+                    throw new Error(`Eroare HTTP ${bridgeResponse.status}: ${errorText.substring(0, 100)}`);
+                }
+                throw new Error(errorData.message || errorData.details || 'Eroare de la bridge-ul fiscal');
+            }
+
+            const bridgeData = await bridgeResponse.json();
+
+            // Step 3: Send result to Laravel backend for session message handling
+            let resultPayload;
+            if (bridgeData.status === 'success') {
+                resultPayload = {
+                    status: 'success',
+                    message: 'Bon fiscal de 1 leu emis cu succes!',
                     file: bridgeData.file || null,
                     price: prepareData.data.price,
                     duration: prepareData.data.duration,

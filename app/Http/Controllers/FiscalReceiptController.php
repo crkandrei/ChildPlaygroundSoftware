@@ -157,6 +157,37 @@ class FiscalReceiptController extends Controller
     }
 
     /**
+     * Prepare fiscal receipt data for printing 1 leu receipt
+     * Returns calculated data that will be sent to bridge from client-side
+     */
+    public function preparePrintOneLeu(Request $request)
+    {
+        $this->checkSuperAdmin();
+
+        $request->validate([
+            'paymentType' => 'required|in:CASH,CARD',
+        ]);
+
+        $paymentType = $request->paymentType;
+
+        // Fixed values for 1 leu receipt
+        $price = 1.00;
+        $productName = 'Serviciu';
+        $duration = '1 leu';
+
+        // Return data for client-side bridge call
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'productName' => $productName,
+                'duration' => $duration,
+                'price' => $price,
+                'paymentType' => $paymentType,
+            ],
+        ]);
+    }
+
+    /**
      * Handle print result from bridge and display message
      * This endpoint receives the result from client-side bridge call
      * and stores it in session for display

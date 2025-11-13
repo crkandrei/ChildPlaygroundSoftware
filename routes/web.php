@@ -117,6 +117,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/fiscal-receipts', [App\Http\Controllers\FiscalReceiptController::class, 'index'])->name('fiscal-receipts.index');
     Route::post('/fiscal-receipts/calculate-price', [App\Http\Controllers\FiscalReceiptController::class, 'calculatePrice'])->name('fiscal-receipts.calculate-price');
     Route::post('/fiscal-receipts/prepare-print', [App\Http\Controllers\FiscalReceiptController::class, 'preparePrint'])->name('fiscal-receipts.prepare-print');
+    Route::post('/fiscal-receipts/prepare-print-one-leu', [App\Http\Controllers\FiscalReceiptController::class, 'preparePrintOneLeu'])->name('fiscal-receipts.prepare-print-one-leu');
     Route::post('/fiscal-receipts/handle-result', [App\Http\Controllers\FiscalReceiptController::class, 'handlePrintResult'])->name('fiscal-receipts.handle-result');
 });
 
