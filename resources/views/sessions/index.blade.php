@@ -53,10 +53,135 @@
         </div>
     </div>
 </div>
+
+<!-- Fiscal Receipt Modal -->
+<div id="fiscal-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-xl font-bold text-gray-900">Bon Fiscal</h3>
+            <button onclick="closeFiscalModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-4">
+            <!-- Step 1: Payment Type Selection -->
+            <div id="fiscal-modal-step-1">
+                <p class="text-gray-700 mb-4">Cum se plătește?</p>
+                <div class="flex gap-4 mb-6">
+                    <button 
+                        data-payment-btn="CASH"
+                        onclick="selectPaymentType('CASH')"
+                        class="flex-1 px-6 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors">
+                        <i class="fas fa-money-bill-wave mr-2"></i>
+                        Cash
+                    </button>
+                    <button 
+                        data-payment-btn="CARD"
+                        onclick="selectPaymentType('CARD')"
+                        class="flex-1 px-6 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors">
+                        <i class="fas fa-credit-card mr-2"></i>
+                        Card
+                    </button>
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeFiscalModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                        Anulează
+                    </button>
+                    <button 
+                        id="fiscal-continue-btn"
+                        onclick="goToConfirmStep()"
+                        disabled
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Continuă
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Confirmation -->
+            <div id="fiscal-modal-step-2" class="hidden">
+                <p class="text-gray-700 mb-4 font-medium">Se va scoate bonul fiscal pentru:</p>
+                
+                <!-- Virtual Receipt Preview -->
+                <div id="fiscal-receipt-preview" class="bg-white border-2 border-gray-300 rounded-lg p-4 mb-6 shadow-sm max-h-96 overflow-y-auto">
+                    <!-- Receipt Header -->
+                    <div class="text-center border-b border-gray-300 pb-2 mb-3">
+                        <h4 id="receipt-tenant-name" class="font-bold text-lg text-gray-900">-</h4>
+                        <p class="text-xs text-gray-500 mt-1">Bon Fiscal</p>
+                    </div>
+                    
+                    <!-- Receipt Items -->
+                    <div id="receipt-items" class="space-y-2 mb-3">
+                        <!-- Time item will be inserted here -->
+                    </div>
+                    
+                    <!-- Receipt Totals -->
+                    <div class="border-t border-gray-300 pt-2 mt-2">
+                        <div class="flex justify-between text-base font-bold">
+                            <span class="text-gray-900">TOTAL:</span>
+                            <span id="receipt-total-price" class="text-indigo-600">-</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Method -->
+                    <div class="mt-3 pt-3 border-t border-gray-300">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Plată:</span>
+                            <span id="receipt-payment-method" class="font-semibold text-gray-900">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeFiscalModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                        Anulează
+                    </button>
+                    <button 
+                        onclick="confirmAndPrint()"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-check mr-2"></i>
+                        Confirmă și Emite
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Loading -->
+            <div id="fiscal-modal-step-3" class="hidden">
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-4xl text-indigo-600 mb-4"></i>
+                    <p class="text-gray-700 text-lg">Se emite bonul fiscal...</p>
+                    <p class="text-gray-500 text-sm mt-2">Vă rugăm să așteptați</p>
+                </div>
+            </div>
+
+            <!-- Step 4: Result (Success/Error) -->
+            <div id="fiscal-modal-step-4" class="hidden">
+                <div id="fiscal-result-content" class="text-center py-6">
+                    <!-- Success or Error icon and message will be inserted here -->
+                </div>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button 
+                        onclick="closeFiscalModal()"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        Închide
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @section('scripts')
+@php
+    $isSuperAdmin = Auth::user() && Auth::user()->role && Auth::user()->role->name === 'SUPER_ADMIN';
+@endphp
 <script>
+    const isSuperAdmin = @json($isSuperAdmin);
+    
     let state = {
         page: 1,
         per_page: 10,
@@ -153,8 +278,8 @@
                         <a href="/sessions/${row.id}/show" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
                             <i class="fas fa-eye mr-1"></i>Detalii
                         </a>
-                        ${row.ended_at ? `
-                            <button onclick="printReceipt(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
+                        ${row.ended_at && isSuperAdmin ? `
+                            <button onclick="openFiscalModal(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
                                 <i class="fas fa-receipt mr-1"></i>Bon
                             </button>
                         ` : ''}
@@ -256,82 +381,321 @@
     // Initial load
     fetchData();
     
-    // Function to print receipt directly
-    let printInProgress = false;
-    
-    function printReceipt(sessionId) {
-        // Previne declanșarea multiplă
-        if (printInProgress) {
+    // ===== FISCAL RECEIPT MODAL =====
+
+    let fiscalModalCurrentStep = 1;
+    let fiscalModalSessionId = null;
+    let fiscalModalPaymentType = null;
+    let fiscalModalData = null;
+
+    function openFiscalModal(sessionId) {
+        fiscalModalSessionId = sessionId;
+        fiscalModalCurrentStep = 1;
+        fiscalModalPaymentType = null;
+        fiscalModalData = null;
+        
+        // Reset modal state
+        document.getElementById('fiscal-modal-step-1').classList.remove('hidden');
+        document.getElementById('fiscal-modal-step-2').classList.add('hidden');
+        document.getElementById('fiscal-modal-step-3').classList.add('hidden');
+        document.getElementById('fiscal-modal-step-4').classList.add('hidden');
+        
+        // Reset continue button state
+        const continueBtn = document.getElementById('fiscal-continue-btn');
+        if (continueBtn) {
+            continueBtn.disabled = true;
+            continueBtn.innerHTML = 'Continuă';
+        }
+        
+        // Reset payment buttons selection
+        document.querySelectorAll('[data-payment-btn]').forEach(btn => {
+            btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+            btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
+        });
+        
+        // Show modal
+        document.getElementById('fiscal-modal').classList.remove('hidden');
+    }
+
+    function closeFiscalModal() {
+        document.getElementById('fiscal-modal').classList.add('hidden');
+        fiscalModalCurrentStep = 1;
+        fiscalModalSessionId = null;
+        fiscalModalPaymentType = null;
+        fiscalModalData = null;
+        
+        // Reset continue button state
+        const continueBtn = document.getElementById('fiscal-continue-btn');
+        if (continueBtn) {
+            continueBtn.disabled = true;
+            continueBtn.innerHTML = 'Continuă';
+        }
+    }
+
+    function selectPaymentType(type) {
+        fiscalModalPaymentType = type;
+        
+        // Update UI
+        document.querySelectorAll('[data-payment-btn]').forEach(btn => {
+            btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+            btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
+        });
+        
+        const selectedBtn = document.querySelector(`[data-payment-btn="${type}"]`);
+        if (selectedBtn) {
+            selectedBtn.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+            selectedBtn.classList.add('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+        }
+        
+        // Enable continue button
+        document.getElementById('fiscal-continue-btn').disabled = false;
+    }
+
+    async function goToConfirmStep() {
+        if (!fiscalModalPaymentType) {
+            alert('Selectați o metodă de plată');
             return;
         }
         
-        printInProgress = true;
-        const url = `/sessions/${sessionId}/receipt`;
+        if (!fiscalModalSessionId) {
+            alert('Sesiune invalidă');
+            return;
+        }
         
-        // Creează un iframe invizibil
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        iframe.src = url;
+        // Show loading state
+        const continueBtn = document.getElementById('fiscal-continue-btn');
+        const originalBtnText = continueBtn.innerHTML;
+        continueBtn.disabled = true;
+        continueBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Se încarcă...';
         
-        document.body.appendChild(iframe);
-        
-        // Funcție pentru resetarea flag-ului și ștergerea iframe-ului
-        const cleanup = function() {
-            printInProgress = false;
-            if (iframe.parentNode) {
-                document.body.removeChild(iframe);
+        try {
+            // Get prepared data from server
+            const prepareResponse = await fetch(`/sessions/${fiscalModalSessionId}/prepare-fiscal-print`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    paymentType: fiscalModalPaymentType
+                })
+            });
+
+            if (!prepareResponse.ok) {
+                const errorData = await prepareResponse.json();
+                throw new Error(errorData.message || 'Eroare la pregătirea datelor');
             }
-        };
-        
-        iframe.onload = function() {
-            // Redus la 100ms pentru răspuns mai rapid
-            setTimeout(function() {
-                try {
-                    // Detectează când dialogul de print se închide (fie prin print, fie prin cancel)
-                    const mediaQueryList = iframe.contentWindow.matchMedia('print');
-                    
-                    const handlePrintChange = function(mql) {
-                        if (!mql.matches) {
-                            // Dialogul s-a închis
-                            cleanup();
-                            mediaQueryList.removeListener(handlePrintChange);
-                        }
-                    };
-                    
-                    // Adaugă listener pentru schimbări
-                    if (mediaQueryList.addEventListener) {
-                        mediaQueryList.addEventListener('change', handlePrintChange);
-                    } else {
-                        // Fallback pentru browsere mai vechi
-                        mediaQueryList.addListener(handlePrintChange);
-                    }
-                    
-                    // Declanșează print-ul
-                    iframe.contentWindow.print();
-                    
-                    // Fallback: resetează flag-ul după un timp dacă matchMedia nu funcționează
-                    setTimeout(function() {
-                        if (printInProgress) {
-                            cleanup();
-                        }
-                    }, 1500);
-                } catch (e) {
-                    console.error('Eroare la print:', e);
-                    cleanup();
-                }
-            }, 100);
-        };
-        
-        // Resetează flag-ul în caz de eroare
-        iframe.onerror = function() {
-            cleanup();
-        };
+
+            const prepareData = await prepareResponse.json();
+            
+            if (!prepareData.success || !prepareData.data) {
+                throw new Error('Date invalide de la server');
+            }
+
+            fiscalModalData = prepareData.data;
+
+            // Update receipt preview with data
+            const receipt = prepareData.receipt || {};
+            
+            // Tenant name
+            document.getElementById('receipt-tenant-name').textContent = receipt.tenantName || '-';
+            
+            // Receipt items
+            const receiptItems = document.getElementById('receipt-items');
+            receiptItems.innerHTML = '';
+            
+            // Time item
+            const timeItem = document.createElement('div');
+            timeItem.className = 'flex justify-between text-sm';
+            timeItem.innerHTML = `
+                <div>
+                    <span class="font-medium text-gray-900">${prepareData.data.productName}</span>
+                    <span class="text-gray-500 ml-2">${receipt.durationReal || prepareData.data.duration} (fiscalizat: ${receipt.durationFiscalized || prepareData.data.duration})</span>
+                </div>
+                <span class="font-semibold text-gray-900">${parseFloat(receipt.timePrice || 0).toFixed(2)} RON</span>
+            `;
+            receiptItems.appendChild(timeItem);
+            
+            // Products items
+            if (receipt.products && receipt.products.length > 0) {
+                receipt.products.forEach(product => {
+                    const productItem = document.createElement('div');
+                    productItem.className = 'flex justify-between text-sm';
+                    productItem.innerHTML = `
+                        <div>
+                            <span class="font-medium text-gray-900">${product.name}</span>
+                            <span class="text-gray-500 ml-2">×${product.quantity}</span>
+                        </div>
+                        <span class="font-semibold text-gray-900">${parseFloat(product.total_price).toFixed(2)} RON</span>
+                    `;
+                    receiptItems.appendChild(productItem);
+                });
+            }
+            
+            // Total price
+            document.getElementById('receipt-total-price').textContent = `${parseFloat(prepareData.data.price).toFixed(2)} RON`;
+            
+            // Payment method
+            document.getElementById('receipt-payment-method').textContent = fiscalModalPaymentType === 'CASH' ? 'Cash' : 'Card';
+            
+            // Go to confirmation step
+            fiscalModalCurrentStep = 2;
+            document.getElementById('fiscal-modal-step-1').classList.add('hidden');
+            document.getElementById('fiscal-modal-step-2').classList.remove('hidden');
+        } catch (error) {
+            console.error('Error:', error);
+            // Show error in modal instead of alert
+            showFiscalResult('error', error.message, null);
+            continueBtn.disabled = false;
+            continueBtn.innerHTML = originalBtnText;
+        }
     }
+
+    async function confirmAndPrint() {
+        if (!fiscalModalSessionId || !fiscalModalPaymentType || !fiscalModalData) {
+            alert('Date incomplete');
+            return;
+        }
+        
+        // Go to loading step
+        fiscalModalCurrentStep = 3;
+        document.getElementById('fiscal-modal-step-2').classList.add('hidden');
+        document.getElementById('fiscal-modal-step-3').classList.remove('hidden');
+        
+        try {
+            // Use already prepared data from goToConfirmStep
+            const prepareData = {
+                success: true,
+                data: fiscalModalData
+            };
+
+            // Step 2: Send directly to local bridge from browser
+            const bridgeUrl = '{{ config("services.fiscal_bridge.url", "http://localhost:9000") }}';
+            const bridgeResponse = await fetch(`${bridgeUrl}/print`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(prepareData.data)
+            });
+
+            if (!bridgeResponse.ok) {
+                const errorText = await bridgeResponse.text();
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch {
+                    throw new Error(`Eroare HTTP ${bridgeResponse.status}: ${errorText.substring(0, 100)}`);
+                }
+                throw new Error(errorData.message || errorData.details || 'Eroare de la bridge-ul fiscal');
+            }
+
+            const bridgeData = await bridgeResponse.json();
+
+            // Save log to database
+            try {
+                await saveFiscalReceiptLog({
+                    play_session_id: fiscalModalSessionId,
+                    filename: bridgeData.file || null,
+                    status: bridgeData.status === 'success' ? 'success' : 'error',
+                    error_message: bridgeData.status === 'success' ? null : (bridgeData.message || bridgeData.details || 'Eroare necunoscută'),
+                });
+            } catch (logError) {
+                console.error('Error saving log:', logError);
+                // Don't block the UI if log saving fails
+            }
+
+            // Show result in modal
+            if (bridgeData.status === 'success') {
+                showFiscalResult('success', 'Bon fiscal emis cu succes!', bridgeData.file || null);
+            } else {
+                const errorMessage = bridgeData.message || bridgeData.details || 'Eroare necunoscută';
+                showFiscalResult('error', errorMessage, null);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // Save error log to database
+            try {
+                await saveFiscalReceiptLog({
+                    play_session_id: fiscalModalSessionId,
+                    filename: null,
+                    status: 'error',
+                    error_message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+                        ? 'Nu s-a putut conecta la bridge-ul fiscal local. Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                        : error.message,
+                });
+            } catch (logError) {
+                console.error('Error saving log:', logError);
+                // Don't block the UI if log saving fails
+            }
+            
+            // Show error in modal
+            const errorMessage = error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+                ? 'Nu s-a putut conecta la bridge-ul fiscal local. Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                : error.message;
+            
+            showFiscalResult('error', errorMessage, null);
+        }
+    }
+
+    async function saveFiscalReceiptLog(data) {
+        try {
+            const response = await fetch('{{ route("sessions.save-fiscal-receipt-log") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Eroare la salvarea logului');
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Error saving fiscal receipt log:', error);
+            throw error;
+        }
+    }
+
+function showFiscalResult(type, message, file) {
+    fiscalModalCurrentStep = 4;
+    
+    // Hide all steps
+    document.getElementById('fiscal-modal-step-1').classList.add('hidden');
+    document.getElementById('fiscal-modal-step-2').classList.add('hidden');
+    document.getElementById('fiscal-modal-step-3').classList.add('hidden');
+    document.getElementById('fiscal-modal-step-4').classList.remove('hidden');
+    
+    // Build result content
+    const resultContent = document.getElementById('fiscal-result-content');
+    
+    if (type === 'success') {
+        resultContent.innerHTML = `
+            <div class="mb-4">
+                <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Bon fiscal emis cu succes!</h3>
+            <p class="text-gray-700 mb-2">${message}</p>
+            ${file ? `<p class="text-sm text-gray-500">Fișier: ${file}</p>` : ''}
+        `;
+    } else {
+        resultContent.innerHTML = `
+            <div class="mb-4">
+                <i class="fas fa-exclamation-circle text-5xl text-red-500 mb-4"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Eroare</h3>
+            <p class="text-gray-700">${message}</p>
+        `;
+    }
+}
 </script>
 @endsection
 

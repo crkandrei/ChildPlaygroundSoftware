@@ -28,6 +28,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/sessions/data', [App\Http\Controllers\SessionsController::class, 'data'])->name('sessions.data');
     Route::get('/sessions/{id}/show', [App\Http\Controllers\SessionsController::class, 'show'])->name('sessions.show');
     Route::get('/sessions/{id}/receipt', [App\Http\Controllers\SessionsController::class, 'receipt'])->name('sessions.receipt');
+    Route::post('/sessions/{id}/prepare-fiscal-print', [App\Http\Controllers\SessionsController::class, 'prepareFiscalPrint'])->name('sessions.prepare-fiscal-print');
+    Route::post('/sessions/save-fiscal-receipt-log', [App\Http\Controllers\SessionsController::class, 'saveFiscalReceiptLog'])->name('sessions.save-fiscal-receipt-log');
 
     // Dashboard API (session-auth via web guard)
     Route::prefix('dashboard-api')->group(function () {
@@ -119,6 +121,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/fiscal-receipts/prepare-print', [App\Http\Controllers\FiscalReceiptController::class, 'preparePrint'])->name('fiscal-receipts.prepare-print');
     Route::post('/fiscal-receipts/prepare-print-one-leu', [App\Http\Controllers\FiscalReceiptController::class, 'preparePrintOneLeu'])->name('fiscal-receipts.prepare-print-one-leu');
     Route::post('/fiscal-receipts/handle-result', [App\Http\Controllers\FiscalReceiptController::class, 'handlePrintResult'])->name('fiscal-receipts.handle-result');
+    
+    // Fiscal receipt logs (super admin only)
+    Route::get('/fiscal-receipt-logs', [App\Http\Controllers\FiscalReceiptLogController::class, 'index'])->name('fiscal-receipt-logs.index');
+    Route::get('/fiscal-receipt-logs/data', [App\Http\Controllers\FiscalReceiptLogController::class, 'data'])->name('fiscal-receipt-logs.data');
 });
 
 // Legal documents accessible without authentication
