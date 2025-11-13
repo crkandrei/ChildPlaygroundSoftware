@@ -125,6 +125,10 @@ Route::middleware('auth')->group(function () {
     // Fiscal receipt logs (super admin only)
     Route::get('/fiscal-receipt-logs', [App\Http\Controllers\FiscalReceiptLogController::class, 'index'])->name('fiscal-receipt-logs.index');
     Route::get('/fiscal-receipt-logs/data', [App\Http\Controllers\FiscalReceiptLogController::class, 'data'])->name('fiscal-receipt-logs.data');
+    
+    // Anomalies (super admin only)
+    Route::get('/anomalies', [App\Http\Controllers\AnomaliesController::class, 'index'])->name('anomalies.index');
+    Route::post('/anomalies/scan', [App\Http\Controllers\AnomaliesController::class, 'scan'])->name('anomalies.scan');
 });
 
 // Legal documents accessible without authentication

@@ -1,0 +1,197 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\PlaySession;
+use App\Support\ApiResponder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use App\Services\PricingService;
+
+class AnomaliesController extends Controller
+{
+    /**
+     * Display the anomalies page
+     */
+    public function index()
+    {
+        $user = Auth::user();
+        if (!$user || !$user->isSuperAdmin()) {
+            abort(403, 'Acces permis doar pentru super admin');
+        }
+        
+        return view('anomalies.index');
+    }
+
+    /**
+     * Scan for anomalies in the last 7 days
+     * Returns JSON with counts for each anomaly type
+     */
+    public function scan(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user || !$user->isSuperAdmin()) {
+            return ApiResponder::error('Acces permis doar pentru super admin', 403);
+        }
+
+        $sevenDaysAgo = Carbon::now()->subDays(7);
+        $oneDayAgo = Carbon::now()->subDay();
+        $now = Carbon::now();
+        $isMySQL = DB::getDriverName() === 'mysql';
+
+        $results = [];
+
+        // Helper function to calculate duration in seconds (compatible with SQLite and MySQL)
+        $durationCalculation = $isMySQL 
+            ? "TIMESTAMPDIFF(SECOND, psi.started_at, COALESCE(psi.ended_at, NOW()))"
+            : "(julianday(COALESCE(psi.ended_at, datetime('now'))) - julianday(psi.started_at)) * 86400";
+
+        // 1. Sesiuni de peste 5 ore (durata efectivă > 5 ore = 18000 secunde)
+        $results['sesiuni_peste_5_ore'] = DB::table('play_sessions as ps')
+            ->where('ps.started_at', '>=', $sevenDaysAgo)
+            ->whereNotNull('ps.ended_at')
+            ->whereRaw("(
+                SELECT COALESCE(SUM(
+                    CASE 
+                        WHEN psi.started_at IS NOT NULL THEN 
+                            {$durationCalculation}
+                        ELSE 
+                            0
+                    END
+                ), 0)
+                FROM play_session_intervals psi
+                WHERE psi.play_session_id = ps.id
+            ) > 18000")
+            ->count();
+
+        // 2. Sesiuni active prea vechi (peste 24 ore)
+        $results['sesiuni_active_prea_vechi'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->whereNull('ended_at')
+            ->where('started_at', '<', $oneDayAgo)
+            ->count();
+
+        // 3. Sesiuni cu preț zero sau negativ
+        $results['sesiuni_pret_zero_negativ'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->whereNotNull('ended_at')
+            ->where(function($q) {
+                $q->whereNull('calculated_price')
+                   ->orWhere('calculated_price', '<=', 0);
+            })
+            ->count();
+
+        // 4. Sesiuni cu date invalide (ended_at < started_at sau started_at > now)
+        $results['sesiuni_date_invalide'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->where(function($q) use ($now) {
+                $q->whereRaw('ended_at < started_at')
+                  ->orWhere('started_at', '>', $now)
+                  ->orWhereExists(function($subquery) {
+                      // Intervale cu ended_at < started_at
+                      $subquery->select(DB::raw(1))
+                          ->from('play_session_intervals')
+                          ->whereColumn('play_session_intervals.play_session_id', 'play_sessions.id')
+                          ->whereNotNull('play_session_intervals.ended_at')
+                          ->whereRaw('play_session_intervals.ended_at < play_session_intervals.started_at');
+                  });
+            })
+            ->count();
+
+        // 5. Sesiuni cu preț necalculat
+        $results['sesiuni_pret_necalculat'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->whereNotNull('ended_at')
+            ->where(function($q) {
+                $q->whereNull('calculated_price')
+                   ->orWhereNull('price_per_hour_at_calculation');
+            })
+            ->count();
+
+        // 6. Sesiuni foarte scurte (durata efectivă < 60 secunde)
+        $results['sesiuni_foarte_scurte'] = DB::table('play_sessions as ps')
+            ->where('ps.started_at', '>=', $sevenDaysAgo)
+            ->whereNotNull('ps.ended_at')
+            ->whereRaw("(
+                SELECT COALESCE(SUM(
+                    CASE 
+                        WHEN psi.started_at IS NOT NULL THEN 
+                            {$durationCalculation}
+                        ELSE 
+                            0
+                    END
+                ), 0)
+                FROM play_session_intervals psi
+                WHERE psi.play_session_id = ps.id
+            ) < 60")
+            ->count();
+
+        // 7. Sesiuni cu prea multe pauze (peste 20 intervale)
+        $results['sesiuni_prea_multe_pauze'] = DB::table('play_sessions as ps')
+            ->where('ps.started_at', '>=', $sevenDaysAgo)
+            ->whereRaw('(
+                SELECT COUNT(*)
+                FROM play_session_intervals psi
+                WHERE psi.play_session_id = ps.id
+            ) > 20')
+            ->count();
+
+        // 8. Sesiuni cu intervale deschise (sesiuni închise dar cu intervale fără ended_at)
+        $results['sesiuni_intervale_deschise'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->whereNotNull('ended_at')
+            ->whereExists(function($q) {
+                $q->select(DB::raw(1))
+                  ->from('play_session_intervals')
+                  ->whereColumn('play_session_intervals.play_session_id', 'play_sessions.id')
+                  ->whereNull('play_session_intervals.ended_at');
+            })
+            ->count();
+
+        // 9. Sesiuni multiple active pentru același copil
+        // Numărăm câte sesiuni active sunt pentru copiii care au mai mult de o sesiune activă
+        $results['sesiuni_multiple_active_copil'] = DB::table('play_sessions as ps')
+            ->where('ps.started_at', '>=', $sevenDaysAgo)
+            ->whereNull('ps.ended_at')
+            ->whereIn('ps.child_id', function($query) use ($sevenDaysAgo) {
+                $query->select('child_id')
+                    ->from('play_sessions')
+                    ->where('started_at', '>=', $sevenDaysAgo)
+                    ->whereNull('ended_at')
+                    ->groupBy('child_id')
+                    ->havingRaw('COUNT(*) > 1');
+            })
+            ->count();
+
+        // 10. Sesiuni cu cod brățară invalid
+        $results['sesiuni_cod_bratara_invalid'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->where(function($q) {
+                $q->whereNull('bracelet_code')
+                   ->orWhere('bracelet_code', '');
+            })
+            ->count();
+
+        // 11. Sesiuni cu discrepanțe de preț (diferență > 0.10 RON)
+        // Procesăm în batch-uri pentru eficiență
+        $priceDiscrepancyCount = 0;
+        $pricingService = app(PricingService::class);
+        
+        PlaySession::where('started_at', '>=', $sevenDaysAgo)
+            ->whereNotNull('ended_at')
+            ->whereNotNull('calculated_price')
+            ->with(['tenant', 'intervals'])
+            ->chunk(100, function($sessions) use (&$priceDiscrepancyCount, $pricingService) {
+                foreach ($sessions as $session) {
+                    $calculatedPrice = (float) $session->calculated_price;
+                    $recalculatedPrice = $pricingService->calculateSessionPrice($session);
+                    $difference = abs($calculatedPrice - $recalculatedPrice);
+                    
+                    if ($difference > 0.10) {
+                        $priceDiscrepancyCount++;
+                    }
+                }
+            });
+
+        $results['sesiuni_discrepante_pret'] = $priceDiscrepancyCount;
+
+        return ApiResponder::success($results);
+    }
+}
+
