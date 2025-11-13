@@ -67,13 +67,18 @@ class SessionsController extends Controller
     public function show($id)
     {
         $user = Auth::user();
-        if (!$user || !$user->tenant) {
+        if (!$user) {
             return redirect()->route('login');
         }
 
-        $session = PlaySession::where('id', $id)
-            ->where('tenant_id', $user->tenant->id)
-            ->with(['child.guardian', 'intervals' => function($query) {
+        // SUPER_ADMIN poate vedea sesiuni din toate tenant-urile
+        $query = PlaySession::where('id', $id);
+        
+        if (!$user->isSuperAdmin() && $user->tenant) {
+            $query->where('tenant_id', $user->tenant->id);
+        }
+
+        $session = $query->with(['child.guardian', 'intervals' => function($query) {
                 $query->orderBy('started_at', 'asc');
             }, 'products.product'])
             ->first();

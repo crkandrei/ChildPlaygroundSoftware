@@ -195,8 +195,16 @@ class ScanService
      */
     public function lookupBracelet(string $code, Tenant $tenant): array
     {
-        // Normalize code - only trim, preserve case for barcode
+        // Trim only (no normalization - code should already be correct from frontend)
         $code = trim($code);
+
+        // Strict validation: Format must be BONGO + 4-5 digits
+        if (!preg_match('/^BONGO\d{4,5}$/', $code)) {
+            return [
+                'success' => false,
+                'message' => 'Cod invalid. Format așteptat: BONGO urmat de 4 sau 5 cifre (ex: BONGO1234)',
+            ];
+        }
 
         // Verifică dacă există o sesiune activă cu acest cod
         $activeSession = PlaySession::where('bracelet_code', $code)
@@ -242,8 +250,13 @@ class ScanService
      */
     public function startPlaySession(Tenant $tenant, Child $child, string $braceletCode): PlaySession
     {
-        // Normalize code - only trim, preserve case for barcode
+        // Trim only (no normalization - code should already be correct from frontend)
         $braceletCode = trim($braceletCode);
+
+        // Strict validation: Format must be BONGO + 4-5 digits
+        if (!preg_match('/^BONGO\d{4,5}$/', $braceletCode)) {
+            throw new \Exception('Cod invalid. Format așteptat: BONGO urmat de 4 sau 5 cifre (ex: BONGO1234)');
+        }
 
         // Verifică dacă copilul are deja o sesiune activă
         $existingSession = PlaySession::where('child_id', $child->id)

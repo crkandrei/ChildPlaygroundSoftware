@@ -188,5 +188,193 @@ class AnomaliesController extends Controller
 
         return ApiResponder::success($results);
     }
+
+    /**
+     * Get sessions for a specific anomaly type
+     */
+    public function getSessions(Request $request, $type)
+    {
+        $user = Auth::user();
+        if (!$user || !$user->isSuperAdmin()) {
+            return ApiResponder::error('Acces permis doar pentru super admin', 403);
+        }
+
+        $sevenDaysAgo = Carbon::now()->subDays(7);
+        $oneDayAgo = Carbon::now()->subDay();
+        $now = Carbon::now();
+
+        $sessions = collect();
+
+        switch ($type) {
+            case 'sesiuni_peste_5_ore':
+                $sessionIds = DB::table('play_sessions as ps')
+                    ->where('ps.started_at', '>=', $sevenDaysAgo)
+                    ->whereRaw("(
+                        COALESCE((
+                            SELECT SUM(TIMESTAMPDIFF(SECOND, psi.started_at, COALESCE(psi.ended_at, NOW())))
+                            FROM play_session_intervals psi
+                            WHERE psi.play_session_id = ps.id
+                            AND psi.started_at IS NOT NULL
+                        ), 
+                        TIMESTAMPDIFF(SECOND, ps.started_at, COALESCE(ps.ended_at, NOW()))
+                        )
+                    ) > 18000")
+                    ->pluck('ps.id');
+                break;
+
+            case 'sesiuni_active_prea_vechi':
+                $sessionIds = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->whereNull('ended_at')
+                    ->where('started_at', '<', $oneDayAgo)
+                    ->pluck('id');
+                break;
+
+            case 'sesiuni_pret_zero_negativ':
+                $sessionIds = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->whereNotNull('ended_at')
+                    ->where(function($q) {
+                        $q->whereNull('calculated_price')
+                           ->orWhere('calculated_price', '<=', 0);
+                    })
+                    ->pluck('id');
+                break;
+
+            case 'sesiuni_date_invalide':
+                $sessionIds = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->where(function($q) use ($now) {
+                        $q->whereRaw('ended_at IS NOT NULL AND ended_at < started_at')
+                          ->orWhere('started_at', '>', $now)
+                          ->orWhereExists(function($subquery) {
+                              $subquery->select(DB::raw(1))
+                                  ->from('play_session_intervals')
+                                  ->whereColumn('play_session_intervals.play_session_id', 'play_sessions.id')
+                                  ->whereNotNull('play_session_intervals.ended_at')
+                                  ->whereNotNull('play_session_intervals.started_at')
+                                  ->whereRaw('play_session_intervals.ended_at < play_session_intervals.started_at');
+                          });
+                    })
+                    ->pluck('id');
+                break;
+
+            case 'sesiuni_pret_necalculat':
+                $sessionIds = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->whereNotNull('ended_at')
+                    ->where(function($q) {
+                        $q->whereNull('calculated_price')
+                           ->orWhereNull('price_per_hour_at_calculation');
+                    })
+                    ->pluck('id');
+                break;
+
+            case 'sesiuni_foarte_scurte':
+                $sessionIds = DB::table('play_sessions as ps')
+                    ->where('ps.started_at', '>=', $sevenDaysAgo)
+                    ->whereNotNull('ps.ended_at')
+                    ->whereRaw("(
+                        COALESCE((
+                            SELECT SUM(TIMESTAMPDIFF(SECOND, psi.started_at, COALESCE(psi.ended_at, NOW())))
+                            FROM play_session_intervals psi
+                            WHERE psi.play_session_id = ps.id
+                            AND psi.started_at IS NOT NULL
+                        ),
+                        TIMESTAMPDIFF(SECOND, ps.started_at, ps.ended_at)
+                        )
+                    ) < 60")
+                    ->pluck('ps.id');
+                break;
+
+            case 'sesiuni_prea_multe_pauze':
+                $sessionIds = DB::table('play_sessions as ps')
+                    ->where('ps.started_at', '>=', $sevenDaysAgo)
+                    ->whereRaw('(
+                        SELECT COUNT(*)
+                        FROM play_session_intervals psi
+                        WHERE psi.play_session_id = ps.id
+                    ) > 20')
+                    ->pluck('ps.id');
+                break;
+
+            case 'sesiuni_intervale_deschise':
+                $sessionIds = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->whereNotNull('ended_at')
+                    ->whereExists(function($q) {
+                        $q->select(DB::raw(1))
+                          ->from('play_session_intervals')
+                          ->whereColumn('play_session_intervals.play_session_id', 'play_sessions.id')
+                          ->whereNull('play_session_intervals.ended_at');
+                    })
+                    ->pluck('id');
+                break;
+
+            case 'sesiuni_multiple_active_copil':
+                $sessionIds = DB::table('play_sessions as ps')
+                    ->where('ps.started_at', '>=', $sevenDaysAgo)
+                    ->whereNull('ps.ended_at')
+                    ->whereIn('ps.child_id', function($query) use ($sevenDaysAgo) {
+                        $query->select('child_id')
+                            ->from('play_sessions')
+                            ->where('started_at', '>=', $sevenDaysAgo)
+                            ->whereNull('ended_at')
+                            ->groupBy('child_id')
+                            ->havingRaw('COUNT(*) > 1');
+                    })
+                    ->pluck('ps.id');
+                break;
+
+            case 'sesiuni_cod_bratara_invalid':
+                $sessionIds = PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->where(function($q) {
+                        $q->whereNull('bracelet_code')
+                           ->orWhere('bracelet_code', '');
+                    })
+                    ->pluck('id');
+                break;
+
+            case 'sesiuni_discrepante_pret':
+                $sessionIds = collect();
+                $pricingService = app(PricingService::class);
+                
+                PlaySession::where('started_at', '>=', $sevenDaysAgo)
+                    ->whereNotNull('ended_at')
+                    ->whereNotNull('calculated_price')
+                    ->with(['tenant', 'intervals'])
+                    ->chunk(100, function($sessions) use (&$sessionIds, $pricingService) {
+                        foreach ($sessions as $session) {
+                            $calculatedPrice = (float) $session->calculated_price;
+                            $recalculatedPrice = $pricingService->calculateSessionPrice($session);
+                            $difference = abs($calculatedPrice - $recalculatedPrice);
+                            
+                            if ($difference > 0.10) {
+                                $sessionIds->push($session->id);
+                            }
+                        }
+                    });
+                break;
+
+            default:
+                return ApiResponder::error('Tip de anomalie invalid', 400);
+        }
+
+        // Load sessions with relationships
+        $sessions = PlaySession::whereIn('id', $sessionIds)
+            ->with(['child', 'tenant'])
+            ->orderBy('started_at', 'desc')
+            ->get()
+            ->map(function($session) {
+                return [
+                    'id' => $session->id,
+                    'child_name' => $session->child ? trim($session->child->first_name . ' ' . $session->child->last_name) : 'N/A',
+                    'started_at' => $session->started_at ? $session->started_at->format('d.m.Y H:i') : null,
+                    'ended_at' => $session->ended_at ? $session->ended_at->format('d.m.Y H:i') : null,
+                    'is_active' => is_null($session->ended_at),
+                    'bracelet_code' => $session->bracelet_code,
+                ];
+            });
+
+        return ApiResponder::success([
+            'sessions' => $sessions,
+            'count' => $sessions->count(),
+        ]);
+    }
 }
 

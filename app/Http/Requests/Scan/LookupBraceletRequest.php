@@ -14,7 +14,18 @@ class LookupBraceletRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'min:1', 'max:255'],
+            'code' => [
+                'required',
+                'string',
+                'regex:/^BONGO\d{4,5}$/',
+            ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'code.regex' => 'Cod invalid. Format așteptat: BONGO urmat de 4 sau 5 cifre (ex: BONGO1234)',
         ];
     }
 

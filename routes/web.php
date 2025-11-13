@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
     // Anomalies (super admin only)
     Route::get('/anomalies', [App\Http\Controllers\AnomaliesController::class, 'index'])->name('anomalies.index');
     Route::post('/anomalies/scan', [App\Http\Controllers\AnomaliesController::class, 'scan'])->name('anomalies.scan');
+    Route::get('/anomalies/{type}/sessions', [App\Http\Controllers\AnomaliesController::class, 'getSessions'])->name('anomalies.sessions');
 });
 
 // Legal documents accessible without authentication

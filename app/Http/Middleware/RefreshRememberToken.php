@@ -25,17 +25,16 @@ class RefreshRememberToken
     {
         $response = $next($request);
 
-        // Dacă utilizatorul este autentificat, reînnoiește cookie-ul "remember me"
-        // Acest lucru asigură că utilizatorul rămâne autentificat chiar dacă
-        // browser-ul are limitări pentru cookie-uri persistente
-        if (Auth::check()) {
-            $user = Auth::user();
-            
-            // Reînnoiește cookie-ul "remember me" pentru a preveni expirarea
-            // Folosim login() cu remember=true pentru a reînnoi cookie-ul
-            // fără a regenera sesiunea (pentru a evita probleme de performanță)
-            Auth::login($user, true);
-        }
+        // NOTĂ: Nu mai reînnoim cookie-ul remember me la fiecare request
+        // pentru că Auth::login() regenerează sesiunea și invalidează token-ul CSRF
+        // 
+        // În schimb, ne bazăm pe configurația sesiunii care are lifetime foarte mare
+        // (20 ani) și expire_on_close = false, ceea ce asigură că utilizatorul
+        // rămâne autentificat fără a regenera sesiunea la fiecare request.
+        //
+        // Dacă este necesar să reînnoim cookie-ul remember me, ar trebui făcut
+        // doar periodic (ex: o dată pe zi) sau când cookie-ul este aproape de expirare,
+        // nu la fiecare request.
 
         return $response;
     }

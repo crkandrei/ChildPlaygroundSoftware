@@ -25,7 +25,11 @@ class CreateChildRequest extends FormRequest
             'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
             'guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian_phone' => ['nullable', 'string', 'max:20'],
-            'bracelet_code' => ['required', 'string', 'min:1', 'max:255'],
+            'bracelet_code' => [
+                'required',
+                'string',
+                'regex:/^BONGO\d{4,5}$/',
+            ],
         ];
     }
 
@@ -56,6 +60,7 @@ class CreateChildRequest extends FormRequest
             'birth_date.date' => 'Data nașterii nu este validă.',
             'birth_date.before' => 'Data nașterii nu poate fi în viitor sau astăzi.',
             'birth_date.after_or_equal' => "Data nașterii indică un copil mai mare de 18 ani. Copilul trebuie să aibă maximum 18 ani (data minimă: {$minDate}).",
+            'bracelet_code.regex' => 'Cod invalid. Format așteptat: BONGO urmat de 4 sau 5 cifre (ex: BONGO1234)',
         ];
     }
 

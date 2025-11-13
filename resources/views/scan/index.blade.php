@@ -26,19 +26,32 @@
             </div>
             
             <!-- RFID Code Search -->
-            <div class="flex items-center gap-3 relative">
-                <label for="rfidCode" class="sr-only">Cod RFID</label>
-                <input id="rfidCode" maxlength="255" autocomplete="off"
-                       class="flex-1 h-12 px-4 text-2xl tracking-widest font-mono border border-gray-300 rounded-md focus:outline-none focus:ring-4 focus:ring-gray-900/20"
-                       placeholder="Scanează cod de bare">
-                <button id="searchBtn" disabled
-                        class="h-12 px-6 text-lg bg-gray-900 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                    Caută
-                </button>
-                
-                <!-- Children search results dropdown -->
-                <div id="childrenSearchResults" class="hidden absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto" style="width: calc(100% - 200px);">
-                    <div id="childrenSearchResultsList" class="py-1"></div>
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-3 relative">
+                    <label for="rfidCode" class="sr-only">Cod RFID</label>
+                    <div class="flex-1 relative">
+                        <input id="rfidCode" maxlength="10" autocomplete="off"
+                               class="w-full h-12 px-4 pr-10 text-2xl tracking-widest font-mono border rounded-md focus:outline-none focus:ring-4 transition-colors"
+                               placeholder="BONGO1234">
+                        <!-- Validation icon -->
+                        <div id="rfidCodeIcon" class="absolute right-3 top-1/2 -translate-y-1/2 hidden">
+                            <i class="fas fa-check-circle text-green-500"></i>
+                        </div>
+                    </div>
+                    <button id="searchBtn" disabled
+                            class="h-12 px-6 text-lg bg-gray-900 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Caută
+                    </button>
+                    
+                    <!-- Children search results dropdown -->
+                    <div id="childrenSearchResults" class="hidden absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto" style="width: calc(100% - 200px);">
+                        <div id="childrenSearchResultsList" class="py-1"></div>
+                    </div>
+                </div>
+                <!-- Validation feedback -->
+                <div id="rfidCodeError" class="hidden text-xs text-red-600 px-1 flex items-center gap-1">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
                 </div>
             </div>
         </div>
@@ -396,12 +409,22 @@
     let isProcessing = false; // Flag pentru a preveni dublă-click
 
     async function apiCall(url, options = {}) {
+        // Get CSRF token safely
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found. Page may need to be refreshed.');
+            throw new Error('Token CSRF lipsă. Te rugăm să reîncarci pagina.');
+        }
+        
         const response = await fetch(url, {
             ...options,
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
                 ...options.headers
             },
             credentials: 'same-origin'
@@ -446,6 +469,17 @@
         
         // If HTTP status is not OK, throw error
         if (!response.ok) {
+            // Handle CSRF token mismatch (419)
+            if (response.status === 419) {
+                const error = new Error('Token CSRF expirat. Te rugăm să reîncarci pagina și să încerci din nou.');
+                error.data = { 
+                    message: 'Token CSRF expirat. Te rugăm să reîncarci pagina și să încerci din nou.',
+                    csrf_mismatch: true 
+                };
+                error.status = 419;
+                throw error;
+            }
+            
             const error = new Error(data.message || 'Request failed');
             error.data = data;
             error.status = response.status;
@@ -608,10 +642,8 @@
             assignmentSection.classList.add('hidden');
             renderActiveSession(data);
             updateStatusChip('În joc', 'warn');
-            // Prepare input for next scan (but keep current code visible for reference)
-            setTimeout(() => {
-                prepareInputForScanning();
-            }, 100);
+            // Keep code visible - don't clear it, operator can see which bracelet is active
+            // Input will be cleared when starting a new scan
             return;
         }
         
@@ -626,10 +658,8 @@
             updateStatusChip('Disponibilă', 'warn');
             // Update button state when assignment section becomes visible
             updateAssignButtonState();
-            // Prepare input for next scan (but keep current code visible for reference)
-            setTimeout(() => {
-                prepareInputForScanning();
-            }, 100);
+            // Keep code visible in input - operator needs to see it during assignment/creation
+            // Code will be cleared after successful assignment/creation
         } else {
             assignmentSection.classList.add('hidden');
             updateStatusChip('OK', undefined);
@@ -695,8 +725,78 @@
     // Function to clear input and prepare for next scan
     function clearInputForNextScan() {
         codeInput.value = '';
+        updateValidationFeedback('');
         codeInput.dispatchEvent(new Event('input'));
         prepareInputForScanning();
+    }
+    
+    // Validation functions for BONGO format
+    function isValidBraceletCode(code) {
+        // Format: BONGO + 4-5 digits
+        return /^BONGO\d{4,5}$/.test(code);
+    }
+    
+    function isValidCharForPosition(char, position) {
+        if (position < 5) {
+            // First 5 positions: only letters (A-Z, a-z)
+            return /^[A-Za-z]$/.test(char);
+        } else if (position < 10) {
+            // Positions 5-9: only digits
+            return /^\d$/.test(char);
+        }
+        return false; // Position >= 10 not allowed
+    }
+    
+    function normalizeBraceletCode(value) {
+        // Normalize: uppercase first 5 chars (BONGO), keep digits as-is
+        if (value.length <= 5) {
+            return value.toUpperCase();
+        }
+        return value.substring(0, 5).toUpperCase() + value.substring(5);
+    }
+    
+    function updateValidationFeedback(code) {
+        const icon = document.getElementById('rfidCodeIcon');
+        const errorDiv = document.getElementById('rfidCodeError');
+        const errorSpan = errorDiv.querySelector('span');
+        
+        if (!code || code.length === 0) {
+            // Empty - hide feedback
+            icon.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+            codeInput.classList.remove('border-green-500', 'border-red-500', 'focus:ring-green-500/20', 'focus:ring-red-500/20');
+            codeInput.classList.add('border-gray-300', 'focus:ring-gray-900/20');
+            return;
+        }
+        
+        const isValid = isValidBraceletCode(code);
+        
+        if (isValid) {
+            // Valid format
+            icon.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            codeInput.classList.remove('border-gray-300', 'border-red-500', 'focus:ring-gray-900/20', 'focus:ring-red-500/20');
+            codeInput.classList.add('border-green-500', 'focus:ring-green-500/20');
+        } else {
+            // Invalid format
+            icon.classList.add('hidden');
+            errorDiv.classList.remove('hidden');
+            codeInput.classList.remove('border-gray-300', 'border-green-500', 'focus:ring-gray-900/20', 'focus:ring-green-500/20');
+            codeInput.classList.add('border-red-500', 'focus:ring-red-500/20');
+            
+            // Set error message
+            if (code.length < 5) {
+                errorSpan.textContent = 'Prefix incomplet. Trebuie să înceapă cu BONGO';
+            } else if (code.length < 9) {
+                errorSpan.textContent = 'Cod incomplet. Trebuie BONGO + 4-5 cifre';
+            } else if (code.length > 10) {
+                errorSpan.textContent = 'Cod prea lung. Format: BONGO + 4-5 cifre';
+            } else if (!/^BONGO/.test(code)) {
+                errorSpan.textContent = 'Format invalid. Trebuie să înceapă cu BONGO';
+            } else {
+                errorSpan.textContent = 'Format invalid. Trebuie BONGO + 4-5 cifre (ex: BONGO1234)';
+            }
+        }
     }
     
     // Track input changes to detect barcode scanner (rapid input)
@@ -713,7 +813,7 @@
         const now = Date.now();
         const currentLength = e.target.value.length;
         const timeSinceLastInput = now - lastInputTime;
-        const fullValue = e.target.value;
+        let fullValue = e.target.value;
         
         // Detect rapid input (barcode scanner) - characters coming in < 50ms apart
         const isRapidInput = timeSinceLastInput < 50 && currentLength > inputLengthBefore;
@@ -727,129 +827,143 @@
             inputLengthBefore = newChars.length;
             rapidInputStartLength = 0;
             lastInputTime = now;
-            
-            // Continue with trimmed value
-            const value = e.target.value.trim();
-            e.target.value = value;
-            
-            // Update button state
-            if (searchBtn) {
-                searchBtn.disabled = value.length === 0;
-            }
-            
-            // Handle auto-submit for barcode scanner
-            clearTimeout(barcodeScanTimeout);
-            if (value.length >= 3) {
-                barcodeScanTimeout = setTimeout(() => {
-                    const currentValue = codeInput.value.trim();
-                    if (currentValue.length > 0 && searchBtn) {
-                        searchBtn.disabled = false;
-                        searchBtn.click();
-                    }
-                }, 500);
-            }
-            return; // Exit early, already processed
-        }
-        
-        // Track when rapid input starts (after a pause > 200ms)
-        if (timeSinceLastInput > 200 && currentLength > inputLengthBefore) {
-            // New input sequence starting - mark the start length
-            rapidInputStartLength = inputLengthBefore;
-        }
-        
-        // Fix concatenation if it still happened (fallback)
-        if (isRapidInput && rapidInputStartLength > 0 && currentLength > rapidInputStartLength + 1) {
-            // Scanner concatenated over existing content - extract only new scan
-            const newScan = fullValue.substring(rapidInputStartLength);
-            e.target.value = newScan;
-            inputLengthBefore = newScan.length;
-            rapidInputStartLength = 0; // Reset after fixing
-            lastInputTime = now;
+            fullValue = newChars;
         } else {
-            // Normal input - just track
-            lastInputTime = now;
-            inputLengthBefore = currentLength;
-            // Reset rapid input start if input stopped (pause > 500ms)
-            if (timeSinceLastInput > 500) {
-                rapidInputStartLength = 0;
+            // Track when rapid input starts (after a pause > 200ms)
+            if (timeSinceLastInput > 200 && currentLength > inputLengthBefore) {
+                // New input sequence starting - mark the start length
+                rapidInputStartLength = inputLengthBefore;
+            }
+            
+            // Fix concatenation if it still happened (fallback)
+            if (isRapidInput && rapidInputStartLength > 0 && currentLength > rapidInputStartLength + 1) {
+                // Scanner concatenated over existing content - extract only new scan
+                const newScan = fullValue.substring(rapidInputStartLength);
+                e.target.value = newScan;
+                inputLengthBefore = newScan.length;
+                rapidInputStartLength = 0; // Reset after fixing
+                lastInputTime = now;
+                fullValue = newScan;
+            } else {
+                // Normal input - just track
+                lastInputTime = now;
+                inputLengthBefore = currentLength;
+                // Reset rapid input start if input stopped (pause > 500ms)
+                if (timeSinceLastInput > 500) {
+                    rapidInputStartLength = 0;
+                }
             }
         }
         
-        const value = e.target.value.trim();
-        e.target.value = value;
+        // STRICT VALIDATION: Block invalid characters and normalize
+        let normalizedValue = normalizeBraceletCode(fullValue);
+        let filteredValue = '';
         
-        // Enable search button if code has at least 1 character
+        // Filter and validate each character
+        for (let i = 0; i < normalizedValue.length && i < 10; i++) {
+            const char = normalizedValue[i];
+            if (isValidCharForPosition(char, i)) {
+                filteredValue += char;
+            }
+            // If invalid character, stop adding (block it)
+        }
+        
+        // Update input value with filtered and normalized value
+        if (filteredValue !== fullValue) {
+            e.target.value = filteredValue;
+            fullValue = filteredValue;
+        }
+        
+        // Update validation feedback
+        updateValidationFeedback(filteredValue);
+        
+        // Enable/disable search button based on validation
+        const isValid = isValidBraceletCode(filteredValue);
         if (searchBtn) {
-            searchBtn.disabled = value.length === 0;
+            searchBtn.disabled = !isValid || filteredValue.length === 0;
         }
         
         // Clear previous barcode scan timeout
         clearTimeout(barcodeScanTimeout);
         
-        // If input is not empty but short, search for children
-        if (value.length > 0 && value.length < 3) {
-            clearTimeout(childrenSearchTimeout);
-            childrenSearchTimeout = setTimeout(() => {
-                searchChildrenWithSessions(value);
-            }, 300);
+        // Auto-submit for valid barcode scanner input
+        if (isValid && filteredValue.length >= 9) {
+            barcodeScanTimeout = setTimeout(() => {
+                const currentValue = codeInput.value.trim();
+                if (isValidBraceletCode(currentValue) && searchBtn) {
+                    searchBtn.disabled = false;
+                    searchBtn.click();
+                }
+            }, 500);
         } else {
-            hideChildrenSearchResults();
-            // Auto-submit after 500ms of no typing (barcode scanner finished)
-            if (value.length >= 3) {
-                barcodeScanTimeout = setTimeout(() => {
-                    const currentValue = codeInput.value.trim();
-                    if (currentValue.length > 0) {
-                        if (searchBtn) {
-                            searchBtn.disabled = false;
-                            searchBtn.click();
-                        }
-                    }
-                }, 500);
+            // If input is not empty but short, search for children (only if not BONGO format)
+            if (filteredValue.length > 0 && filteredValue.length < 5 && !/^BONGO/i.test(filteredValue)) {
+                clearTimeout(childrenSearchTimeout);
+                childrenSearchTimeout = setTimeout(() => {
+                    searchChildrenWithSessions(filteredValue);
+                }, 300);
+            } else {
+                hideChildrenSearchResults();
             }
         }
     });
     
-    // Also handle keyup to ensure button is enabled
-    codeInput.addEventListener('keyup', function(e) {
-        const value = e.target.value.trim();
-        if (searchBtn && value.length > 0) {
-            searchBtn.disabled = false;
-        }
-    });
-    
-    // Handle paste event (for barcode scanners)
+    // Handle paste event - validate before allowing
     codeInput.addEventListener('paste', function(e) {
-        setTimeout(() => {
-            const value = codeInput.value.trim();
-            codeInput.value = value;
-            if (searchBtn && value.length > 0) {
-                searchBtn.disabled = false;
+        e.preventDefault();
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        const trimmed = pastedText.trim();
+        
+        // Normalize pasted text
+        const normalized = normalizeBraceletCode(trimmed);
+        
+        // Filter invalid characters
+        let filtered = '';
+        for (let i = 0; i < normalized.length && i < 10; i++) {
+            const char = normalized[i];
+            if (isValidCharForPosition(char, i)) {
+                filtered += char;
             }
-            // Auto-submit if code is long enough (likely a barcode scan)
-            if (value.length >= 3) {
-                setTimeout(() => {
-                    const currentValue = codeInput.value.trim();
-                    if (currentValue.length > 0) {
-                        if (!searchBtn.disabled) {
-                            searchBtn.click();
-                        } else {
-                            searchBtn.disabled = false;
-                            searchBtn.click();
-                        }
-                    }
-                }, 150);
-            }
-        }, 10);
+        }
+        
+        // Only allow paste if it's valid or can become valid
+        if (filtered.length > 0) {
+            codeInput.value = filtered;
+            codeInput.dispatchEvent(new Event('input'));
+        } else {
+            // Show error for invalid paste
+            updateValidationFeedback('');
+            setTimeout(() => {
+                const errorDiv = document.getElementById('rfidCodeError');
+                const errorSpan = errorDiv.querySelector('span');
+                errorDiv.classList.remove('hidden');
+                errorSpan.textContent = 'Cod paste-uit invalid. Format: BONGO + 4-5 cifre';
+            }, 100);
+        }
     });
+    
+    // Also handle keyup to ensure validation is updated
+    codeInput.addEventListener('keyup', function(e) {
+        const value = codeInput.value.trim();
+        const isValid = isValidBraceletCode(value);
+        if (searchBtn) {
+            searchBtn.disabled = !isValid || value.length === 0;
+        }
+        updateValidationFeedback(value);
+    });
+    
     
     // Handle change event (for programmatic changes or barcode scanners)
     codeInput.addEventListener('change', function(e) {
         const value = codeInput.value.trim();
-        codeInput.value = value;
-        if (searchBtn && value.length > 0) {
-            searchBtn.disabled = false;
-            // Auto-submit if code is long enough
-            if (value.length >= 3) {
+        const normalized = normalizeBraceletCode(value);
+        codeInput.value = normalized;
+        updateValidationFeedback(normalized);
+        const isValid = isValidBraceletCode(normalized);
+        if (searchBtn) {
+            searchBtn.disabled = !isValid || normalized.length === 0;
+            // Auto-submit if valid
+            if (isValid && normalized.length >= 9) {
                 setTimeout(() => {
                     searchBtn.click();
                 }, 100);
@@ -874,6 +988,13 @@
     searchBtn.addEventListener('click', async function() {
         const code = codeInput.value.trim();
         if (code.length === 0) return;
+        
+        // Validate code format before submitting
+        if (!isValidBraceletCode(code)) {
+            updateValidationFeedback(code);
+            return; // Don't submit if invalid
+        }
+        
         this.disabled = true;
         const prev = this.textContent;
         this.textContent = 'Se caută...';
@@ -882,20 +1003,30 @@
             renderBraceletInfo(data);
             // Load recent completed (in case a previous stop just happened)
             loadRecentCompleted();
-            // Prepare input for next scan after successful search
-            setTimeout(() => {
-                prepareInputForScanning();
-            }, 200);
+            // Don't clear input here - keep code visible until assignment/creation is complete
+            // Input will be cleared after successful assignment/creation or when starting a new session
         } catch (err) {
             // Extract exact error message from API response
             let errorMessage = 'Eroare la căutare';
-            if (err.status === 400 && err.data && err.data.message) {
+            
+            // Handle CSRF token mismatch specifically
+            if (err.status === 419 || (err.data && err.data.csrf_mismatch)) {
+                errorMessage = 'Token CSRF expirat. Te rugăm să reîncarci pagina și să încerci din nou.';
+                console.error('CSRF token mismatch. Consider reloading the page.');
+                // Optionally auto-reload after showing error
+                setTimeout(() => {
+                    if (confirm('Token CSRF expirat. Vrei să reîncarci pagina?')) {
+                        window.location.reload();
+                    }
+                }, 2000);
+            } else if (err.status === 400 && err.data && err.data.message) {
                 errorMessage = err.data.message;
             } else if (err.data && err.data.message) {
                 errorMessage = err.data.message;
             } else if (err.message) {
                 errorMessage = err.message;
             }
+            
             renderBraceletInfo({ success: false, message: errorMessage });
             // Prepare input for next scan even after error
             setTimeout(() => {
@@ -912,14 +1043,16 @@
         if (e.key === 'Enter') {
             e.preventDefault();
             const code = codeInput.value.trim();
-            if (code.length > 0) {
-                // Force enable button if code exists
-                if (searchBtn) {
-                    searchBtn.disabled = false;
+            if (code.length > 0 && isValidBraceletCode(code)) {
+                // Only allow search if code is valid
+                if (searchBtn && !searchBtn.disabled) {
                     searchBtn.click();
                 }
-                hideChildrenSearchResults();
+            } else {
+                // Show validation error
+                updateValidationFeedback(code);
             }
+            hideChildrenSearchResults();
         } else if (e.key === 'ArrowDown' && childrenSearchResults.classList.contains('hidden') === false && currentChildrenResults.length > 0) {
             e.preventDefault();
             const firstChild = childrenSearchResultsList.querySelector('.child-result-item');

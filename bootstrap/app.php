@@ -21,15 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
             LogRequests::class,
         ]);
         
-        // Register middleware to refresh remember token for authenticated users
-        // This ensures users never get logged out
-        $middleware->alias([
-            'refresh.remember' => RefreshRememberToken::class,
-        ]);
+        // NOTE: RefreshRememberToken middleware removed because Auth::login() 
+        // regenerates session and invalidates CSRF token.
+        // Session lifetime is already set to 20 years in config/session.php,
+        // so users will stay logged in without needing to refresh remember token.
         
-        // Apply refresh remember token middleware to all authenticated routes
-        $middleware->web(append: [
-            RefreshRememberToken::class,
+        // Exclude dashboard-api and reports-api routes from CSRF verification
+        // scan-api routes now require CSRF token (session no longer regenerates)
+        $middleware->validateCsrfTokens(except: [
+            'dashboard-api/*',
+            'reports-api/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

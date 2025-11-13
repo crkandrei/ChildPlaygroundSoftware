@@ -15,7 +15,18 @@ class StartSessionRequest extends FormRequest
     {
         return [
             'child_id' => ['required', 'exists:children,id'],
-            'bracelet_code' => ['required', 'string', 'min:1', 'max:255'],
+            'bracelet_code' => [
+                'required',
+                'string',
+                'regex:/^BONGO\d{4,5}$/',
+            ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'bracelet_code.regex' => 'Cod invalid. Format așteptat: BONGO urmat de 4 sau 5 cifre (ex: BONGO1234)',
         ];
     }
 }
