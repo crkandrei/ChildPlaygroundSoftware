@@ -83,7 +83,10 @@
     function renderAnomalies(data) {
         const grid = document.getElementById('anomaliesGrid');
         
-        if (!data || Object.keys(data).length === 0) {
+        // Verifică dacă există cel puțin o anomalie cu valoare > 0
+        const hasAnomalies = data && Object.values(data).some(count => count > 0);
+        
+        if (!hasAnomalies) {
             grid.innerHTML = `
                 <div class="col-span-full text-center py-12 text-gray-500">
                     <i class="fas fa-check-circle text-4xl mb-4 text-green-500"></i>
@@ -94,25 +97,28 @@
             return;
         }
 
-        const widgets = Object.entries(data).map(([key, count]) => {
-            const label = anomalyLabels[key] || key;
-            const icon = anomalyIcons[key] || 'fa-exclamation-triangle';
-            const colors = anomalyColors[key] || { bg: 'bg-gray-100', text: 'text-gray-600', icon: 'text-gray-600' };
-            
-            return `
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-600 mb-1">${label}</p>
-                            <p class="text-3xl font-bold ${colors.text}">${count}</p>
-                        </div>
-                        <div class="w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center">
-                            <i class="fas ${icon} ${colors.icon} text-xl"></i>
+        // Filtrează doar anomaliile cu count > 0
+        const widgets = Object.entries(data)
+            .filter(([key, count]) => count > 0)
+            .map(([key, count]) => {
+                const label = anomalyLabels[key] || key;
+                const icon = anomalyIcons[key] || 'fa-exclamation-triangle';
+                const colors = anomalyColors[key] || { bg: 'bg-gray-100', text: 'text-gray-600', icon: 'text-gray-600' };
+                
+                return `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-600 mb-1">${label}</p>
+                                <p class="text-3xl font-bold ${colors.text}">${count}</p>
+                            </div>
+                            <div class="w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center">
+                                <i class="fas ${icon} ${colors.icon} text-xl"></i>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
 
         grid.innerHTML = widgets;
     }
@@ -145,7 +151,9 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                renderAnomalies(data.data);
+                // ApiResponder aplatizează datele, deci eliminăm 'success' și folosim restul
+                const { success, ...anomalies } = data;
+                renderAnomalies(anomalies);
             } else {
                 grid.innerHTML = `
                     <div class="col-span-full text-center py-12 text-red-500">

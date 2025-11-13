@@ -39,30 +39,23 @@ class AnomaliesController extends Controller
         $sevenDaysAgo = Carbon::now()->subDays(7);
         $oneDayAgo = Carbon::now()->subDay();
         $now = Carbon::now();
-        $isMySQL = DB::getDriverName() === 'mysql';
 
         $results = [];
 
-        // Helper function to calculate duration in seconds (compatible with SQLite and MySQL)
-        $durationCalculation = $isMySQL 
-            ? "TIMESTAMPDIFF(SECOND, psi.started_at, COALESCE(psi.ended_at, NOW()))"
-            : "(julianday(COALESCE(psi.ended_at, datetime('now'))) - julianday(psi.started_at)) * 86400";
-
         // 1. Sesiuni de peste 5 ore (durata efectivă > 5 ore = 18000 secunde)
+        // Include atât sesiunile active cât și cele închise
+        // Calculăm durata din intervale, sau dacă nu există intervale, din started_at și ended_at/NOW()
         $results['sesiuni_peste_5_ore'] = DB::table('play_sessions as ps')
             ->where('ps.started_at', '>=', $sevenDaysAgo)
-            ->whereNotNull('ps.ended_at')
             ->whereRaw("(
-                SELECT COALESCE(SUM(
-                    CASE 
-                        WHEN psi.started_at IS NOT NULL THEN 
-                            {$durationCalculation}
-                        ELSE 
-                            0
-                    END
-                ), 0)
-                FROM play_session_intervals psi
-                WHERE psi.play_session_id = ps.id
+                COALESCE((
+                    SELECT SUM(TIMESTAMPDIFF(SECOND, psi.started_at, COALESCE(psi.ended_at, NOW())))
+                    FROM play_session_intervals psi
+                    WHERE psi.play_session_id = ps.id
+                    AND psi.started_at IS NOT NULL
+                ), 
+                TIMESTAMPDIFF(SECOND, ps.started_at, COALESCE(ps.ended_at, NOW()))
+                )
             ) > 18000")
             ->count();
 
@@ -81,17 +74,20 @@ class AnomaliesController extends Controller
             })
             ->count();
 
-        // 4. Sesiuni cu date invalide (ended_at < started_at sau started_at > now)
+        // 4. Sesiuni cu date invalide (ended_at < started_at sau started_at > now sau intervale invalide)
         $results['sesiuni_date_invalide'] = PlaySession::where('started_at', '>=', $sevenDaysAgo)
             ->where(function($q) use ($now) {
-                $q->whereRaw('ended_at < started_at')
+                // Sesiuni cu ended_at < started_at (doar pentru sesiunile închise)
+                $q->whereRaw('ended_at IS NOT NULL AND ended_at < started_at')
+                  // Sesiuni cu started_at în viitor
                   ->orWhere('started_at', '>', $now)
+                  // Intervale cu ended_at < started_at
                   ->orWhereExists(function($subquery) {
-                      // Intervale cu ended_at < started_at
                       $subquery->select(DB::raw(1))
                           ->from('play_session_intervals')
                           ->whereColumn('play_session_intervals.play_session_id', 'play_sessions.id')
                           ->whereNotNull('play_session_intervals.ended_at')
+                          ->whereNotNull('play_session_intervals.started_at')
                           ->whereRaw('play_session_intervals.ended_at < play_session_intervals.started_at');
                   });
             })
@@ -107,20 +103,19 @@ class AnomaliesController extends Controller
             ->count();
 
         // 6. Sesiuni foarte scurte (durata efectivă < 60 secunde)
+        // Doar pentru sesiunile închise (sesiunile active pot fi încă în desfășurare)
         $results['sesiuni_foarte_scurte'] = DB::table('play_sessions as ps')
             ->where('ps.started_at', '>=', $sevenDaysAgo)
             ->whereNotNull('ps.ended_at')
             ->whereRaw("(
-                SELECT COALESCE(SUM(
-                    CASE 
-                        WHEN psi.started_at IS NOT NULL THEN 
-                            {$durationCalculation}
-                        ELSE 
-                            0
-                    END
-                ), 0)
-                FROM play_session_intervals psi
-                WHERE psi.play_session_id = ps.id
+                COALESCE((
+                    SELECT SUM(TIMESTAMPDIFF(SECOND, psi.started_at, COALESCE(psi.ended_at, NOW())))
+                    FROM play_session_intervals psi
+                    WHERE psi.play_session_id = ps.id
+                    AND psi.started_at IS NOT NULL
+                ),
+                TIMESTAMPDIFF(SECOND, ps.started_at, ps.ended_at)
+                )
             ) < 60")
             ->count();
 
