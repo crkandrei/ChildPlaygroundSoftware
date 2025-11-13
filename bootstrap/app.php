@@ -2,6 +2,7 @@
 
 use App\Support\ActionLogger;
 use App\Http\Middleware\LogRequests;
+use App\Http\Middleware\RefreshRememberToken;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,17 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register request logging middleware for web routes
         $middleware->web(append: [
             LogRequests::class,
+        ]);
+        
+        // Register middleware to refresh remember token for authenticated users
+        // This ensures users never get logged out
+        $middleware->alias([
+            'refresh.remember' => RefreshRememberToken::class,
+        ]);
+        
+        // Apply refresh remember token middleware to all authenticated routes
+        $middleware->web(append: [
+            RefreshRememberToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
