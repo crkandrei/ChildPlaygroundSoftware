@@ -156,6 +156,13 @@
         }
     </style>
 </head>
+@php
+    // Ensure role is loaded for all menu checks
+    $currentUser = Auth::user();
+    if ($currentUser && !$currentUser->relationLoaded('role')) {
+        $currentUser->load('role');
+    }
+@endphp
 <body class="bg-gray-50 min-h-screen">
     <div class="flex h-screen">
         <!-- Sidebar -->
@@ -172,20 +179,21 @@
                     @endif
                     <h1 class="text-xl font-bold sidebar-logo-text whitespace-nowrap">KidsPass</h1>
                 </div>
-                <button id="sidebar-collapse-btn" class="sidebar-toggle-btn text-gray-400 hover:text-white ml-2 lg:block hidden">
-                    <i class="fas fa-chevron-left text-sm"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    @if($currentUser && $currentUser->role && $currentUser->role->name === 'SUPER_ADMIN')
+                    <div id="bridge-health-indicator" class="flex items-center gap-1 px-2 py-1 rounded" title="Bridge Fiscal Status">
+                        <div id="bridge-health-dot" class="w-2 h-2 rounded-full bg-gray-500"></div>
+                        <span id="bridge-health-text" class="text-xs text-gray-400 hidden sidebar-text">Bridge</span>
+                    </div>
+                    @endif
+                    <button id="sidebar-collapse-btn" class="sidebar-toggle-btn text-gray-400 hover:text-white ml-2 lg:block hidden">
+                        <i class="fas fa-chevron-left text-sm"></i>
+                    </button>
+                </div>
             </div>
             
             <nav class="mt-8">
                 <div class="px-4 space-y-2">
-                    @php
-                        // Ensure role is loaded for all menu checks
-                        $currentUser = Auth::user();
-                        if ($currentUser && !$currentUser->relationLoaded('role')) {
-                            $currentUser->load('role');
-                        }
-                    @endphp
                     @if(!$currentUser || !$currentUser->isStaff())
                     <a href="{{ route('dashboard') }}" 
                        data-title="Dashboard"
@@ -516,6 +524,72 @@
                 }
             });
         }
+
+        // Fiscal Bridge Health Check (only for SUPER_ADMIN)
+        @if($currentUser && $currentUser->role && $currentUser->role->name === 'SUPER_ADMIN')
+        (function() {
+            const healthIndicator = document.getElementById('bridge-health-indicator');
+            const healthDot = document.getElementById('bridge-health-dot');
+            const healthText = document.getElementById('bridge-health-text');
+            const checkInterval = 15000; // 15 seconds
+            
+            if (!healthIndicator || !healthDot) return;
+            
+            function checkBridgeHealth() {
+                fetch('{{ route("fiscal-bridge.health") }}', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        const isAlive = data.data.status === 'alive';
+                        
+                        // Update indicator
+                        if (isAlive) {
+                            healthDot.className = 'w-2 h-2 rounded-full bg-green-500';
+                            healthDot.style.animation = 'none';
+                            healthIndicator.title = 'Bridge Fiscal: Online';
+                        } else {
+                            healthDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                            healthDot.style.animation = 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite';
+                            healthIndicator.title = 'Bridge Fiscal: Offline';
+                        }
+                    } else {
+                        // Error or dead
+                        healthDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                        healthDot.style.animation = 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite';
+                        healthIndicator.title = 'Bridge Fiscal: Offline';
+                    }
+                })
+                .catch(error => {
+                    console.error('Bridge health check error:', error);
+                    healthDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                    healthDot.style.animation = 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite';
+                    healthIndicator.title = 'Bridge Fiscal: Offline';
+                });
+            }
+            
+            // Initial check
+            checkBridgeHealth();
+            
+            // Set interval for periodic checks
+            setInterval(checkBridgeHealth, checkInterval);
+        })();
+        @endif
     </script>
+    <style>
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
 </body>
 </html>
