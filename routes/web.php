@@ -125,9 +125,6 @@ Route::middleware('auth')->group(function () {
     // Fiscal receipt logs (super admin only)
     Route::get('/fiscal-receipt-logs', [App\Http\Controllers\FiscalReceiptLogController::class, 'index'])->name('fiscal-receipt-logs.index');
     Route::get('/fiscal-receipt-logs/data', [App\Http\Controllers\FiscalReceiptLogController::class, 'data'])->name('fiscal-receipt-logs.data');
-    
-    // Fiscal bridge health check (super admin only)
-    Route::get('/fiscal-bridge/health', [App\Http\Controllers\FiscalBridgeHealthController::class, 'check'])->name('fiscal-bridge.health');
 });
 
 // Legal documents accessible without authentication
