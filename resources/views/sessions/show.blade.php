@@ -24,7 +24,7 @@
                     <h2 class="text-xl font-bold text-gray-900">Informații Sesiune</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    @if($session->ended_at && Auth::user() && Auth::user()->role && Auth::user()->role->name === 'SUPER_ADMIN')
+                    @if($session->ended_at && Auth::user())
                     <button onclick="openFiscalModal({{ $session->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
                         <i class="fas fa-receipt mr-2"></i>
                         Printează Bon

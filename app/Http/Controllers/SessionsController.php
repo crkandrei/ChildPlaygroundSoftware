@@ -141,19 +141,6 @@ class SessionsController extends Controller
             ], 401);
         }
         
-        // Ensure role relationship is loaded
-        if (!isset($user->role)) {
-            $user->load('role');
-        }
-        
-        // Check if user is SUPER_ADMIN
-        if (!$user->role || $user->role->name !== 'SUPER_ADMIN') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Acces permis doar pentru super admin'
-            ], 403);
-        }
-        
         $request->validate([
             'paymentType' => 'required|in:CASH,CARD',
         ]);
@@ -267,19 +254,6 @@ class SessionsController extends Controller
                 'success' => false,
                 'message' => 'Neautentificat'
             ], 401);
-        }
-        
-        // Ensure role relationship is loaded
-        if (!isset($user->role)) {
-            $user->load('role');
-        }
-        
-        // Check if user is SUPER_ADMIN
-        if (!$user->role || $user->role->name !== 'SUPER_ADMIN') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Acces permis doar pentru super admin'
-            ], 403);
         }
         
         $request->validate([
