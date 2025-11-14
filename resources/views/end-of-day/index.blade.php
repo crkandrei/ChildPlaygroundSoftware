@@ -96,10 +96,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 });
 
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Eroare la generarea raportului Z');
+                }
+
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(data.message || 'Raportul Z nu este implementat încă');
+                    const fileInfo = data.file ? `\nFișier: ${data.file}` : '';
+                    alert((data.message || 'Raportul Z a fost generat cu succes') + fileInfo);
                 } else {
                     alert('Eroare: ' + (data.message || 'Eroare necunoscută'));
                 }

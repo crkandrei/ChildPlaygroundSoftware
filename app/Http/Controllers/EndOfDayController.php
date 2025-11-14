@@ -6,6 +6,7 @@ use App\Models\PlaySession;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 
 class EndOfDayController extends Controller
@@ -139,7 +140,7 @@ class EndOfDayController extends Controller
     }
 
     /**
-     * Placeholder for Z Report (does nothing for now)
+     * Generate Z Report via bridge
      */
     public function printZReport(Request $request)
     {
@@ -151,11 +152,32 @@ class EndOfDayController extends Controller
             ], 401);
         }
 
-        // Placeholder - does nothing for now
-        return response()->json([
-            'success' => true,
-            'message' => 'Raportul Z nu este implementat încă',
-        ]);
+        try {
+            // Send request to bridge
+            $bridgeUrl = config('services.fiscal_bridge.url', 'http://localhost:9000');
+            $response = Http::timeout(10)->post($bridgeUrl . '/z-report');
+
+            if (!$response->successful()) {
+                throw new \Exception('Nu s-a putut conecta la bridge-ul fiscal');
+            }
+
+            $bridgeData = $response->json();
+
+            if (!$bridgeData || ($bridgeData['status'] ?? '') !== 'success') {
+                throw new \Exception($bridgeData['message'] ?? 'Eroare de la bridge-ul fiscal');
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Raportul Z a fost generat cu succes',
+                'file' => $bridgeData['file'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Eroare la generarea raportului Z: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
 
