@@ -134,8 +134,15 @@ class FiscalReceiptController extends Controller
         // Calculate price
         $price = round($roundedHours * $hourlyRate, 2);
 
-        // Format duration for display
-        $duration = $this->formatDuration($hours, $minutes);
+        // Format rounded duration for display (fiscalized duration)
+        $roundedHoursInt = floor($roundedHours);
+        $roundedMinutes = round(($roundedHours - $roundedHoursInt) * 60);
+        // Handle case where roundedMinutes might be 60 (from rounding)
+        if ($roundedMinutes >= 60) {
+            $roundedHoursInt += 1;
+            $roundedMinutes = 0;
+        }
+        $durationFiscalized = $this->formatDuration($roundedHoursInt, $roundedMinutes);
 
         // Product name
         $productName = 'Ora de joacă';
@@ -145,7 +152,7 @@ class FiscalReceiptController extends Controller
             'success' => true,
             'data' => [
                 'productName' => $productName,
-                'duration' => $duration,
+                'duration' => $durationFiscalized,
                 'price' => $price,
                 'paymentType' => $paymentType,
             ],

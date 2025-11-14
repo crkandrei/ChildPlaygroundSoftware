@@ -203,10 +203,29 @@ class SessionsController extends Controller
         $productsPrice = $session->getProductsTotalPrice();
         $totalPrice = $session->getTotalPrice();
 
-        // Get products data
+        // Get products data - ensure we use the actual product name
         $products = $session->products->map(function($sp) {
+            // Get product name from loaded relation (should be loaded via ->with(['products.product']))
+            $productName = null;
+            if ($sp->product && $sp->product->name) {
+                $productName = trim($sp->product->name);
+            }
+            
+            // If name not found in relation, try loading product directly
+            if (empty($productName) && $sp->product_id) {
+                $product = \App\Models\Product::find($sp->product_id);
+                if ($product && $product->name) {
+                    $productName = trim($product->name);
+                }
+            }
+            
+            // Ensure we always have a name - use product ID as fallback if name is missing
+            if (empty($productName)) {
+                $productName = 'Produs ID: ' . $sp->product_id;
+            }
+            
             return [
-                'name' => $sp->product->name ?? 'Produs',
+                'name' => $productName,
                 'quantity' => $sp->quantity,
                 'unit_price' => (float) $sp->unit_price,
                 'total_price' => (float) $sp->total_price,
@@ -219,14 +238,39 @@ class SessionsController extends Controller
         // Product name
         $productName = 'Ora de joacă';
 
+        // Build items array for bridge: time item + product items
+        $items = [];
+        
+        // Add time item (only if timePrice > 0)
+        if ($timePrice > 0) {
+            $items[] = [
+                'name' => $productName . ' (' . $durationFiscalized . ')',
+                'quantity' => 1,
+                'price' => (float) $timePrice,
+            ];
+        }
+        
+        // Add product items
+        foreach ($products as $product) {
+            if ($product['total_price'] > 0) {
+                $items[] = [
+                    'name' => $product['name'],
+                    'quantity' => $product['quantity'],
+                    'price' => (float) $product['unit_price'], // Use unit price, not total
+                ];
+            }
+        }
+
         // Return data for client-side bridge call
         return response()->json([
             'success' => true,
             'data' => [
-                'productName' => $productName,
-                'duration' => $duration,
-                'price' => $totalPrice,
+                'items' => $items,
                 'paymentType' => $request->paymentType,
+                // Keep legacy fields for backward compatibility (not used if items is present)
+                'productName' => $productName,
+                'duration' => $durationFiscalized,
+                'price' => $totalPrice,
             ],
             'receipt' => [
                 'tenantName' => $tenantName,
