@@ -210,6 +210,13 @@
                         <span class="sidebar-text">Scanare Brățară</span>
                     </a>
 
+                    <a href="{{ route('end-of-day.index') }}" 
+                       data-title="Final de Zi"
+                       class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('end-of-day.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                        <i class="fas fa-calendar-check sidebar-icon mr-3"></i>
+                        <span class="sidebar-text">Final de Zi</span>
+                    </a>
+
                     <a href="{{ route('sessions.index') }}" 
                        data-title="Sesiuni"
                     class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('sessions.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">

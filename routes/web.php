@@ -23,6 +23,11 @@ Route::middleware('auth')->group(function () {
     // Scan page
     Route::get('/scan', [App\Http\Controllers\ScanPageController::class, 'index'])->name('scan');
 
+    // End of day page (accessible to all authenticated users)
+    Route::get('/end-of-day', [App\Http\Controllers\EndOfDayController::class, 'index'])->name('end-of-day.index');
+    Route::get('/end-of-day/print-non-fiscal', [App\Http\Controllers\EndOfDayController::class, 'printNonFiscalReport'])->name('end-of-day.print-non-fiscal');
+    Route::post('/end-of-day/print-z', [App\Http\Controllers\EndOfDayController::class, 'printZReport'])->name('end-of-day.print-z');
+
     // Sessions page (read-only)
     Route::get('/sessions', [App\Http\Controllers\SessionsController::class, 'index'])->name('sessions.index');
     Route::get('/sessions/data', [App\Http\Controllers\SessionsController::class, 'data'])->name('sessions.data');
