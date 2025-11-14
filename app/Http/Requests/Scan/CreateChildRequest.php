@@ -30,6 +30,7 @@ class CreateChildRequest extends FormRequest
                 'string',
                 'regex:/^BONGO\d{4,5}$/',
             ],
+            'is_birthday' => ['nullable', 'boolean'],
         ];
     }
 

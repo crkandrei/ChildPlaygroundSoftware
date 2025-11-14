@@ -19,6 +19,7 @@ class PlaySession extends Model
         'ended_at',
         'calculated_price',
         'price_per_hour_at_calculation',
+        'is_birthday',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class PlaySession extends Model
         'ended_at' => 'datetime',
         'calculated_price' => 'decimal:2',
         'price_per_hour_at_calculation' => 'decimal:2',
+        'is_birthday' => 'boolean',
     ];
 
     /**
@@ -132,13 +134,14 @@ class PlaySession extends Model
     /**
      * Start a new play session
      */
-    public static function startSession(Tenant $tenant, Child $child, string $braceletCode): self
+    public static function startSession(Tenant $tenant, Child $child, string $braceletCode, bool $isBirthday = false): self
     {
         $session = self::create([
             'tenant_id' => $tenant->id,
             'child_id' => $child->id,
             'bracelet_code' => $braceletCode,
             'started_at' => now(),
+            'is_birthday' => $isBirthday,
         ]);
 
         // Create initial open interval

@@ -156,6 +156,13 @@
                         <p class="text-xs text-gray-500 mt-1">* Poți scrie în câmp pentru a căuta</p>
                     </div>
                     
+                    <div class="flex items-center gap-2 pt-2 border-t border-gray-200">
+                        <input type="checkbox" id="isBirthdayAssign" class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                        <label for="isBirthdayAssign" class="text-sm font-medium text-gray-700 cursor-pointer">
+                            <i class="fas fa-birthday-cake mr-1 text-pink-600"></i>Sesiune Birthday (gratuită)
+                        </label>
+                    </div>
+                    
                     <button 
                         id="assignChildBtn" 
                         disabled
@@ -278,6 +285,13 @@
                                     <span class="text-red-500">*</span>
                                 </label>
                             </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 pt-2 border-t border-gray-200">
+                            <input type="checkbox" id="isBirthdayCreate" class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                            <label for="isBirthdayCreate" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                <i class="fas fa-birthday-cake mr-1 text-pink-600"></i>Sesiune Birthday (gratuită)
+                            </label>
                         </div>
                         
                         <button 
@@ -1762,11 +1776,13 @@
         this.textContent = 'Se asignează...';
         
         try {
+            const isBirthday = document.getElementById('isBirthdayAssign')?.checked || false;
             const result = await apiCall('/scan-api/assign', {
                 method: 'POST',
                 body: JSON.stringify({
                     bracelet_code: currentBracelet ? currentBracelet.code : null,
-                    child_id: childId
+                    child_id: childId,
+                    is_birthday: isBirthday
                 })
             });
             
@@ -1914,12 +1930,14 @@
         this.textContent = 'Se creează...';
         
         try {
+            const isBirthday = document.getElementById('isBirthdayCreate')?.checked || false;
             const payload = {
                 first_name: childFirstName,
                 last_name: childLastName,
                 birth_date: childBirthDate,
                 allergies: childAllergies || null,
-                bracelet_code: currentBracelet.code
+                bracelet_code: currentBracelet.code,
+                is_birthday: isBirthday
             };
             
             if (guardianMode === 'existing' && guardianId) {

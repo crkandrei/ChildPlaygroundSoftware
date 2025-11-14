@@ -87,6 +87,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                 'play_sessions.status',
                 'play_sessions.calculated_price',
                 'play_sessions.price_per_hour_at_calculation',
+                'play_sessions.is_birthday',
                 'children.first_name as child_first_name',
                 'children.last_name as child_last_name',
                 'guardians.name as guardian_name',
@@ -156,6 +157,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                     'price' => $price,
                     'formatted_price' => $formattedPrice,
                     'price_per_hour_at_calculation' => $row->price_per_hour_at_calculation ? (float) $row->price_per_hour_at_calculation : null,
+                    'is_birthday' => (bool) $row->is_birthday,
                 ];
             });
 

@@ -17,6 +17,11 @@ class PricingService
      */
     public function calculateSessionPrice(PlaySession $session): float
     {
+        // Birthday sessions are free
+        if ($session->is_birthday) {
+            return 0.00;
+        }
+
         $tenant = $session->tenant;
         if (!$tenant) {
             return 0.00;
@@ -178,6 +183,15 @@ class PricingService
      */
     public function calculateAndSavePrice(PlaySession $session): PlaySession
     {
+        // Birthday sessions are free
+        if ($session->is_birthday) {
+            $session->update([
+                'calculated_price' => 0.00,
+                'price_per_hour_at_calculation' => 0.00,
+            ]);
+            return $session;
+        }
+
         $tenant = $session->tenant;
         if (!$tenant) {
             return $session;

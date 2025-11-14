@@ -20,6 +20,7 @@ class AssignBraceletRequest extends FormRequest
                 'regex:/^BONGO\d{4,5}$/',
             ],
             'child_id' => ['required', 'exists:children,id'],
+            'is_birthday' => ['nullable', 'boolean'],
         ];
     }
 

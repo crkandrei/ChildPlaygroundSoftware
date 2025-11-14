@@ -264,7 +264,10 @@
         rows.forEach(row => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${row.child_name || '-'}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    ${row.child_name || '-'}
+                    ${row.is_birthday ? `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-pink-100 text-pink-800"><i class="fas fa-birthday-cake mr-1"></i>Birthday</span>` : ''}
+                </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-mono" id="timer-${row.id}">--:--:--</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                     ${row.formatted_price ? `<span class="font-semibold ${row.ended_at ? 'text-green-600' : 'text-amber-600'}">${row.formatted_price}</span>` : '-'}
@@ -274,7 +277,12 @@
                         <a href="/sessions/${row.id}/show" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
                             <i class="fas fa-eye mr-1"></i>Detalii
                         </a>
-                        ${row.ended_at ? `
+                        <button onclick="toggleBirthdayQuick(${row.id}, ${row.is_birthday})" 
+                            class="px-2 py-1 ${row.is_birthday ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs transition-colors"
+                            title="${row.is_birthday ? 'Demarchează Birthday' : 'Marchează ca Birthday'}">
+                            <i class="fas fa-birthday-cake mr-1"></i>${row.is_birthday ? 'ON' : 'OFF'}
+                        </button>
+                        ${row.ended_at && !row.is_birthday ? `
                             <button onclick="openFiscalModal(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
                                 <i class="fas fa-receipt mr-1"></i>Bon
                             </button>
@@ -690,6 +698,36 @@ function showFiscalResult(type, message, file) {
             <h3 class="text-xl font-bold text-gray-900 mb-2">Eroare</h3>
             <p class="text-gray-700">${message}</p>
         `;
+    }
+}
+
+// Quick toggle birthday status from list
+async function toggleBirthdayQuick(sessionId, currentStatus) {
+    const newStatus = !currentStatus;
+    
+    try {
+        const response = await fetch(`/sessions/${sessionId}/update-birthday-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                is_birthday: newStatus
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la actualizarea statusului');
+        }
+
+        // Reload table data
+        fetchData();
+    } catch (error) {
+        console.error('Error toggling birthday status:', error);
+        alert('Eroare: ' + error.message);
     }
 }
 </script>

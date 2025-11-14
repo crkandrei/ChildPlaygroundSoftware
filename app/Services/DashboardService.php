@@ -34,12 +34,13 @@ class DashboardService
         $totalMinutesAll = $allSessions->reduce(fn($c, $s) => $c + $s->getCurrentDurationMinutes(), 0);
         $avgAll = $allSessions->count() > 0 ? (int) floor($totalMinutesAll / $allSessions->count()) : 0;
 
-        // Calculate total income for sessions ended today
+        // Calculate total income for sessions ended today (exclude birthday sessions)
         $sessionsEndedToday = PlaySession::where('tenant_id', $tenantId)
             ->whereNotNull('ended_at')
             ->whereNotNull('calculated_price')
             ->where('ended_at', '>=', $startOfDay)
             ->where('ended_at', '<=', $endOfDay)
+            ->where('is_birthday', false)
             ->get();
         
         $totalIncomeToday = $sessionsEndedToday->sum('calculated_price');

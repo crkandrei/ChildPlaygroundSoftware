@@ -24,7 +24,7 @@
                     <h2 class="text-xl font-bold text-gray-900">Informații Sesiune</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    @if($session->ended_at && Auth::user())
+                    @if($session->ended_at && Auth::user() && !$session->is_birthday)
                     <button onclick="openFiscalModal({{ $session->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
                         <i class="fas fa-receipt mr-2"></i>
                         Printează Bon
@@ -33,6 +33,11 @@
                     <span class="px-3 py-1 text-sm font-medium rounded-full {{ $session->ended_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
                         {{ $session->ended_at ? 'Închisă' : 'Activă' }}
                     </span>
+                    @if($session->is_birthday)
+                    <span class="px-3 py-1 text-sm font-medium rounded-full bg-pink-100 text-pink-800">
+                        <i class="fas fa-birthday-cake mr-1"></i>Birthday
+                    </span>
+                    @endif
                 </div>
             </div>
         </div>
@@ -107,6 +112,21 @@
                     <div class="text-sm text-gray-600 mb-1">Total General</div>
                     <div class="text-lg font-semibold text-green-600">
                         {{ $session->getFormattedTotalPrice() }}
+                    </div>
+                </div>
+                @endif
+                @if(Auth::user())
+                <div class="col-span-full pt-4 border-t border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-gray-900 mb-1">Tip Sesiune</div>
+                            <div class="text-xs text-gray-500">Marchează sesiunea ca Birthday pentru a o face gratuită</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="birthday-toggle" class="sr-only peer" {{ $session->is_birthday ? 'checked' : '' }} onchange="toggleBirthdayStatus({{ $session->id }}, this.checked)">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-700">Birthday</span>
+                        </label>
                     </div>
                 </div>
                 @endif
@@ -744,6 +764,39 @@ function showFiscalResult(type, message, file) {
             <h3 class="text-xl font-bold text-gray-900 mb-2">Eroare</h3>
             <p class="text-gray-700">${message}</p>
         `;
+    }
+}
+
+// ===== BIRTHDAY STATUS TOGGLE =====
+
+async function toggleBirthdayStatus(sessionId, isBirthday) {
+    try {
+        const response = await fetch(`/sessions/${sessionId}/update-birthday-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                is_birthday: isBirthday
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la actualizarea statusului');
+        }
+
+        const result = await response.json();
+        
+        // Reload the page to reflect changes
+        window.location.reload();
+    } catch (error) {
+        console.error('Error toggling birthday status:', error);
+        alert('Eroare: ' + error.message);
+        // Revert toggle on error
+        document.getElementById('birthday-toggle').checked = !isBirthday;
     }
 }
 

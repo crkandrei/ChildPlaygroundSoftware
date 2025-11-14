@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/sessions/{id}/receipt', [App\Http\Controllers\SessionsController::class, 'receipt'])->name('sessions.receipt');
     Route::post('/sessions/{id}/prepare-fiscal-print', [App\Http\Controllers\SessionsController::class, 'prepareFiscalPrint'])->name('sessions.prepare-fiscal-print');
     Route::post('/sessions/save-fiscal-receipt-log', [App\Http\Controllers\SessionsController::class, 'saveFiscalReceiptLog'])->name('sessions.save-fiscal-receipt-log');
+    Route::post('/sessions/{id}/update-birthday-status', [App\Http\Controllers\SessionsController::class, 'updateBirthdayStatus'])->name('sessions.update-birthday-status');
 
     // Dashboard API (session-auth via web guard)
     Route::prefix('dashboard-api')->group(function () {

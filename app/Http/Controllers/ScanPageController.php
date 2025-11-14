@@ -141,7 +141,8 @@ class ScanPageController extends Controller
         }
 
         try {
-            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode);
+            $isBirthday = $request->boolean('is_birthday', false);
+            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday);
 
             return ApiResponder::success([
                 'message' => 'Sesiune pornită cu succes',
@@ -149,6 +150,7 @@ class ScanPageController extends Controller
                     'id' => $session->id,
                     'started_at' => $session->started_at->toISOString(),
                     'bracelet_code' => $braceletCode,
+                    'is_birthday' => $session->is_birthday,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -232,7 +234,8 @@ class ScanPageController extends Controller
                 ]);
 
                 // Pornește sesiunea cu codul de bare
-                $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode);
+                $isBirthday = $request->boolean('is_birthday', false);
+                $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday);
 
                 return [
                     'child' => $child,
@@ -355,7 +358,8 @@ class ScanPageController extends Controller
             }
 
             $braceletCode = trim($request->bracelet_code);
-            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode);
+            $isBirthday = $request->boolean('is_birthday', false);
+            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday);
 
             return ApiResponder::success([
                 'message' => 'Sesiunea a început cu succes',
@@ -365,6 +369,7 @@ class ScanPageController extends Controller
                     'parent_name' => $child->guardian->name,
                     'started_at' => $session->started_at->toISOString(),
                     'bracelet_code' => $braceletCode,
+                    'is_birthday' => $session->is_birthday,
                 ],
             ]);
 

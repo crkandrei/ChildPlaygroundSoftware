@@ -209,8 +209,10 @@ class GuardianController extends Controller
                 }
             });
 
-        // Calculate total price
-        $totalPrice = $playSessions->sum('price');
+        // Calculate total price (exclude birthday sessions)
+        $totalPrice = $playSessions->filter(function($session) {
+            return !$session->is_birthday;
+        })->sum('price');
 
         return view('guardians.show', compact('guardian', 'playSessions', 'totalPrice'));
     }

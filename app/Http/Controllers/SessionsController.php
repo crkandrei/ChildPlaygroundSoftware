@@ -113,6 +113,10 @@ class SessionsController extends Controller
             abort(400, 'Bonul poate fi generat doar pentru sesiuni finalizate');
         }
 
+        if ($session->is_birthday) {
+            abort(400, 'Nu se poate printa bon pentru sesiuni de tip Birthday');
+        }
+
         // Ensure price is calculated
         if (!$session->calculated_price) {
             $session->saveCalculatedPrice();
@@ -166,6 +170,13 @@ class SessionsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Bonul poate fi generat doar pentru sesiuni finalizate'
+            ], 400);
+        }
+
+        if ($session->is_birthday) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nu se poate printa bon pentru sesiuni de tip Birthday'
             ], 400);
         }
 
@@ -326,6 +337,62 @@ class SessionsController extends Controller
                 'message' => 'Eroare la salvarea logului: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Update session birthday status
+     */
+    public function updateBirthdayStatus($id, Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+
+        $request->validate([
+            'is_birthday' => 'required|boolean',
+        ]);
+
+        // For SUPER_ADMIN, can access any session (tenant comes from session)
+        // For other roles, restrict to their tenant
+        $sessionQuery = PlaySession::where('id', $id);
+        
+        if (!$user->isSuperAdmin() && $user->tenant) {
+            $sessionQuery->where('tenant_id', $user->tenant->id);
+        }
+        
+        $session = $sessionQuery->first();
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea nu a fost găsită'
+            ], 404);
+        }
+
+        $session->update([
+            'is_birthday' => $request->is_birthday,
+        ]);
+
+        // Recalculate price if session is ended
+        if ($session->ended_at) {
+            $session->saveCalculatedPrice();
+            $session->refresh();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->is_birthday ? 'Sesiunea a fost marcată ca Birthday' : 'Sesiunea nu mai este marcată ca Birthday',
+            'session' => [
+                'id' => $session->id,
+                'is_birthday' => $session->is_birthday,
+                'calculated_price' => $session->calculated_price,
+                'formatted_price' => $session->getFormattedPrice(),
+            ],
+        ]);
     }
 
     /**
