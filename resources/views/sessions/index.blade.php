@@ -210,13 +210,22 @@
 @section('scripts')
 <script>
     
+    // Get current date in local timezone (not UTC)
+    function getCurrentLocalDate() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
     let state = {
         page: 1,
         per_page: 10,
         sort_by: 'started_at',
         sort_dir: 'desc',
         search: '',
-        date: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
+        date: getCurrentLocalDate() // Current date in local timezone (YYYY-MM-DD format)
     };
     let timerIntervals = new Map();
 
