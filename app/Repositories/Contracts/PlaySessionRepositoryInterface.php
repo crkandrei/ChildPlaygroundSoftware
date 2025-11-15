@@ -32,7 +32,8 @@ interface PlaySessionRepositoryInterface
         int $perPage,
         ?string $search,
         string $sortBy,
-        string $sortDir
+        string $sortDir,
+        Carbon $date
     ): array;
 }
 

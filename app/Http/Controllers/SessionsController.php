@@ -38,6 +38,10 @@ class SessionsController extends Controller
         $search = trim((string) $request->input('search', ''));
         $sortBy = (string) $request->input('sort_by', 'started_at');
         $sortDir = strtolower((string) $request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        
+        // Date filter - default to today if not provided
+        $dateInput = $request->input('date');
+        $date = $dateInput ? \Carbon\Carbon::parse($dateInput) : \Carbon\Carbon::today();
 
         // Allowed sorting columns map to SQL columns
         $result = $this->sessions->paginateSessions(
@@ -46,7 +50,8 @@ class SessionsController extends Controller
             $perPage,
             $search === '' ? null : $search,
             $sortBy,
-            $sortDir
+            $sortDir,
+            $date
         );
 
         return ApiResponder::success([
@@ -59,6 +64,7 @@ class SessionsController extends Controller
                 'sort_by' => $sortBy,
                 'sort_dir' => $sortDir,
                 'search' => $search,
+                'date' => $date->format('Y-m-d'),
             ],
         ]);
     }

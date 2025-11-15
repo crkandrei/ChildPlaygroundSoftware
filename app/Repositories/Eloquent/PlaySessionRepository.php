@@ -65,7 +65,8 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
         int $perPage,
         ?string $search,
         string $sortBy,
-        string $sortDir
+        string $sortDir,
+        Carbon $date
     ): array {
         $sortable = [
             'child_name' => 'children.name',
@@ -76,12 +77,12 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
         ];
         $sortColumn = $sortable[$sortBy] ?? 'play_sessions.started_at';
 
-        $todayStart = \Carbon\Carbon::today()->startOfDay();
-        $todayEnd = \Carbon\Carbon::today()->endOfDay();
+        $dateStart = $date->copy()->startOfDay();
+        $dateEnd = $date->copy()->endOfDay();
         
         $query = PlaySession::query()
             ->where('play_sessions.tenant_id', $tenantId)
-            ->whereBetween('play_sessions.started_at', [$todayStart, $todayEnd])
+            ->whereBetween('play_sessions.started_at', [$dateStart, $dateEnd])
             ->leftJoin('children', 'children.id', '=', 'play_sessions.child_id')
             ->leftJoin('guardians', 'guardians.id', '=', 'children.guardian_id')
             ->select([

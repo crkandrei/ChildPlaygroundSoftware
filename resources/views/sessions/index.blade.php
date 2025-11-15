@@ -15,6 +15,10 @@
 
         <div class="flex flex-wrap items-center gap-3">
             <div>
+                <label class="text-sm text-gray-600 mr-2" for="dateFilter">Dată</label>
+                <input id="dateFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-md">
+            </div>
+            <div>
                 <label class="text-sm text-gray-600 mr-2" for="perPage">Afișează</label>
                 <select id="perPage" class="px-3 py-2 border border-gray-300 rounded-md">
                     <option value="10">10</option>
@@ -211,7 +215,8 @@
         per_page: 10,
         sort_by: 'started_at',
         sort_dir: 'desc',
-        search: ''
+        search: '',
+        date: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
     };
     let timerIntervals = new Map();
 
@@ -277,6 +282,7 @@
         url.searchParams.set('sort_by', state.sort_by);
         url.searchParams.set('sort_dir', state.sort_dir);
         if (state.search) url.searchParams.set('search', state.search);
+        if (state.date) url.searchParams.set('date', state.date);
 
         const res = await fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } });
         const data = await res.json();
@@ -403,6 +409,12 @@
         }, 300);
     });
 
+    document.getElementById('dateFilter').addEventListener('change', (e) => {
+        state.date = e.target.value;
+        state.page = 1;
+        fetchData();
+    });
+
     document.getElementById('prevPage').addEventListener('click', () => {
         if (state.page > 1) {
             state.page -= 1;
@@ -427,6 +439,21 @@
             fetchData();
         });
     });
+
+    // Set default date in input
+    function initDateFilter() {
+        const dateInput = document.getElementById('dateFilter');
+        if (dateInput) {
+            dateInput.value = state.date;
+        }
+    }
+    
+    // Initialize date filter when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDateFilter);
+    } else {
+        initDateFilter();
+    }
 
     // Initial load
     fetchData();
