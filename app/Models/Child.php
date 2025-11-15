@@ -11,8 +11,7 @@ class Child extends Model
     protected $fillable = [
         'tenant_id',
         'guardian_id',
-        'first_name',
-        'last_name',
+        'name',
         'birth_date',
         'allergies',
         'internal_code',

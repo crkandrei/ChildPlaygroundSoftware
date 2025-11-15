@@ -129,13 +129,13 @@
                                 <div class="flex-shrink-0 h-10 w-10">
                                     <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
                                         <span class="text-sm font-medium text-white">
-                                            {{ substr($child->first_name, 0, 1) }}{{ substr($child->last_name, 0, 1) }}
+                                            {{ substr($child->name, 0, 2) }}
                                         </span>
                                     </div>
                                 </div>
                                 <div class="ml-4">
                                     <div class="text-sm font-medium text-gray-900">
-                                        {{ $child->first_name }} {{ $child->last_name }}
+                                        {{ $child->name }}
                                     </div>
                                     @if($child->allergies)
                                     <div class="text-xs text-red-600 flex items-center mt-1">

@@ -363,7 +363,7 @@ class AnomaliesController extends Controller
             ->map(function($session) {
                 return [
                     'id' => $session->id,
-                    'child_name' => $session->child ? trim($session->child->first_name . ' ' . $session->child->last_name) : 'N/A',
+                    'child_name' => $session->child ? $session->child->name : 'N/A',
                     'started_at' => $session->started_at ? $session->started_at->format('d.m.Y H:i') : null,
                     'ended_at' => $session->ended_at ? $session->ended_at->format('d.m.Y H:i') : null,
                     'is_active' => is_null($session->ended_at),

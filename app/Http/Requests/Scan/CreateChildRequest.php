@@ -14,8 +14,7 @@ class CreateChildRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['nullable', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'], // Keep first_name for backward compatibility with frontend
             'allergies' => ['nullable', 'string', 'max:500'],
             // Either guardian_id OR guardian_* fields (enforced in withValidator)
             'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
@@ -32,11 +31,10 @@ class CreateChildRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        // Normalize empty strings to null for guardian optional fields and last_name
+        // Normalize empty strings to null for guardian optional fields
         $this->merge([
             'guardian_name' => $this->normalizeEmpty($this->input('guardian_name')),
             'guardian_phone' => $this->normalizeEmpty($this->input('guardian_phone')),
-            'last_name' => $this->normalizeEmpty($this->input('last_name')),
         ]);
     }
 

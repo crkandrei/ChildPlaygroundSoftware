@@ -172,7 +172,7 @@ class GuardianController extends Controller
                     return [
                         'id' => $session->id,
                         'child_id' => $session->child_id,
-                        'child_name' => $session->child ? trim(($session->child->first_name ?? '') . ' ' . ($session->child->last_name ?? '')) : '-',
+                        'child_name' => $session->child ? $session->child->name : '-',
                         'started_at' => $session->started_at,
                         'ended_at' => null,
                         'bracelet_code' => $session->bracelet_code ?? null,
@@ -183,6 +183,7 @@ class GuardianController extends Controller
                         'status' => 'active',
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
+                        'is_birthday' => $session->is_birthday ?? false,
                     ];
                 } else {
                     // Closed session: use all intervals
@@ -194,7 +195,7 @@ class GuardianController extends Controller
                     return [
                         'id' => $session->id,
                         'child_id' => $session->child_id,
-                        'child_name' => $session->child ? trim(($session->child->first_name ?? '') . ' ' . ($session->child->last_name ?? '')) : '-',
+                        'child_name' => $session->child ? $session->child->name : '-',
                         'started_at' => $session->started_at,
                         'ended_at' => $session->ended_at,
                         'bracelet_code' => $session->bracelet_code ?? null,
@@ -205,13 +206,14 @@ class GuardianController extends Controller
                         'status' => 'completed',
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
+                        'is_birthday' => $session->is_birthday ?? false,
                     ];
                 }
             });
 
         // Calculate total price (exclude birthday sessions)
         $totalPrice = $playSessions->filter(function($session) {
-            return !$session->is_birthday;
+            return !($session['is_birthday'] ?? false);
         })->sum('price');
 
         return view('guardians.show', compact('guardian', 'playSessions', 'totalPrice'));

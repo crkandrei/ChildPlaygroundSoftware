@@ -240,7 +240,7 @@
                     </a>
                     @endif
                     
-                    @if($currentUser && ($currentUser->isSuperAdmin() || $currentUser->isCompanyAdmin()))
+                    @if($currentUser && ($currentUser->isSuperAdmin() || $currentUser->isCompanyAdmin() || $currentUser->isStaff()))
                     <a href="{{ route('guardians.index') }}" 
                        data-title="Părinți"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('guardians.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">

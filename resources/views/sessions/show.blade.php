@@ -40,7 +40,7 @@
                     @endif
                     @if($session->ended_at)
                         @if($session->isPaid())
-                        <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 inline-flex items-center">
+                        <span id="payment-status-badge" class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 inline-flex items-center">
                             <i class="fas fa-check-circle mr-1"></i>
                             @if($session->payment_status === 'paid_voucher')
                                 Plătit (Voucher)
@@ -49,9 +49,17 @@
                             @endif
                         </span>
                         @else
-                        <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 inline-flex items-center">
+                        <span id="payment-status-badge" class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 inline-flex items-center">
                             <i class="fas fa-clock mr-1"></i>Neplătit
                         </span>
+                        @endif
+                        @if(Auth::user() && Auth::user()->isSuperAdmin())
+                        <button id="toggle-payment-status-btn" 
+                                onclick="togglePaymentStatus({{ $session->id }})"
+                                class="ml-2 px-3 py-1 text-sm font-medium rounded-lg {{ $session->isPaid() ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' : 'bg-green-200 hover:bg-green-300 text-green-700' }} transition-colors">
+                            <i class="fas {{ $session->isPaid() ? 'fa-undo' : 'fa-check' }} mr-1"></i>
+                            {{ $session->isPaid() ? 'Marchează Neplătit' : 'Marchează Plătit' }}
+                        </button>
                         @endif
                     @endif
                 </div>
@@ -62,7 +70,7 @@
                 <div>
                     <div class="text-sm text-gray-600 mb-1">Copil</div>
                     <div class="text-lg font-semibold text-gray-900">
-                        {{ $session->child ? $session->child->first_name . ' ' . $session->child->last_name : '-' }}
+                        {{ $session->child ? $session->child->name : '-' }}
                     </div>
                 </div>
                 <div>
@@ -960,6 +968,49 @@ function showFiscalResult(type, message, file) {
             <h3 class="text-xl font-bold text-gray-900 mb-2">Eroare</h3>
             <p class="text-gray-700">${message}</p>
         `;
+    }
+}
+
+// ===== PAYMENT STATUS TOGGLE (Super Admin Only) =====
+
+async function togglePaymentStatus(sessionId) {
+    if (!confirm('Sigur doriți să schimbați statusul de plată al acestei sesiuni?')) {
+        return;
+    }
+
+    const btn = document.getElementById('toggle-payment-status-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Se procesează...';
+
+    try {
+        const response = await fetch(`/sessions/${sessionId}/toggle-payment-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la actualizarea statusului');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            // Reload the page to reflect changes
+            window.location.reload();
+        } else {
+            throw new Error(result.message || 'Eroare necunoscută');
+        }
+    } catch (error) {
+        console.error('Error toggling payment status:', error);
+        alert('Eroare: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
 }
 

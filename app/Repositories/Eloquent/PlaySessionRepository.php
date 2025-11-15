@@ -68,7 +68,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
         string $sortDir
     ): array {
         $sortable = [
-            'child_name' => 'children.last_name',
+            'child_name' => 'children.name',
             'guardian_name' => 'guardians.name',
             'guardian_phone' => 'guardians.phone',
             'started_at' => 'play_sessions.started_at',
@@ -76,8 +76,12 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
         ];
         $sortColumn = $sortable[$sortBy] ?? 'play_sessions.started_at';
 
+        $todayStart = \Carbon\Carbon::today()->startOfDay();
+        $todayEnd = \Carbon\Carbon::today()->endOfDay();
+        
         $query = PlaySession::query()
             ->where('play_sessions.tenant_id', $tenantId)
+            ->whereBetween('play_sessions.started_at', [$todayStart, $todayEnd])
             ->leftJoin('children', 'children.id', '=', 'play_sessions.child_id')
             ->leftJoin('guardians', 'guardians.id', '=', 'children.guardian_id')
             ->select([
@@ -91,16 +95,14 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                 'play_sessions.paid_at',
                 'play_sessions.payment_status',
                 'play_sessions.voucher_hours',
-                'children.first_name as child_first_name',
-                'children.last_name as child_last_name',
+                'children.name as child_name',
                 'guardians.name as guardian_name',
                 'guardians.phone as guardian_phone',
             ]);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('children.first_name', 'like', "%{$search}%")
-                    ->orWhere('children.last_name', 'like', "%{$search}%")
+                $q->where('children.name', 'like', "%{$search}%")
                     ->orWhere('guardians.name', 'like', "%{$search}%")
                     ->orWhere('guardians.phone', 'like', "%{$search}%");
             });
@@ -114,7 +116,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
             ->forPage($page, $perPage)
             ->get()
             ->map(function ($row) {
-                $childName = trim(($row->child_first_name ?? '') . ' ' . ($row->child_last_name ?? ''));
+                $childName = $row->child_name ?? '';
                 // Load full session to compute effective time and pause state
                 $ps = \App\Models\PlaySession::with(['intervals', 'products'])->find($row->id);
                 

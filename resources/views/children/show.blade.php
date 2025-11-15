@@ -14,7 +14,7 @@
                     </svg>
                 </a>
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-900">{{ $child->first_name }} {{ $child->last_name }}</h1>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ $child->name }}</h1>
                     <p class="text-gray-600">Detalii copil și informații asociate</p>
                 </div>
             </div>

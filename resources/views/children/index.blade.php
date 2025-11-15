@@ -134,40 +134,14 @@
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">
-                                Prenume <span class="text-red-500">*</span>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                                Nume complet <span class="text-red-500">*</span>
                             </label>
-                            <input type="text" id="first_name" name="first_name" value="{{ old('first_name') }}" maxlength="100" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('first_name') border-red-500 @enderror" placeholder="Ex: Andrei" required>
-                            @error('first_name')
+                            <input type="text" id="name" name="name" value="{{ old('name') }}" maxlength="255" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('name') border-red-500 @enderror" placeholder="Ex: Andrei Popescu" required>
+                            @error('name')
                                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                             @enderror
                         </div>
-                        <div>
-                            <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">
-                                Nume <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" id="last_name" name="last_name" value="{{ old('last_name') }}" maxlength="100" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('last_name') border-red-500 @enderror" placeholder="Ex: Popescu" required>
-                            @error('last_name')
-                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                    <div>
-                        <label for="birth_date" class="block text-sm font-medium text-gray-700 mb-2">
-                            Data nașterii <span class="text-red-500">*</span>
-                        </label>
-                        <input type="date" 
-                               id="birth_date" 
-                               name="birth_date" 
-                               value="{{ old('birth_date') }}" 
-                               min="{{ \Carbon\Carbon::now()->subYears(18)->format('Y-m-d') }}"
-                               max="{{ \Carbon\Carbon::now()->subDay()->format('Y-m-d') }}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('birth_date') border-red-500 @enderror" 
-                               required>
-                        @error('birth_date')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                        <p class="mt-1 text-sm text-gray-500">Data trebuie să fie în trecut și copilul să aibă maximum 18 ani</p>
                     </div>
                     <div>
                         <label for="guardian_id" class="block text-sm font-medium text-gray-700 mb-2">
@@ -287,7 +261,7 @@
             tbody.innerHTML = '';
             clearAllTimers();
             rows.forEach(row => {
-                const initials = (row.first_name?.[0] || '').toUpperCase() + (row.last_name?.[0] || '').toUpperCase();
+                const initials = (row.name?.[0] || '').toUpperCase() + (row.name?.[1] || '').toUpperCase();
 
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50';
@@ -483,7 +457,6 @@
         const cancelBtn = document.getElementById('cancel-add-child');
         const overlay = document.getElementById('add-child-overlay');
         const notesTextarea = document.getElementById('notes');
-        const birthDateInput = document.getElementById('birth_date');
 
         function openModal() { if (modal) modal.classList.remove('hidden'); }
         function closeModal() { if (modal) modal.classList.add('hidden'); }
@@ -530,72 +503,6 @@
             return counter;
         }
 
-        // Strict birth date validation - only when date is complete
-        if (birthDateInput) {
-            function validateBirthDate(input) {
-                const value = input.value.trim();
-                
-                // Don't validate if input is empty or incomplete
-                if (!value) return true;
-                
-                // Check if date is in complete format (YYYY-MM-DD)
-                const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-                if (!datePattern.test(value)) {
-                    return true; // Not complete yet, don't validate
-                }
-                
-                const selectedDate = new Date(value);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                const maxDate = new Date();
-                maxDate.setHours(0, 0, 0, 0);
-                maxDate.setDate(maxDate.getDate() - 1); // Yesterday
-                
-                const minDate = new Date();
-                minDate.setFullYear(minDate.getFullYear() - 18); // 18 years ago
-                
-                // Check if date is valid
-                if (isNaN(selectedDate.getTime())) {
-                    alert('Data introdusă nu este validă. Te rog verifică formatul datei.');
-                    input.value = '';
-                    input.focus();
-                    return false;
-                }
-                
-                if (selectedDate > maxDate) {
-                    alert('Data nașterii nu poate fi în viitor sau astăzi.');
-                    input.value = '';
-                    input.focus();
-                    return false;
-                }
-                
-                if (selectedDate < minDate) {
-                    alert('Data nașterii indică un copil mai mare de 18 ani. Te rog verifică data introdusă.');
-                    input.value = '';
-                    input.focus();
-                    return false;
-                }
-                
-                return true;
-            }
-
-            // Validate only on blur (when user finishes entering)
-            birthDateInput.addEventListener('blur', function(e) {
-                validateBirthDate(e.target);
-            });
-
-            // Also validate on form submit
-            const form = birthDateInput.closest('form');
-            if (form) {
-                form.addEventListener('submit', function(e) {
-                    if (!validateBirthDate(birthDateInput)) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                });
-            }
-        }
 
         // Inline add guardian via modal (robust to DOM order)
         const addGuardianBtn = document.getElementById('open-add-guardian');

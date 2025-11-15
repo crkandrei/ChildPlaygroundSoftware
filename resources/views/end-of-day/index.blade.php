@@ -7,10 +7,19 @@
 <div class="space-y-6">
     <!-- Header -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
-        <div class="flex justify-between items-center">
+        <div class="flex justify-between items-center flex-wrap gap-4">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Final de Zi 📊</h1>
-                <p class="text-gray-600 text-lg">Statistici și rapoarte pentru ziua de astăzi</p>
+                <p class="text-gray-600 text-lg">Statistici și rapoarte pentru <span id="selected-date-text">{{ $selectedDateFormatted }}</span></p>
+            </div>
+            <div class="flex items-center gap-3">
+                <label for="date-selector" class="text-sm font-medium text-gray-700">Selectează data:</label>
+                <input type="date" 
+                       id="date-selector" 
+                       name="date" 
+                       value="{{ $selectedDate }}" 
+                       max="{{ \Carbon\Carbon::today()->format('Y-m-d') }}"
+                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900">
             </div>
         </div>
     </div>
@@ -22,7 +31,7 @@
                 <div>
                     <p class="text-sm font-medium text-gray-600 mb-1">Total Sesiuni</p>
                     <p class="text-3xl font-bold text-blue-600">{{ $totalSessions }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Astăzi</p>
+                    <p class="text-xs text-gray-500 mt-1">Pentru data selectată</p>
                 </div>
                 <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                     <i class="fas fa-stopwatch text-blue-600 text-xl"></i>
@@ -48,7 +57,7 @@
                 <div>
                     <p class="text-sm font-medium text-gray-600 mb-1">Total Bani</p>
                     <p class="text-3xl font-bold text-emerald-600">{{ number_format($totalMoney, 2, '.', '') }} RON</p>
-                    <p class="text-xs text-gray-500 mt-1">Încasări astăzi</p>
+                    <p class="text-xs text-gray-500 mt-1">Încasări pentru data selectată</p>
                     @if($cashTotal > 0 || $cardTotal > 0 || $voucherTotal > 0)
                     <div class="text-xs text-gray-500 mt-2 space-y-0.5">
                         @if($cashTotal > 0)
@@ -281,9 +290,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const printNonFiscalBtn = document.getElementById('print-non-fiscal-btn');
     if (printNonFiscalBtn) {
         printNonFiscalBtn.addEventListener('click', function() {
-            // Open print page in new window
-            const printUrl = '{{ route("end-of-day.print-non-fiscal") }}';
+            // Get selected date
+            const dateSelector = document.getElementById('date-selector');
+            const selectedDate = dateSelector ? dateSelector.value : '';
+            // Open print page in new window with selected date
+            const printUrl = '{{ route("end-of-day.print-non-fiscal") }}' + (selectedDate ? '?date=' + encodeURIComponent(selectedDate) : '');
             window.open(printUrl, '_blank', 'width=400,height=600');
+        });
+    }
+
+    // Date selector change handler - reload page with new date
+    const dateSelector = document.getElementById('date-selector');
+    if (dateSelector) {
+        dateSelector.addEventListener('change', function() {
+            const selectedDate = this.value;
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('date', selectedDate);
+            window.location.href = currentUrl.toString();
         });
     }
 });

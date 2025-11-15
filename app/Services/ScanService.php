@@ -228,7 +228,11 @@ class ScanService
                 'success' => true,
                 'message' => 'Cod deja folosit - sesiune activă',
                 'bracelet_code' => $code,
-                'child' => $activeSession->child,
+                'child' => [
+                    'id' => $activeSession->child->id,
+                    'name' => $activeSession->child->name,
+                    'internal_code' => $activeSession->child->internal_code,
+                ],
                 'guardian' => $activeSession->child->guardian,
                 'active_session' => $activePayload,
                 'can_start_session' => false,
@@ -282,7 +286,7 @@ class ScanService
 
         ActionLogger::logSession('started', $session->id, [
             'child_id' => $child->id,
-            'child_name' => $child->first_name . ' ' . $child->last_name,
+            'child_name' => $child->name,
             'bracelet_code' => $braceletCode,
         ]);
 
@@ -362,7 +366,7 @@ class ScanService
             ->map(function ($session) {
                 $child = $session->child;
                 $guardian = $child ? $child->guardian : null;
-                $childName = $child ? trim(($child->first_name ?? '') . ' ' . ($child->last_name ?? '')) : '-';
+                $childName = $child ? $child->name : '-';
                 $effectiveSeconds = $session->getEffectiveDurationSeconds();
                 $currentInterval = $session->intervals->whereStrict('ended_at', null)->sortByDesc('started_at')->first();
                 return [
@@ -435,7 +439,7 @@ class ScanService
 
         return $sessions->map(function ($session) {
             $child = $session->child;
-            $childName = $child ? trim(($child->first_name ?? '') . ' ' . ($child->last_name ?? '')) : '-';
+            $childName = $child ? $child->name : '-';
             return [
                 'id' => $session->id,
                 'child_name' => $childName,

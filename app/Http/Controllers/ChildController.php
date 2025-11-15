@@ -81,17 +81,10 @@ class ChildController extends Controller
             return $this->redirectToHome()->with('error', 'Utilizatorul nu este asociat cu niciun tenant');
         }
 
-        $minDate = now()->subYears(18)->format('Y-m-d');
-        
         $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'birth_date' => ["required", "date", "before:today", "after_or_equal:{$minDate}"],
+            'name' => 'required|string|max:255',
             'guardian_id' => 'required|exists:guardians,id',
             'notes' => 'nullable|string|max:1000',
-        ], [
-            'birth_date.before' => 'Data nașterii nu poate fi în viitor sau astăzi.',
-            'birth_date.after_or_equal' => 'Data nașterii indică un copil mai mare de 18 ani. Copilul trebuie să aibă maximum 18 ani.',
         ]);
 
         // Check if guardian belongs to the same tenant
@@ -104,20 +97,19 @@ class ChildController extends Controller
         }
 
         // Generate internal code
-        $internalCode = $this->generateInternalCode($tenant);
+        $internalCode = $this->generateInternalCode($tenant, $request->name);
 
         $child = Child::create([
             'tenant_id' => $tenant->id,
             'guardian_id' => $request->guardian_id,
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'birth_date' => $request->birth_date,
+            'name' => $request->name,
+            'birth_date' => null,
             'internal_code' => $internalCode,
             'notes' => $request->notes,
         ]);
 
         ActionLogger::logCrud('created', 'Child', $child->id, [
-            'name' => $child->first_name . ' ' . $child->last_name,
+            'name' => $child->name,
             'internal_code' => $internalCode,
         ]);
 
@@ -240,17 +232,10 @@ class ChildController extends Controller
             return redirect()->route('children.index')->with('error', 'Copilul nu a fost găsit');
         }
 
-        $minDate = now()->subYears(18)->format('Y-m-d');
-        
         $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'birth_date' => ["required", "date", "before:today", "after_or_equal:{$minDate}"],
+            'name' => 'required|string|max:255',
             'guardian_id' => 'required|exists:guardians,id',
             'notes' => 'nullable|string|max:1000',
-        ], [
-            'birth_date.before' => 'Data nașterii nu poate fi în viitor sau astăzi.',
-            'birth_date.after_or_equal' => 'Data nașterii indică un copil mai mare de 18 ani. Copilul trebuie să aibă maximum 18 ani.',
         ]);
 
         // Check if guardian belongs to the same tenant
@@ -263,24 +248,20 @@ class ChildController extends Controller
         }
 
         $dataBefore = [
-            'first_name' => $child->first_name,
-            'last_name' => $child->last_name,
+            'name' => $child->name,
             'birth_date' => $child->birth_date?->toDateString(),
             'guardian_id' => $child->guardian_id,
             'notes' => $child->notes,
         ];
 
         $child->update([
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'birth_date' => $request->birth_date,
+            'name' => $request->name,
             'guardian_id' => $request->guardian_id,
             'notes' => $request->notes,
         ]);
 
         $dataAfter = [
-            'first_name' => $child->first_name,
-            'last_name' => $child->last_name,
+            'name' => $child->name,
             'birth_date' => $child->birth_date?->toDateString(),
             'guardian_id' => $child->guardian_id,
             'notes' => $child->notes,
@@ -313,8 +294,7 @@ class ChildController extends Controller
         }
 
         $childData = [
-            'first_name' => $child->first_name,
-            'last_name' => $child->last_name,
+            'name' => $child->name,
             'internal_code' => $child->internal_code,
         ];
 
@@ -328,10 +308,13 @@ class ChildController extends Controller
     /**
      * Generate unique internal code for tenant
      */
-    private function generateInternalCode($tenant)
+    private function generateInternalCode($tenant, $name)
     {
         do {
-            $code = 'CH' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            // Use first 2 characters of name + next 2 characters + random 3 digits
+            $namePart = substr(trim($name), 0, 2);
+            $nextPart = strlen(trim($name)) > 2 ? substr(trim($name), 2, 2) : substr(trim($name), 0, 2);
+            $code = strtoupper($namePart . $nextPart . rand(100, 999));
         } while (Child::where('tenant_id', $tenant->id)
             ->where('internal_code', $code)
             ->exists());
@@ -375,8 +358,7 @@ class ChildController extends Controller
             ->when($q !== '', function ($query) use ($q) {
                 $like = "%" . str_replace(['%','_'], ['\\%','\\_'], $q) . "%";
                 $query->where(function ($inner) use ($like) {
-                    $inner->where('first_name', 'LIKE', $like)
-                          ->orWhere('last_name', 'LIKE', $like)
+                    $inner->where('name', 'LIKE', $like)
                           ->orWhere('internal_code', 'LIKE', $like)
                           ->orWhereHas('guardian', function ($g) use ($like) {
                               $g->where('name', 'LIKE', $like)
@@ -385,16 +367,14 @@ class ChildController extends Controller
                 });
             })
             ->with(['guardian:id,name,phone'])
-            ->orderBy('first_name')
-            ->orderBy('last_name')
+            ->orderBy('name')
             ->limit($limit)
-            ->get(['id','first_name','last_name','internal_code','guardian_id']);
+            ->get(['id','name','internal_code','guardian_id']);
 
         $results = $children->map(function ($c) {
             return [
                 'id' => $c->id,
-                'first_name' => $c->first_name,
-                'last_name' => $c->last_name,
+                'name' => $c->name,
                 'internal_code' => $c->internal_code,
                 'guardian_name' => optional($c->guardian)->name,
                 'guardian_phone' => optional($c->guardian)->phone,
@@ -453,8 +433,7 @@ class ChildController extends Controller
             ->when($search !== '', function ($q) use ($search) {
                 $like = "%" . str_replace(['%','_'], ['\\%','\\_'], $search) . "%";
                 $q->where(function ($inner) use ($like) {
-                    $inner->where('first_name', 'LIKE', $like)
-                          ->orWhere('last_name', 'LIKE', $like)
+                    $inner->where('name', 'LIKE', $like)
                           ->orWhere('internal_code', 'LIKE', $like)
                           ->orWhereHas('guardian', function ($g) use ($like) {
                               $g->where('name', 'LIKE', $like)
@@ -472,7 +451,7 @@ class ChildController extends Controller
                       ->orderBy('created_at', 'desc');
                 break;
             case 'child_name':
-                $query->orderBy('first_name', $sortDir)->orderBy('last_name', $sortDir);
+                $query->orderBy('name', $sortDir);
                 break;
             case 'guardian_name':
                 $query->join('guardians', 'children.guardian_id', '=', 'guardians.id')
@@ -526,9 +505,8 @@ class ChildController extends Controller
             
             return [
                 'id' => $c->id,
-                'first_name' => $c->first_name,
-                'last_name' => $c->last_name,
-                'child_name' => trim(($c->first_name ?? '') . ' ' . ($c->last_name ?? '')),
+                'name' => $c->name,
+                'child_name' => $c->name,
                 'guardian_name' => optional($c->guardian)->name,
                 'guardian_phone' => optional($c->guardian)->phone,
                 'internal_code' => $c->internal_code,

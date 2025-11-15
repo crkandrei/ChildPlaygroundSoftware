@@ -131,7 +131,7 @@ class ScanPageController extends Controller
             ->first();
 
         if ($existingSession) {
-            $childName = $child->first_name . ' ' . $child->last_name;
+            $childName = $child->name;
             return ApiResponder::error(
                 "Copilul {$childName} are deja o sesiune activă care a început la " . 
                 $existingSession->started_at->format('d.m.Y H:i') . 
@@ -220,14 +220,13 @@ class ScanPageController extends Controller
                 }
 
                 // Generează cod intern
-                $firstNamePart = substr($request->first_name, 0, 2);
-                $lastNamePart = $request->last_name ? substr($request->last_name, 0, 2) : substr($request->first_name, 2, 2);
-                $internalCode = strtoupper($firstNamePart . $lastNamePart . rand(100, 999));
+                $namePart = substr(trim($request->first_name), 0, 2);
+                $nextPart = strlen(trim($request->first_name)) > 2 ? substr(trim($request->first_name), 2, 2) : substr(trim($request->first_name), 0, 2);
+                $internalCode = strtoupper($namePart . $nextPart . rand(100, 999));
 
                 // Creează copilul
                 $child = Child::create([
-                    'first_name' => $request->first_name,
-                    'last_name' => $request->last_name,
+                    'name' => $request->first_name,
                     'birth_date' => null,
                     'allergies' => $request->allergies,
                     'internal_code' => $internalCode,
@@ -250,7 +249,11 @@ class ScanPageController extends Controller
             return ApiResponder::success([
                 'message' => 'Copil creat și sesiune pornită',
                 'data' => [
-                    'child' => $data['child'],
+                    'child' => [
+                        'id' => $data['child']->id,
+                        'name' => $data['child']->name,
+                        'internal_code' => $data['child']->internal_code,
+                    ],
                     'guardian' => $data['guardian'],
                     'bracelet_code' => $data['bracelet_code'],
                     'session' => [
@@ -367,7 +370,7 @@ class ScanPageController extends Controller
                 'message' => 'Sesiunea a început cu succes',
                 'session' => [
                     'id' => $session->id,
-                    'child_name' => $child->first_name . ' ' . $child->last_name,
+                    'child_name' => $child->name,
                     'parent_name' => $child->guardian->name,
                     'started_at' => $session->started_at->toISOString(),
                     'bracelet_code' => $braceletCode,
@@ -394,7 +397,7 @@ class ScanPageController extends Controller
             if ($braceletCode && $session->bracelet_code) {
                 if ($session->bracelet_code !== trim($braceletCode)) {
                     $child = $session->child;
-                    $childName = $child ? ($child->first_name . ' ' . $child->last_name) : 'necunoscut';
+                    $childName = $child ? $child->name : 'necunoscut';
                     return ApiResponder::error(
                         "Codul scanat ({$braceletCode}) nu corespunde cu sesiunea care se încearcă să fie oprită. " .
                         "Sesiunea aparține copilului {$childName} cu codul {$session->bracelet_code}. " .
@@ -551,8 +554,7 @@ class ScanPageController extends Controller
             ->when($q !== '', function ($query) use ($q) {
                 $like = "%" . str_replace(['%','_'], ['\\%','\\_'], $q) . "%";
                 $query->where(function ($inner) use ($like) {
-                    $inner->where('first_name', 'LIKE', $like)
-                          ->orWhere('last_name', 'LIKE', $like)
+                    $inner->where('name', 'LIKE', $like)
                           ->orWhere('internal_code', 'LIKE', $like)
                           ->orWhereHas('guardian', function ($g) use ($like) {
                               $g->where('name', 'LIKE', $like)
@@ -563,10 +565,9 @@ class ScanPageController extends Controller
             ->with(['guardian:id,name,phone', 'activeSessions' => function($q) {
                 $q->whereNull('ended_at')->with('intervals');
             }])
-            ->orderBy('first_name')
-            ->orderBy('last_name')
+            ->orderBy('name')
             ->limit($limit)
-            ->get(['id','first_name','last_name','internal_code','guardian_id']);
+            ->get(['id','name','internal_code','guardian_id']);
 
         $results = $children->map(function ($child) {
             $activeSession = $child->activeSessions->first();
@@ -574,8 +575,7 @@ class ScanPageController extends Controller
             
             return [
                 'id' => $child->id,
-                'first_name' => $child->first_name,
-                'last_name' => $child->last_name,
+                'name' => $child->name,
                 'internal_code' => $child->internal_code,
                 'guardian_name' => optional($child->guardian)->name,
                 'guardian_phone' => optional($child->guardian)->phone,
@@ -635,8 +635,7 @@ class ScanPageController extends Controller
             'success' => true,
             'child' => [
                 'id' => $child->id,
-                'first_name' => $child->first_name,
-                'last_name' => $child->last_name,
+                'name' => $child->name,
                 'guardian_name' => optional($child->guardian)->name,
             ],
             'bracelet_code' => $activeSession->bracelet_code,

@@ -23,7 +23,7 @@ class EndOfDayController extends Controller
     /**
      * Show the end of day statistics page
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
         if (!$user) {
@@ -36,9 +36,17 @@ class EndOfDayController extends Controller
             $tenantId = $user->tenant->id;
         }
 
-        // Get today's date range
-        $startOfDay = Carbon::today()->startOfDay();
-        $endOfDay = Carbon::today()->endOfDay();
+        // Get selected date or default to today
+        $selectedDate = $request->input('date', Carbon::today()->format('Y-m-d'));
+        try {
+            $date = Carbon::parse($selectedDate);
+        } catch (\Exception $e) {
+            $date = Carbon::today();
+        }
+
+        // Get date range for selected date
+        $startOfDay = $date->copy()->startOfDay();
+        $endOfDay = $date->copy()->endOfDay();
 
         // Get all sessions started today
         $sessionsQuery = PlaySession::where('started_at', '>=', $startOfDay)
@@ -115,13 +123,15 @@ class EndOfDayController extends Controller
             'cardTotal' => round($cardTotal, 2),
             'voucherTotal' => round($voucherTotal, 2),
             'tenantId' => $tenantId,
+            'selectedDate' => $date->format('Y-m-d'),
+            'selectedDateFormatted' => $date->format('d.m.Y'),
         ]);
     }
 
     /**
      * Show non-fiscal report print page
      */
-    public function printNonFiscalReport()
+    public function printNonFiscalReport(Request $request)
     {
         $user = Auth::user();
         if (!$user) {
@@ -134,9 +144,17 @@ class EndOfDayController extends Controller
             $tenantId = $user->tenant->id;
         }
 
-        // Get today's date range
-        $startOfDay = Carbon::today()->startOfDay();
-        $endOfDay = Carbon::today()->endOfDay();
+        // Get selected date or default to today
+        $selectedDate = $request->input('date', Carbon::today()->format('Y-m-d'));
+        try {
+            $date = Carbon::parse($selectedDate);
+        } catch (\Exception $e) {
+            $date = Carbon::today();
+        }
+
+        // Get date range for selected date
+        $startOfDay = $date->copy()->startOfDay();
+        $endOfDay = $date->copy()->endOfDay();
 
         // Get all sessions started today
         $sessionsQuery = PlaySession::where('started_at', '>=', $startOfDay)
@@ -275,7 +293,7 @@ class EndOfDayController extends Controller
             'cashTotal' => round($cashTotal, 2),
             'cardTotal' => round($cardTotal, 2),
             'voucherTotal' => round($voucherTotal, 2),
-            'date' => Carbon::today()->format('d.m.Y'),
+            'date' => $date->format('d.m.Y'),
         ]);
     }
 

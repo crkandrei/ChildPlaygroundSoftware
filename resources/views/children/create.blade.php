@@ -27,38 +27,20 @@
             @csrf
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- First Name -->
+                <!-- Name -->
                 <div>
-                    <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">
-                        Prenume <span class="text-red-500">*</span>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Nume complet <span class="text-red-500">*</span>
                     </label>
                     <input type="text"
-                           id="first_name"
-                           name="first_name"
-                           value="{{ old('first_name') }}"
-                           maxlength="100"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('first_name') border-red-500 @enderror"
-                           placeholder="Ex: Andrei"
+                           id="name"
+                           name="name"
+                           value="{{ old('name') }}"
+                           maxlength="255"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('name') border-red-500 @enderror"
+                           placeholder="Ex: Andrei Popescu"
                            required>
-                    @error('first_name')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <!-- Last Name -->
-                <div>
-                    <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">
-                        Nume <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text"
-                           id="last_name"
-                           name="last_name"
-                           value="{{ old('last_name') }}"
-                           maxlength="100"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 @error('last_name') border-red-500 @enderror"
-                           placeholder="Ex: Popescu"
-                           required>
-                    @error('last_name')
+                    @error('name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>

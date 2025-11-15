@@ -588,6 +588,67 @@ class SessionsController extends Controller
     }
 
     /**
+     * Toggle payment status for a session (Super Admin only)
+     */
+    public function togglePaymentStatus($id, Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+
+        // Only super admin can toggle payment status
+        if (!$user->isSuperAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nu aveți permisiunea de a modifica statusul de plată'
+            ], 403);
+        }
+
+        // Get session (super admin can access any session)
+        $session = PlaySession::find($id);
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea nu a fost găsită'
+            ], 404);
+        }
+
+        // Toggle payment status
+        if ($session->isPaid()) {
+            // Mark as unpaid
+            $session->update([
+                'paid_at' => null,
+                'payment_status' => null,
+                'payment_method' => null,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Sesiunea a fost marcată ca neplătită',
+                'is_paid' => false,
+            ]);
+        } else {
+            // Mark as paid
+            $session->update([
+                'paid_at' => now(),
+                'payment_status' => 'paid',
+                'payment_method' => null, // No payment method specified when toggled manually
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Sesiunea a fost marcată ca plătită',
+                'is_paid' => true,
+            ]);
+        }
+    }
+
+    /**
      * Format duration as "Xh Ym" or "Xh" if no minutes, or "Ym" if no hours
      */
     private function formatDuration(int $hours, int $minutes): string

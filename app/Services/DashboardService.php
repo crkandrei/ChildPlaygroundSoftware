@@ -103,7 +103,7 @@ class DashboardService
             ->map(function ($session) {
                 $child = $session->child;
                 $guardian = $child ? $child->guardian : null;
-                $childName = $child ? trim(($child->first_name ?? '') . ' ' . ($child->last_name ?? '')) : '-';
+                $childName = $child ? $child->name : '-';
                 return [
                     'id' => $session->id,
                     'child_name' => $childName,

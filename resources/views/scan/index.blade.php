@@ -232,7 +232,7 @@
                         <!-- Panel: Părinte nou -->
                         <div id="newGuardianPanel" class="space-y-2 hidden">
                             <label class="block text-sm font-semibold text-green-800">Creează părinte nou</label>
-                            <input id="guardianName" type="text" placeholder="Nume complet *" class="w-full h-10 px-3 border border-green-300 rounded-md">
+                            <input id="guardianName" type="text" placeholder="Nume complet *" class="w-full h-10 px-3 border border-green-300 rounded-md uppercase-input" style="text-transform: uppercase;">
                             <input id="guardianPhone" type="tel" placeholder="Telefon *" class="w-full h-10 px-3 border border-green-300 rounded-md">
                             <p class="text-xs text-gray-500">Completează minim nume și telefon</p>
                         </div>
@@ -242,10 +242,8 @@
                     <div id="childSection" class="space-y-3 hidden">
                         
                         <input id="childFullName" type="text" placeholder="Nume complet copil *" 
-                            class="w-full h-10 px-3 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        
-                        <input id="childAllergies" type="text" placeholder="Alergii (opțional)" 
-                            class="w-full h-10 px-3 border border-blue-300 rounded-md">
+                            class="w-full h-10 px-3 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase-input"
+                            style="text-transform: uppercase;">
                         
                         <!-- Terms and GDPR Acceptance (only for new guardian) -->
                         <div id="termsAcceptanceSection" class="hidden space-y-3 pt-2 border-t border-gray-200">
@@ -574,7 +572,7 @@
         
         // Update session info
         document.getElementById('sessionChildName').textContent = 
-            data.child ? `${data.child.first_name} ${data.child.last_name}` : '-';
+            data.child ? data.child.name : '-';
         document.getElementById('sessionBraceletCode').textContent = 
             data.bracelet_code || data.active_session?.bracelet_code || '-';
         document.getElementById('sessionStartedAt').textContent = 
@@ -1119,7 +1117,7 @@
             <div class="child-result-item px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
                  data-child-id="${child.id}"
                  tabindex="0">
-                <div class="font-medium text-gray-900">${child.first_name} ${child.last_name}</div>
+                <div class="font-medium text-gray-900">${child.name}</div>
                 ${guardianInfo ? `<div class="text-sm text-gray-500">${guardianInfo}</div>` : ''}
                 ${sessionInfo}
             </div>
@@ -1628,7 +1626,7 @@
             
             if (childChoices && data.success && data.children) {
                 const choices = data.children.map(child => {
-                    let label = `${child.first_name} ${child.last_name}`;
+                    let label = child.name;
                     if (child.guardian_name) {
                         label += ` - ${child.guardian_name}`;
                     }
@@ -1828,7 +1826,6 @@
         const guardianPhone = document.getElementById('guardianPhone').value.trim();
         
         const childFullName = document.getElementById('childFullName').value.trim();
-        const childAllergies = document.getElementById('childAllergies').value.trim();
         
         // Validations
         if (!childFullName) {
@@ -1836,10 +1833,8 @@
             return;
         }
         
-        // Split full name into first name and last name
-        const nameParts = childFullName.split(/\s+/).filter(part => part.length > 0);
-        const childFirstName = nameParts.length > 0 ? nameParts[0] : childFullName;
-        const childLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+        // Store full name in first_name (for backward compatibility with backend)
+        const childFirstName = childFullName;
         
         // Determine guardian mode based on radio buttons
         const guardianMode = document.getElementById('radioNewGuardian').checked ? 'new' : 'existing';
@@ -1877,8 +1872,7 @@
             const isBirthday = document.getElementById('isBirthdayCreate')?.checked || false;
             const payload = {
                 first_name: childFirstName,
-                last_name: childLastName,
-                allergies: childAllergies || null,
+                allergies: null,
                 bracelet_code: currentBracelet.code,
                 is_birthday: isBirthday
             };
@@ -1899,17 +1893,30 @@
             
             if (result.success) {
                 // Clear form
-                document.getElementById('guardianSelect').value = '';
+                const guardianSelectEl = document.getElementById('guardianSelect');
+                if (guardianSelectEl) {
+                    guardianSelectEl.value = '';
+                    // Reset Choices.js if it exists
+                    if (guardianChoices) {
+                        guardianChoices.clearStore();
+                        guardianChoices.setChoices([{ value: '', label: 'Caută și selectează părinte...', selected: true }], 'value', 'label', true);
+                    }
+                }
                 document.getElementById('guardianName').value = '';
                 document.getElementById('guardianPhone').value = '';
                 document.getElementById('childFullName').value = '';
-                document.getElementById('childAllergies').value = '';
                 // Hide child section again
                 childSection.classList.add('hidden');
                 const childInfoBanner = document.getElementById('childInfoBanner');
                 if (childInfoBanner) {
                     childInfoBanner.classList.add('opacity-0', 'pointer-events-none');
                     childInfoBanner.classList.remove('opacity-100');
+                }
+                // Reset to existing guardian mode
+                const radioExistingGuardianEl = document.getElementById('radioExistingGuardian');
+                if (radioExistingGuardianEl) {
+                    radioExistingGuardianEl.checked = true;
+                    switchGuardianMode('existing');
                 }
                 
                 // Refresh bracelet info - sesiunea activă va apărea automat
@@ -2180,8 +2187,27 @@
     // Listen for input changes in new guardian fields (new mode)
     const guardianNameInput = document.getElementById('guardianName');
     const guardianPhoneInput = document.getElementById('guardianPhone');
-    if (guardianNameInput && guardianPhoneInput) {
-        guardianNameInput.addEventListener('input', checkAndShowChildSection);
+    const childFullNameInput = document.getElementById('childFullName');
+    
+    // Transform to uppercase automatically
+    if (guardianNameInput) {
+        guardianNameInput.addEventListener('input', function(e) {
+            const cursorPosition = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(cursorPosition, cursorPosition);
+            checkAndShowChildSection();
+        });
+    }
+    
+    if (childFullNameInput) {
+        childFullNameInput.addEventListener('input', function(e) {
+            const cursorPosition = e.target.selectionStart;
+            e.target.value = e.target.value.toUpperCase();
+            e.target.setSelectionRange(cursorPosition, cursorPosition);
+        });
+    }
+    
+    if (guardianPhoneInput) {
         guardianPhoneInput.addEventListener('input', checkAndShowChildSection);
     }
 
