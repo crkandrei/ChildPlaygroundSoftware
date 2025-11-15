@@ -43,7 +43,45 @@ class DashboardService
             ->where('is_birthday', false)
             ->get();
         
-        $totalIncomeToday = $sessionsEndedToday->sum('calculated_price');
+        // Calculate payment breakdown: cash, card, voucher
+        $cashTotal = 0;
+        $cardTotal = 0;
+        $voucherTotal = 0;
+        
+        foreach ($sessionsEndedToday as $session) {
+            if ($session->isPaid()) {
+                // Get total price (time + products)
+                $timePrice = $session->calculated_price ?? $session->calculatePrice();
+                $productsPrice = $session->getProductsTotalPrice();
+                $totalPrice = $timePrice + $productsPrice;
+                
+                $voucherPrice = $session->getVoucherPrice();
+                
+                // Add voucher value
+                if ($voucherPrice > 0) {
+                    $voucherTotal += $voucherPrice;
+                }
+                
+                // Amount collected = total price - voucher (voucher applies only to time)
+                $amountCollected = $totalPrice - $voucherPrice;
+                
+                // Add cash/card amount based on payment method
+                if ($session->payment_method === 'CASH') {
+                    $cashTotal += $amountCollected;
+                } elseif ($session->payment_method === 'CARD') {
+                    $cardTotal += $amountCollected;
+                } else {
+                    // If no payment method specified but session is paid, assume it's cash
+                    // This handles legacy data or sessions paid without fiscal receipt
+                    if ($amountCollected > 0) {
+                        $cashTotal += $amountCollected;
+                    }
+                }
+            }
+        }
+        
+        // Total income = cash + card + voucher (total value, not just collected)
+        $totalIncomeToday = $cashTotal + $cardTotal + $voucherTotal;
 
         return [
             'active_sessions' => $activeSessions,
@@ -53,6 +91,9 @@ class DashboardService
             'avg_session_total_minutes' => $avgAll,
             'total_time_today' => $this->formatMinutes($totalMinutesToday),
             'total_income_today' => round($totalIncomeToday, 2),
+            'cash_total' => round($cashTotal, 2),
+            'card_total' => round($cardTotal, 2),
+            'voucher_total' => round($voucherTotal, 2),
         ];
     }
 

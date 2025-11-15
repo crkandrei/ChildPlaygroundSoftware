@@ -49,6 +49,19 @@
                     <p class="text-sm font-medium text-gray-600 mb-1">Total Bani</p>
                     <p class="text-3xl font-bold text-emerald-600">{{ number_format($totalMoney, 2, '.', '') }} RON</p>
                     <p class="text-xs text-gray-500 mt-1">Încasări astăzi</p>
+                    @if($cashTotal > 0 || $cardTotal > 0 || $voucherTotal > 0)
+                    <div class="text-xs text-gray-500 mt-2 space-y-0.5">
+                        @if($cashTotal > 0)
+                        <div>Cash: {{ number_format($cashTotal, 2, '.', '') }} RON</div>
+                        @endif
+                        @if($cardTotal > 0)
+                        <div>Card: {{ number_format($cardTotal, 2, '.', '') }} RON</div>
+                        @endif
+                        @if($voucherTotal > 0)
+                        <div>Voucher: {{ number_format($voucherTotal, 2, '.', '') }} RON</div>
+                        @endif
+                    </div>
+                    @endif
                 </div>
                 <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
                     <i class="fas fa-money-bill-wave text-emerald-600 text-xl"></i>

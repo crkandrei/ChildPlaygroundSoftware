@@ -105,6 +105,21 @@
         <div class="report-separator"></div>
         <div class="report-line">Total Sesiuni: {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
         
+        @if($cashTotal > 0 || $cardTotal > 0 || $voucherTotal > 0)
+        <div class="report-separator"></div>
+        <div class="report-line report-title" style="font-size: 12pt; margin-top: 10px;">PLĂȚI</div>
+        @if($cashTotal > 0)
+        <div class="report-line">Cash: {{ number_format($cashTotal, 2, ',', '.') }} lei</div>
+        @endif
+        @if($cardTotal > 0)
+        <div class="report-line">Card: {{ number_format($cardTotal, 2, ',', '.') }} lei</div>
+        @endif
+        @if($voucherTotal > 0)
+        <div class="report-line">Voucher: {{ number_format($voucherTotal, 2, ',', '.') }} lei</div>
+        @endif
+        @endif
+        
+        <div class="report-separator"></div>
         <div class="report-line">Total General: {{ number_format($totalSessionsValue + $totalProductsValue, 2, ',', '.') }} lei</div>
     </div>
     

@@ -54,9 +54,47 @@ class EndOfDayController extends Controller
         $totalSessions = $sessionsToday->count();
         $birthdaySessions = $sessionsToday->where('is_birthday', true)->count();
         
-        // Calculate total money (from ended sessions with calculated price)
+        // Calculate payment breakdown: cash, card, voucher
+        $cashTotal = 0;
+        $cardTotal = 0;
+        $voucherTotal = 0;
+        
         $endedSessions = $sessionsToday->whereNotNull('ended_at')->whereNotNull('calculated_price');
-        $totalMoney = $endedSessions->sum('calculated_price');
+        
+        foreach ($endedSessions as $session) {
+            if ($session->isPaid()) {
+                // Get total price (time + products)
+                $timePrice = $session->calculated_price ?? $session->calculatePrice();
+                $productsPrice = $session->getProductsTotalPrice();
+                $totalPrice = $timePrice + $productsPrice;
+                
+                $voucherPrice = $session->getVoucherPrice();
+                
+                // Add voucher value
+                if ($voucherPrice > 0) {
+                    $voucherTotal += $voucherPrice;
+                }
+                
+                // Amount collected = total price - voucher (voucher applies only to time)
+                $amountCollected = $totalPrice - $voucherPrice;
+                
+                // Add cash/card amount based on payment method
+                if ($session->payment_method === 'CASH') {
+                    $cashTotal += $amountCollected;
+                } elseif ($session->payment_method === 'CARD') {
+                    $cardTotal += $amountCollected;
+                } else {
+                    // If no payment method specified but session is paid, assume it's cash
+                    // This handles legacy data or sessions paid without fiscal receipt
+                    if ($amountCollected > 0) {
+                        $cashTotal += $amountCollected;
+                    }
+                }
+            }
+        }
+        
+        // Total money = cash + card + voucher (total value, not just collected)
+        $totalMoney = $cashTotal + $cardTotal + $voucherTotal;
 
         // Calculate total billed hours
         $totalBilledHours = 0;
@@ -73,6 +111,9 @@ class EndOfDayController extends Controller
             'birthdaySessions' => $birthdaySessions,
             'totalMoney' => $totalMoney,
             'totalBilledHours' => $totalBilledHours,
+            'cashTotal' => round($cashTotal, 2),
+            'cardTotal' => round($cardTotal, 2),
+            'voucherTotal' => round($voucherTotal, 2),
             'tenantId' => $tenantId,
         ]);
     }
@@ -147,6 +188,36 @@ class EndOfDayController extends Controller
         
         // Calculate total sessions value
         $totalSessionsValue = $birthdaySessionsTotal + $regularSessionsTotal;
+        
+        // Calculate payment breakdown: cash, card, voucher
+        $cashTotal = 0;
+        $cardTotal = 0;
+        $voucherTotal = 0;
+        
+        foreach ($sessionsToday as $session) {
+            if ($session->ended_at && $session->isPaid()) {
+                $amountCollected = $session->getAmountCollected();
+                $voucherPrice = $session->getVoucherPrice();
+                
+                // Add voucher value
+                if ($voucherPrice > 0) {
+                    $voucherTotal += $voucherPrice;
+                }
+                
+                // Add cash/card amount based on payment method
+                if ($session->payment_method === 'CASH') {
+                    $cashTotal += $amountCollected;
+                } elseif ($session->payment_method === 'CARD') {
+                    $cardTotal += $amountCollected;
+                } else {
+                    // If no payment method specified but session is paid, assume it's cash/card
+                    // This handles legacy data or sessions paid without fiscal receipt
+                    if ($amountCollected > 0) {
+                        $cashTotal += $amountCollected;
+                    }
+                }
+            }
+        }
 
         // Get all products sold today
         $sessionIds = $sessionsToday->pluck('id');
@@ -201,6 +272,9 @@ class EndOfDayController extends Controller
             'totalVoucherHours' => $formatHours($totalVoucherHours),
             'productsGrouped' => $productsGrouped,
             'totalProductsValue' => $totalProductsValue,
+            'cashTotal' => round($cashTotal, 2),
+            'cardTotal' => round($cardTotal, 2),
+            'voucherTotal' => round($voucherTotal, 2),
             'date' => Carbon::today()->format('d.m.Y'),
         ]);
     }

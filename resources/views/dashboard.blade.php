@@ -178,11 +178,29 @@
                 const totalEl = document.getElementById('totalTimeToday');
                 if (totalEl) totalEl.textContent = statsData.stats.total_time_today || '0h 0m';
                 
-                // Format and display total income today
+                // Format and display total income today with breakdown
                 const totalIncomeEl = document.getElementById('totalIncomeToday');
                 if (totalIncomeEl) {
                     const income = statsData.stats.total_income_today || 0;
-                    totalIncomeEl.textContent = income.toFixed(2) + ' RON';
+                    const cashTotal = statsData.stats.cash_total || 0;
+                    const cardTotal = statsData.stats.card_total || 0;
+                    const voucherTotal = statsData.stats.voucher_total || 0;
+                    
+                    let breakdownHtml = income.toFixed(2) + ' RON';
+                    if (cashTotal > 0 || cardTotal > 0 || voucherTotal > 0) {
+                        breakdownHtml += '<div class="text-xs text-gray-500 mt-1 space-y-0.5">';
+                        if (cashTotal > 0) {
+                            breakdownHtml += '<div>Cash: ' + cashTotal.toFixed(2) + ' RON</div>';
+                        }
+                        if (cardTotal > 0) {
+                            breakdownHtml += '<div>Card: ' + cardTotal.toFixed(2) + ' RON</div>';
+                        }
+                        if (voucherTotal > 0) {
+                            breakdownHtml += '<div>Voucher: ' + voucherTotal.toFixed(2) + ' RON</div>';
+                        }
+                        breakdownHtml += '</div>';
+                    }
+                    totalIncomeEl.innerHTML = breakdownHtml;
                 }
             }
 
