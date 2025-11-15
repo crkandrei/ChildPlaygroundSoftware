@@ -13,13 +13,9 @@ class CreateChildRequest extends FormRequest
 
     public function rules(): array
     {
-        $maxDate = now()->subDay()->format('Y-m-d'); // Yesterday
-        $minDate = now()->subYears(18)->format('Y-m-d'); // 18 years ago
-        
         return [
             'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'birth_date' => ['required', 'date', "before:today", "after_or_equal:{$minDate}"],
+            'last_name' => ['nullable', 'string', 'max:255'],
             'allergies' => ['nullable', 'string', 'max:500'],
             // Either guardian_id OR guardian_* fields (enforced in withValidator)
             'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
@@ -36,10 +32,11 @@ class CreateChildRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        // Normalize empty strings to null for guardian optional fields
+        // Normalize empty strings to null for guardian optional fields and last_name
         $this->merge([
             'guardian_name' => $this->normalizeEmpty($this->input('guardian_name')),
             'guardian_phone' => $this->normalizeEmpty($this->input('guardian_phone')),
+            'last_name' => $this->normalizeEmpty($this->input('last_name')),
         ]);
     }
 
@@ -54,13 +51,7 @@ class CreateChildRequest extends FormRequest
 
     public function messages(): array
     {
-        $minDate = now()->subYears(18)->format('d.m.Y');
-        
         return [
-            'birth_date.required' => 'Data nașterii este obligatorie.',
-            'birth_date.date' => 'Data nașterii nu este validă.',
-            'birth_date.before' => 'Data nașterii nu poate fi în viitor sau astăzi.',
-            'birth_date.after_or_equal' => "Data nașterii indică un copil mai mare de 18 ani. Copilul trebuie să aibă maximum 18 ani (data minimă: {$minDate}).",
             'bracelet_code.regex' => 'Cod invalid. Format așteptat: BONGO urmat de 4 sau 5 cifre (ex: BONGO1234)',
         ];
     }

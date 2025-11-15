@@ -220,13 +220,15 @@ class ScanPageController extends Controller
                 }
 
                 // Generează cod intern
-                $internalCode = strtoupper(substr($request->first_name, 0, 2) . substr($request->last_name, 0, 2) . rand(100, 999));
+                $firstNamePart = substr($request->first_name, 0, 2);
+                $lastNamePart = $request->last_name ? substr($request->last_name, 0, 2) : substr($request->first_name, 2, 2);
+                $internalCode = strtoupper($firstNamePart . $lastNamePart . rand(100, 999));
 
                 // Creează copilul
                 $child = Child::create([
                     'first_name' => $request->first_name,
                     'last_name' => $request->last_name,
-                    'birth_date' => $request->birth_date,
+                    'birth_date' => null,
                     'allergies' => $request->allergies,
                     'internal_code' => $internalCode,
                     'guardian_id' => $guardian->id,
