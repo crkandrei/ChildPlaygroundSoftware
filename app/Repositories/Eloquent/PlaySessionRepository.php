@@ -116,7 +116,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
             ->map(function ($row) {
                 $childName = trim(($row->child_first_name ?? '') . ' ' . ($row->child_last_name ?? ''));
                 // Load full session to compute effective time and pause state
-                $ps = \App\Models\PlaySession::with('intervals')->find($row->id);
+                $ps = \App\Models\PlaySession::with(['intervals', 'products'])->find($row->id);
                 
                 // For ended sessions, use total effective time
                 // For active sessions, use ONLY closed intervals (frontend will add current interval)
@@ -146,6 +146,16 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                     $formattedPrice = $ps->getFormattedPrice();
                 }
                 
+                // Get products total price
+                $productsPrice = 0;
+                $productsFormattedPrice = '';
+                if ($ps) {
+                    $productsPrice = $ps->getProductsTotalPrice();
+                    if ($productsPrice > 0) {
+                        $productsFormattedPrice = number_format($productsPrice, 2, '.', '') . ' RON';
+                    }
+                }
+                
                 return [
                     'id' => $row->id,
                     'child_name' => $childName,
@@ -159,6 +169,8 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                     'current_interval_started_at' => $currentStart,
                     'price' => $price,
                     'formatted_price' => $formattedPrice,
+                    'products_price' => (float) $productsPrice,
+                    'products_formatted_price' => $productsFormattedPrice,
                     'price_per_hour_at_calculation' => $row->price_per_hour_at_calculation ? (float) $row->price_per_hour_at_calculation : null,
                     'is_birthday' => (bool) $row->is_birthday,
                     'paid_at' => optional($row->paid_at)->toISOString(),

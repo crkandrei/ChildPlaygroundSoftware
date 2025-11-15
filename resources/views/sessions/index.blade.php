@@ -298,7 +298,10 @@
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-mono" id="timer-${row.id}">--:--:--</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
-                    ${row.formatted_price ? `<span class="font-semibold ${row.ended_at ? 'text-green-600' : 'text-amber-600'}">${row.formatted_price}</span>` : '-'}
+                    ${row.formatted_price ? `
+                        <span class="font-semibold ${row.ended_at ? 'text-green-600' : 'text-amber-600'}">${row.formatted_price}</span>
+                        ${row.products_formatted_price ? `<span class="font-semibold text-purple-600 ml-1">+ ${row.products_formatted_price}</span>` : ''}
+                    ` : '-'}
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
                     ${row.ended_at && !row.is_birthday ? `
