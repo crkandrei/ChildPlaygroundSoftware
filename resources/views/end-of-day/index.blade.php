@@ -131,6 +131,31 @@ function closeZReportModal() {
     document.getElementById('z-report-modal').classList.add('hidden');
 }
 
+async function saveZReportLog(data) {
+    try {
+        const response = await fetch('{{ route("end-of-day.save-z-report-log") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la salvarea logului');
+        }
+
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Error saving Z report log:', error);
+        throw error;
+    }
+}
+
 function showZReportResult(type, message, file) {
     // Hide loading, show result
     document.getElementById('z-report-step-loading').classList.add('hidden');
@@ -172,32 +197,56 @@ document.addEventListener('DOMContentLoaded', function() {
             openZReportModal();
 
             try {
-                // Use Laravel endpoint which saves the log to database
-                const response = await fetch('/end-of-day/print-z', {
+                // Step 1: Send directly to local bridge from browser (same as print)
+                const bridgeUrl = 'http://localhost:9000';
+                const bridgeResponse = await fetch(`${bridgeUrl}/z-report`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                        'Content-Type': 'application/json'
                     }
                 });
 
-                let data;
-                try {
-                    data = await response.json();
-                } catch (jsonError) {
-                    // Response is not valid JSON
-                    const text = await response.text();
-                    throw new Error('Răspuns invalid de la server: ' + text);
+                if (!bridgeResponse.ok) {
+                    const errorText = await bridgeResponse.text();
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch {
+                        throw new Error(`Eroare HTTP ${bridgeResponse.status}: ${errorText.substring(0, 100)}`);
+                    }
+                    throw new Error(errorData.message || errorData.details || 'Eroare de la bridge-ul fiscal');
                 }
 
-                if (!response.ok || !data.success) {
-                    // Error case
-                    const errorMessage = data.message || 'Eroare necunoscută la generarea raportului Z';
-                    showZReportResult('error', errorMessage, null);
+                const bridgeData = await bridgeResponse.json();
+
+                // Step 2: Save log to Laravel backend
+                if (bridgeData.status === 'success') {
+                    // Success case - save log and show result
+                    try {
+                        await saveZReportLog({
+                            filename: bridgeData.file || null,
+                            status: 'success',
+                            error_message: null
+                        });
+                    } catch (logError) {
+                        console.error('Error saving Z report log:', logError);
+                        // Don't fail the request if logging fails
+                    }
+                    showZReportResult('success', 'Z;1', bridgeData.file || null);
                 } else {
-                    // Success case - show "Z;1" message
-                    showZReportResult('success', 'Z;1', data.file || null);
+                    // Error case - save log and show error
+                    const errorMessage = bridgeData.message || bridgeData.details || 'Eroare necunoscută';
+                    try {
+                        await saveZReportLog({
+                            filename: bridgeData.file || null,
+                            status: 'error',
+                            error_message: errorMessage
+                        });
+                    } catch (logError) {
+                        console.error('Error saving Z report log:', logError);
+                        // Don't fail the request if logging fails
+                    }
+                    showZReportResult('error', errorMessage, null);
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -208,6 +257,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     errorMessage = error.message || 'Eroare necunoscută';
                 }
+                
+                // Try to save error log
+                try {
+                    await saveZReportLog({
+                        filename: null,
+                        status: 'error',
+                        error_message: errorMessage
+                    });
+                } catch (logError) {
+                    console.error('Error saving Z report log:', logError);
+                }
+                
                 showZReportResult('error', errorMessage, null);
             } finally {
                 printZReportBtn.disabled = false;

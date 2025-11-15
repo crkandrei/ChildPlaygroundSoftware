@@ -280,9 +280,9 @@ class EndOfDayController extends Controller
     }
 
     /**
-     * Generate Z Report via bridge
+     * Save Z Report log (called from frontend after bridge response)
      */
-    public function printZReport(Request $request)
+    public function saveZReportLog(Request $request)
     {
         $user = Auth::user();
         if (!$user) {
@@ -291,92 +291,40 @@ class EndOfDayController extends Controller
                 'message' => 'Neautentificat'
             ], 401);
         }
-
+        
+        $request->validate([
+            'filename' => 'nullable|string|max:255',
+            'status' => 'required|in:success,error',
+            'error_message' => 'nullable|string',
+        ]);
+        
         try {
-            // Send request to bridge (increase timeout to 90 seconds for Z report)
-            // Bridge waits up to 60 seconds for ECR response, so we need more time
-            $bridgeUrl = config('services.fiscal_bridge.url', 'http://localhost:9000');
-            $response = Http::timeout(90)->post($bridgeUrl . '/z-report');
-
-            if (!$response->successful()) {
-                // Save error log for connection failure
-                // Get tenant_id from user if available (works for both super admin and regular users)
-                $tenantId = $user->tenant_id ?? null;
-                
-                try {
-                    FiscalReceiptLog::create([
-                        'type' => 'z_report',
-                        'play_session_id' => null,
-                        'tenant_id' => $tenantId,
-                        'filename' => null,
-                        'status' => 'error',
-                        'error_message' => 'Nu s-a putut conecta la bridge-ul fiscal (HTTP ' . $response->status() . ')',
-                    ]);
-                } catch (\Exception $logError) {
-                    \Log::error('Failed to save Z report error log', ['error' => $logError->getMessage()]);
-                }
-                
-                throw new \Exception('Nu s-a putut conecta la bridge-ul fiscal');
-            }
-
-            $bridgeData = $response->json();
-
-            if (!$bridgeData || ($bridgeData['status'] ?? '') !== 'success') {
-                // Save error log
-                // Get tenant_id from user if available (works for both super admin and regular users)
-                $tenantId = $user->tenant_id ?? null;
-                
-                try {
-                    FiscalReceiptLog::create([
-                        'type' => 'z_report',
-                        'play_session_id' => null,
-                        'tenant_id' => $tenantId,
-                        'filename' => $bridgeData['file'] ?? null,
-                        'status' => 'error',
-                        'error_message' => $bridgeData['message'] ?? $bridgeData['details'] ?? 'Eroare de la bridge-ul fiscal',
-                    ]);
-                } catch (\Exception $logError) {
-                    \Log::error('Failed to save Z report error log', ['error' => $logError->getMessage()]);
-                }
-                
-                throw new \Exception($bridgeData['message'] ?? $bridgeData['details'] ?? 'Eroare de la bridge-ul fiscal');
-            }
-
-            // Save success log
             // Get tenant_id from user if available (works for both super admin and regular users)
             $tenantId = $user->tenant_id ?? null;
             
-            try {
-                FiscalReceiptLog::create([
-                    'type' => 'z_report',
-                    'play_session_id' => null,
-                    'tenant_id' => $tenantId,
-                    'filename' => $bridgeData['file'] ?? null,
-                    'status' => 'success',
-                    'error_message' => null,
-                ]);
-            } catch (\Exception $logError) {
-                \Log::error('Failed to save Z report success log', [
-                    'error' => $logError->getMessage(),
-                    'bridge_data' => $bridgeData
-                ]);
-                // Don't fail the request if log saving fails
-            }
-
+            $log = FiscalReceiptLog::create([
+                'type' => 'z_report',
+                'play_session_id' => null,
+                'tenant_id' => $tenantId,
+                'filename' => $request->filename,
+                'status' => $request->status,
+                'error_message' => $request->error_message,
+            ]);
+            
             return response()->json([
                 'success' => true,
-                'message' => 'Raportul Z a fost generat cu succes',
-                'file' => $bridgeData['file'] ?? null,
+                'message' => 'Log salvat cu succes',
+                'log_id' => $log->id,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Z report generation failed', [
+            \Log::error('Failed to save Z report log', [
                 'error' => $e->getMessage(),
                 'user_id' => $user->id ?? null
             ]);
             
             return response()->json([
                 'success' => false,
-                'message' => 'Eroare la generarea raportului Z: ' . $e->getMessage(),
+                'message' => 'Eroare la salvarea logului: ' . $e->getMessage(),
             ], 500);
         }
     }

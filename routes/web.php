@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/end-of-day', [App\Http\Controllers\EndOfDayController::class, 'index'])->name('end-of-day.index');
     Route::get('/end-of-day/print-non-fiscal', [App\Http\Controllers\EndOfDayController::class, 'printNonFiscalReport'])->name('end-of-day.print-non-fiscal');
     Route::post('/end-of-day/print-z', [App\Http\Controllers\EndOfDayController::class, 'printZReport'])->name('end-of-day.print-z');
+    Route::post('/end-of-day/save-z-report-log', [App\Http\Controllers\EndOfDayController::class, 'saveZReportLog'])->name('end-of-day.save-z-report-log');
 
     // Sessions page (read-only)
     Route::get('/sessions', [App\Http\Controllers\SessionsController::class, 'index'])->name('sessions.index');

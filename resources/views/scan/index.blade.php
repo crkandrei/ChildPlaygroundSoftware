@@ -241,22 +241,8 @@
                     <!-- Copil (apare doar după ce ai selectat/completat părinte) -->
                     <div id="childSection" class="space-y-3 hidden">
                         
-                        <input id="childFirstName" type="text" placeholder="Prenume *" 
+                        <input id="childFullName" type="text" placeholder="Nume complet copil *" 
                             class="w-full h-10 px-3 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input id="childLastName" type="text" placeholder="Nume *" 
-                            class="w-full h-10 px-3 border border-blue-300 rounded-md">
-                        
-                        <!-- Data nașterii cu label clar -->
-                        <div class="space-y-1">
-                            <label for="childBirthDate" class="block text-sm font-semibold text-blue-900">
-                                <i class="fas fa-calendar-alt mr-1"></i>Data nașterii copilului <span class="text-red-500">*</span>
-                            </label>
-                            <input id="childBirthDate" type="date" 
-                                min="{{ \Carbon\Carbon::now()->subYears(18)->format('Y-m-d') }}"
-                                max="{{ \Carbon\Carbon::now()->subDay()->format('Y-m-d') }}"
-                                class="w-full h-10 px-3 border border-blue-300 rounded-md">
-                            <p class="text-xs text-gray-500">Selectează data nașterii din calendar</p>
-                        </div>
                         
                         <input id="childAllergies" type="text" placeholder="Alergii (opțional)" 
                             class="w-full h-10 px-3 border border-blue-300 rounded-md">
@@ -1841,61 +1827,19 @@
         const guardianName = document.getElementById('guardianName').value.trim();
         const guardianPhone = document.getElementById('guardianPhone').value.trim();
         
-        const childFirstName = document.getElementById('childFirstName').value.trim();
-        const childLastName = document.getElementById('childLastName').value.trim();
-        const childBirthDate = document.getElementById('childBirthDate').value;
+        const childFullName = document.getElementById('childFullName').value.trim();
         const childAllergies = document.getElementById('childAllergies').value.trim();
         
         // Validations
-        if (!childFirstName || !childLastName) {
-            alert('Te rog completează prenume și nume copil');
+        if (!childFullName) {
+            alert('Te rog completează numele complet al copilului');
             return;
         }
         
-        // Strict birth date validation
-        if (!childBirthDate) {
-            alert('Te rog completează data nașterii');
-            return;
-        }
-        
-        // Check if date is in complete format (YYYY-MM-DD)
-        const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-        if (!datePattern.test(childBirthDate)) {
-            alert('Te rog completează data nașterii în format complet (DD.MM.YYYY)');
-            document.getElementById('childBirthDate').focus();
-            return;
-        }
-        
-        const selectedDate = new Date(childBirthDate);
-        
-        // Check if date is valid
-        if (isNaN(selectedDate.getTime())) {
-            alert('Data introdusă nu este validă. Te rog verifică formatul datei.');
-            document.getElementById('childBirthDate').focus();
-            return;
-        }
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const maxDate = new Date();
-        maxDate.setHours(0, 0, 0, 0);
-        maxDate.setDate(maxDate.getDate() - 1); // Yesterday
-        
-        const minDate = new Date();
-        minDate.setFullYear(minDate.getFullYear() - 18); // 18 years ago
-        
-        if (selectedDate > maxDate) {
-            alert('Data nașterii nu poate fi în viitor sau astăzi.');
-            document.getElementById('childBirthDate').focus();
-            return;
-        }
-        
-        if (selectedDate < minDate) {
-            alert('Data nașterii indică un copil mai mare de 18 ani. Te rog verifică data introdusă.');
-            document.getElementById('childBirthDate').focus();
-            return;
-        }
+        // Split full name into first name and last name
+        const nameParts = childFullName.split(/\s+/).filter(part => part.length > 0);
+        const childFirstName = nameParts.length > 0 ? nameParts[0] : childFullName;
+        const childLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
         
         // Determine guardian mode based on radio buttons
         const guardianMode = document.getElementById('radioNewGuardian').checked ? 'new' : 'existing';
@@ -1934,7 +1878,6 @@
             const payload = {
                 first_name: childFirstName,
                 last_name: childLastName,
-                birth_date: childBirthDate,
                 allergies: childAllergies || null,
                 bracelet_code: currentBracelet.code,
                 is_birthday: isBirthday
@@ -1959,9 +1902,7 @@
                 document.getElementById('guardianSelect').value = '';
                 document.getElementById('guardianName').value = '';
                 document.getElementById('guardianPhone').value = '';
-                document.getElementById('childFirstName').value = '';
-                document.getElementById('childLastName').value = '';
-                document.getElementById('childBirthDate').value = '';
+                document.getElementById('childFullName').value = '';
                 document.getElementById('childAllergies').value = '';
                 // Hide child section again
                 childSection.classList.add('hidden');
@@ -2005,62 +1946,6 @@
         }
     });
 
-    // Strict birth date validation for scan page - only when date is complete
-    const childBirthDateInput = document.getElementById('childBirthDate');
-    if (childBirthDateInput) {
-        function validateBirthDate(input) {
-            const value = input.value.trim();
-            
-            // Don't validate if input is empty or incomplete
-            if (!value) return true;
-            
-            // Check if date is in complete format (YYYY-MM-DD)
-            const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-            if (!datePattern.test(value)) {
-                return true; // Not complete yet, don't validate
-            }
-            
-            const selectedDate = new Date(value);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const maxDate = new Date();
-            maxDate.setHours(0, 0, 0, 0);
-            maxDate.setDate(maxDate.getDate() - 1); // Yesterday
-            
-            const minDate = new Date();
-            minDate.setFullYear(minDate.getFullYear() - 18); // 18 years ago
-            
-            // Check if date is valid
-            if (isNaN(selectedDate.getTime())) {
-                alert('Data introdusă nu este validă. Te rog verifică formatul datei.');
-                input.value = '';
-                input.focus();
-                return false;
-            }
-            
-            if (selectedDate > maxDate) {
-                alert('Data nașterii nu poate fi în viitor sau astăzi.');
-                input.value = '';
-                input.focus();
-                return false;
-            }
-            
-            if (selectedDate < minDate) {
-                alert('Data nașterii indică un copil mai mare de 18 ani. Te rog verifică data introdusă.');
-                input.value = '';
-                input.focus();
-                return false;
-            }
-            
-            return true;
-        }
-
-        // Validate only on blur (when user finishes entering)
-        childBirthDateInput.addEventListener('blur', function(e) {
-            validateBirthDate(e.target);
-        });
-    }
 
     // Setup search listeners for Choices.js
     function setupChoicesSearch() {
