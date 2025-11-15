@@ -147,6 +147,7 @@ class SessionsController extends Controller
         
         $request->validate([
             'paymentType' => 'required|in:CASH,CARD',
+            'voucherHours' => 'nullable|numeric|min:0',
         ]);
 
         // For SUPER_ADMIN, can access any session (tenant comes from session)
@@ -180,12 +181,30 @@ class SessionsController extends Controller
             ], 400);
         }
 
+        if ($session->isPaid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea a fost deja plătită'
+            ], 400);
+        }
+
         // Ensure price is calculated (recalculate if price is 0, as it might be incorrect)
         if (!$session->calculated_price || $session->calculated_price == 0) {
             $session->saveCalculatedPrice();
             $session->refresh();
         }
 
+        // Get voucher hours from request
+        $voucherHours = $request->input('voucherHours', 0);
+        if ($voucherHours > 0) {
+            $voucherHours = (float) $voucherHours;
+        } else {
+            $voucherHours = 0;
+        }
+
+        // Get pricing service
+        $pricingService = app(\App\Services\PricingService::class);
+        
         // Get effective duration in seconds and convert to hours and minutes
         $seconds = $session->getEffectiveDurationSeconds();
         $hours = floor($seconds / 3600);
@@ -195,9 +214,41 @@ class SessionsController extends Controller
         $duration = $this->formatDuration($hours, $minutes);
 
         // Calculate rounded duration (fiscalized duration)
-        $pricingService = app(\App\Services\PricingService::class);
         $durationInHours = $pricingService->getDurationInHours($session);
         $roundedHours = $pricingService->roundToHalfHour($durationInHours);
+        
+        // Validate voucher hours don't exceed session duration
+        if ($voucherHours > $roundedHours) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Orele de voucher nu pot depăși durata sesiunii (' . $this->formatDuration(floor($roundedHours), round(($roundedHours - floor($roundedHours)) * 60)) . ')'
+            ], 400);
+        }
+
+        // Get price per hour (use the one saved at calculation time, or calculate current rate)
+        $pricePerHour = $session->price_per_hour_at_calculation ?? $pricingService->getHourlyRate($session->tenant, $session->started_at);
+        
+        // Calculate voucher price
+        $voucherPrice = $voucherHours * $pricePerHour;
+
+        // Get prices separately
+        $timePrice = $session->calculated_price ?? $session->calculatePrice();
+        $productsPrice = $session->getProductsTotalPrice();
+        $totalPrice = $session->getTotalPrice();
+
+        // Voucher applies ONLY to time, not to products
+        // Calculate final time price after voucher discount
+        $finalTimePrice = max(0, $timePrice - $voucherPrice);
+        
+        // Final total price = final time price + products price (products are never discounted by voucher)
+        $finalPrice = $finalTimePrice + $productsPrice;
+        
+        // If voucher covers all time AND there are no products, no receipt needed
+        // If there are products, we still need a receipt even if time is fully covered
+        $noReceiptNeeded = ($finalTimePrice <= 0 && $productsPrice <= 0);
+
+        // Calculate billed hours (total hours minus voucher hours)
+        $billedHours = max(0, $roundedHours - $voucherHours);
         
         // Format rounded duration
         $roundedHoursInt = floor($roundedHours);
@@ -209,10 +260,17 @@ class SessionsController extends Controller
         }
         $durationFiscalized = $this->formatDuration($roundedHoursInt, $roundedMinutes);
 
-        // Get prices separately
-        $timePrice = $session->calculated_price ?? $session->calculatePrice();
-        $productsPrice = $session->getProductsTotalPrice();
-        $totalPrice = $session->getTotalPrice();
+        // Format billed hours for display
+        $billedHoursInt = floor($billedHours);
+        $billedMinutes = round(($billedHours - $billedHoursInt) * 60);
+        if ($billedMinutes >= 60) {
+            $billedHoursInt += 1;
+            $billedMinutes = 0;
+        }
+        $durationBilled = $this->formatDuration($billedHoursInt, $billedMinutes);
+
+        // Calculate billed time price (only hours that will be charged)
+        $billedTimePrice = $billedHours * $pricePerHour;
 
         // Get products data - ensure we use the actual product name
         $products = $session->products->map(function($sp) {
@@ -250,25 +308,29 @@ class SessionsController extends Controller
         $productName = 'Ora de joacă';
 
         // Build items array for bridge: time item + product items
+        // Only include items if there's something to pay (finalPrice > 0)
         $items = [];
         
-        // Add time item (only if timePrice > 0)
-        if ($timePrice > 0) {
-            $items[] = [
-                'name' => $productName . ' (' . $durationFiscalized . ')',
-                'quantity' => 1,
-                'price' => (float) $timePrice,
-            ];
-        }
-        
-        // Add product items
-        foreach ($products as $product) {
-            if ($product['total_price'] > 0) {
+        if (!$noReceiptNeeded) {
+            // Add time item ONLY if there's time to bill (billed hours > 0 and final time price > 0)
+            // If voucher covers all time, don't include time item on receipt
+            if ($billedHours > 0 && $finalTimePrice > 0) {
                 $items[] = [
-                    'name' => $product['name'],
-                    'quantity' => $product['quantity'],
-                    'price' => (float) $product['unit_price'], // Use unit price, not total
+                    'name' => $productName . ' (' . $durationBilled . ')',
+                    'quantity' => 1,
+                    'price' => (float) $finalTimePrice,
                 ];
+            }
+            
+            // Add product items (products are never affected by voucher)
+            foreach ($products as $product) {
+                if ($product['total_price'] > 0) {
+                    $items[] = [
+                        'name' => $product['name'],
+                        'quantity' => $product['quantity'],
+                        'price' => (float) $product['unit_price'], // Use unit price, not total
+                    ];
+                }
             }
         }
 
@@ -278,19 +340,27 @@ class SessionsController extends Controller
             'data' => [
                 'items' => $items,
                 'paymentType' => $request->paymentType,
+                'voucherHours' => $voucherHours,
                 // Keep legacy fields for backward compatibility (not used if items is present)
                 'productName' => $productName,
-                'duration' => $durationFiscalized,
-                'price' => $totalPrice,
+                'duration' => $durationBilled,
+                'price' => max(0, $finalPrice),
             ],
             'receipt' => [
                 'tenantName' => $tenantName,
                 'timePrice' => (float) $timePrice,
+                'finalTimePrice' => (float) $finalTimePrice,
+                'billedTimePrice' => (float) $finalTimePrice, // Use finalTimePrice for display
+                'voucherHours' => $voucherHours,
+                'voucherPrice' => (float) $voucherPrice,
                 'durationReal' => $duration,
                 'durationFiscalized' => $durationFiscalized,
+                'durationBilled' => $durationBilled,
                 'products' => $products,
                 'productsPrice' => (float) $productsPrice,
                 'totalPrice' => (float) $totalPrice,
+                'finalPrice' => max(0, $finalPrice),
+                'noReceiptNeeded' => $noReceiptNeeded,
             ],
             'session' => [
                 'id' => $session->id,
@@ -316,15 +386,56 @@ class SessionsController extends Controller
             'filename' => 'nullable|string|max:255',
             'status' => 'required|in:success,error',
             'error_message' => 'nullable|string',
+            'voucher_hours' => 'nullable|numeric|min:0',
+            'payment_status' => 'nullable|string|in:paid,paid_voucher',
+            'payment_method' => 'nullable|string|in:CASH,CARD',
         ]);
         
         try {
+            // Get tenant from play session
+            $playSession = PlaySession::findOrFail($request->play_session_id);
+            
+            $voucherHours = $request->input('voucher_hours', null);
+            if ($voucherHours !== null) {
+                $voucherHours = (float) $voucherHours;
+            }
+            
             $log = \App\Models\FiscalReceiptLog::create([
+                'type' => 'session',
                 'play_session_id' => $request->play_session_id,
+                'tenant_id' => $playSession->tenant_id,
                 'filename' => $request->filename,
                 'status' => $request->status,
                 'error_message' => $request->error_message,
+                'voucher_hours' => $voucherHours,
             ]);
+            
+            // Mark session as paid if receipt was successfully printed
+            if ($request->status === 'success' && !$playSession->isPaid()) {
+                $updateData = [
+                    'paid_at' => now(),
+                ];
+                
+                // Add voucher hours and payment status if provided
+                if ($voucherHours !== null) {
+                    $updateData['voucher_hours'] = $voucherHours;
+                }
+                
+                $paymentStatus = $request->input('payment_status', 'paid');
+                if ($paymentStatus === 'paid_voucher' || ($voucherHours !== null && $voucherHours > 0)) {
+                    $updateData['payment_status'] = 'paid_voucher';
+                } else {
+                    $updateData['payment_status'] = 'paid';
+                }
+                
+                // Add payment method if provided
+                $paymentMethod = $request->input('payment_method');
+                if ($paymentMethod && in_array($paymentMethod, ['CASH', 'CARD'])) {
+                    $updateData['payment_method'] = $paymentMethod;
+                }
+                
+                $playSession->update($updateData);
+            }
             
             return response()->json([
                 'success' => true,
@@ -337,6 +448,79 @@ class SessionsController extends Controller
                 'message' => 'Eroare la salvarea logului: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Mark session as paid with voucher (no receipt needed)
+     */
+    public function markPaidWithVoucher($id, Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+        
+        $request->validate([
+            'voucher_hours' => 'required|numeric|min:0',
+        ]);
+
+        // For SUPER_ADMIN, can access any session (tenant comes from session)
+        // For other roles, restrict to their tenant
+        $sessionQuery = PlaySession::where('id', $id);
+        
+        if (!$user->isSuperAdmin() && $user->tenant) {
+            $sessionQuery->where('tenant_id', $user->tenant->id);
+        }
+        
+        $session = $sessionQuery->first();
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea nu a fost găsită'
+            ], 404);
+        }
+
+        if ($session->isPaid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea a fost deja plătită'
+            ], 400);
+        }
+
+        $voucherHours = (float) $request->voucher_hours;
+
+        // Validate voucher hours don't exceed session duration
+        $pricingService = app(\App\Services\PricingService::class);
+        $durationInHours = $pricingService->getDurationInHours($session);
+        $roundedHours = $pricingService->roundToHalfHour($durationInHours);
+        
+        if ($voucherHours > $roundedHours) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Orele de voucher nu pot depăși durata sesiunii (' . $this->formatDuration(floor($roundedHours), round(($roundedHours - floor($roundedHours)) * 60)) . ')'
+            ], 400);
+        }
+
+        // Mark session as paid with voucher
+        $session->update([
+            'paid_at' => now(),
+            'voucher_hours' => $voucherHours,
+            'payment_status' => 'paid_voucher',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesiunea a fost marcată ca plătită cu voucher',
+            'session' => [
+                'id' => $session->id,
+                'voucher_hours' => $session->voucher_hours,
+                'payment_status' => $session->payment_status,
+            ],
+        ]);
     }
 
     /**
@@ -371,6 +555,14 @@ class SessionsController extends Controller
                 'success' => false,
                 'message' => 'Sesiunea nu a fost găsită'
             ], 404);
+        }
+
+        // Prevent modification if session is already paid
+        if ($session->isPaid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nu se poate modifica statusul Birthday pentru o sesiune deja plătită'
+            ], 400);
         }
 
         $session->update([

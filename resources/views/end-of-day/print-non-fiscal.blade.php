@@ -43,6 +43,7 @@
         
         .report-line {
             margin: 5px 0;
+            font-weight: bold;
         }
         
         .report-title {
@@ -82,10 +83,29 @@
         <div class="report-line report-title">RAPORT FINAL DE ZI</div>
         <div class="report-line">{{ $date }}</div>
         <div class="report-separator"></div>
-        <div class="report-line">Nr total sesiuni: {{ $totalSessions }}</div>
-        <div class="report-line">Nr total birthday: {{ $birthdaySessions }}</div>
-        <div class="report-line">Nr total ore: {{ $totalHoursFormatted }}</div>
+        
+        <div class="report-line">Sesiuni Total: {{ $totalBilledHours }} {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
+        
+        <div class="report-line">Sesiuni Birthday: {{ $birthdayBilledHours }}</div>
+        
+        @if($totalVoucherHours && $totalVoucherHours !== '0h' && $totalVoucherHours !== '0m')
+        <div class="report-line">Total Voucher: {{ $totalVoucherHours }}</div>
+        @endif
+        
+        @if(count($productsGrouped) > 0)
         <div class="report-separator"></div>
+        <div class="report-line report-title" style="font-size: 12pt; margin-top: 10px;">PRODUSE</div>
+        @foreach($productsGrouped as $product)
+        <div class="report-line">{{ $product['name'] }}, {{ $product['quantity'] }} bucati, {{ number_format($product['total'], 2, ',', '.') }} LEI</div>
+        @endforeach
+        <div class="report-separator"></div>
+        <div class="report-line">Total Produse: {{ number_format($totalProductsValue, 2, ',', '.') }} lei</div>
+        @endif
+        
+        <div class="report-separator"></div>
+        <div class="report-line">Total Sesiuni: {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
+        
+        <div class="report-line">Total General: {{ number_format($totalSessionsValue + $totalProductsValue, 2, ',', '.') }} lei</div>
     </div>
     
     <div class="no-print">

@@ -8,15 +8,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class FiscalReceiptLog extends Model
 {
     protected $fillable = [
+        'type',
         'play_session_id',
+        'tenant_id',
         'filename',
         'status',
         'error_message',
+        'voucher_hours',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'voucher_hours' => 'decimal:2',
     ];
 
     /**
@@ -25,5 +29,13 @@ class FiscalReceiptLog extends Model
     public function playSession(): BelongsTo
     {
         return $this->belongsTo(PlaySession::class);
+    }
+
+    /**
+     * Get the tenant that owns this fiscal receipt log (for Z reports).
+     */
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
     }
 }

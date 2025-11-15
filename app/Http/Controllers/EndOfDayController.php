@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\PlaySession;
+use App\Models\FiscalReceiptLog;
+use App\Models\PlaySessionProduct;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -103,38 +105,102 @@ class EndOfDayController extends Controller
             $sessionsQuery->where('tenant_id', $tenantId);
         }
 
-        $sessionsToday = $sessionsQuery->get();
+        $sessionsToday = $sessionsQuery->with('products.product')->get();
 
         // Calculate statistics
         $totalSessions = $sessionsToday->count();
         $birthdaySessions = $sessionsToday->where('is_birthday', true)->count();
+        $regularSessions = $sessionsToday->where('is_birthday', false)->count();
         
-        // Calculate total billed hours
+        // Calculate total billed hours and totals by category
         $totalBilledHours = 0;
+        $birthdayBilledHours = 0;
+        $regularBilledHours = 0;
+        $birthdaySessionsTotal = 0;
+        $regularSessionsTotal = 0;
+        $totalVoucherHours = 0;
+        
         foreach ($sessionsToday as $session) {
-            if ($session->ended_at && !$session->is_birthday) {
+            if ($session->ended_at) {
                 $durationInHours = $this->pricingService->getDurationInHours($session);
                 $roundedHours = $this->pricingService->roundToHalfHour($durationInHours);
+                
+                // Add voucher hours if session was paid with voucher
+                if ($session->voucher_hours && $session->voucher_hours > 0) {
+                    $totalVoucherHours += $session->voucher_hours;
+                }
+                
+                if ($session->is_birthday) {
+                    $birthdayBilledHours += $roundedHours;
+                    if ($session->calculated_price) {
+                        $birthdaySessionsTotal += $session->calculated_price;
+                    }
+                } else {
+                    $regularBilledHours += $roundedHours;
+                    if ($session->calculated_price) {
+                        $regularSessionsTotal += $session->calculated_price;
+                    }
+                }
                 $totalBilledHours += $roundedHours;
             }
         }
+        
+        // Calculate total sessions value
+        $totalSessionsValue = $birthdaySessionsTotal + $regularSessionsTotal;
+
+        // Get all products sold today
+        $sessionIds = $sessionsToday->pluck('id');
+        $productsSold = PlaySessionProduct::whereIn('play_session_id', $sessionIds)
+            ->with('product')
+            ->get();
+
+        // Group products by product_id and calculate totals
+        $productsGrouped = [];
+        $totalProductsValue = 0;
+        foreach ($productsSold as $psp) {
+            $productId = $psp->product_id;
+            $productName = $psp->product ? $psp->product->name : 'Produs #' . $productId;
+            $totalPrice = $psp->total_price;
+
+            if (!isset($productsGrouped[$productId])) {
+                $productsGrouped[$productId] = [
+                    'name' => $productName,
+                    'total' => 0,
+                    'quantity' => 0,
+                ];
+            }
+            $productsGrouped[$productId]['total'] += $totalPrice;
+            $productsGrouped[$productId]['quantity'] += $psp->quantity;
+            $totalProductsValue += $totalPrice;
+        }
 
         // Format hours for display
-        $hoursInt = floor($totalBilledHours);
-        $minutesInt = round(($totalBilledHours - $hoursInt) * 60);
-        if ($minutesInt >= 60) {
-            $hoursInt += 1;
-            $minutesInt = 0;
-        }
-        $totalHoursFormatted = $hoursInt . 'h';
-        if ($minutesInt > 0) {
-            $totalHoursFormatted .= ' ' . $minutesInt . 'm';
-        }
+        $formatHours = function($hours) {
+            $hoursInt = floor($hours);
+            $minutesInt = round(($hours - $hoursInt) * 60);
+            if ($minutesInt >= 60) {
+                $hoursInt += 1;
+                $minutesInt = 0;
+            }
+            $formatted = $hoursInt . 'h';
+            if ($minutesInt > 0) {
+                $formatted .= ' ' . $minutesInt . 'm';
+            }
+            return $formatted;
+        };
 
         return view('end-of-day.print-non-fiscal', [
             'totalSessions' => $totalSessions,
             'birthdaySessions' => $birthdaySessions,
-            'totalHoursFormatted' => $totalHoursFormatted,
+            'regularSessions' => $regularSessions,
+            'birthdaySessionsTotal' => $birthdaySessionsTotal,
+            'regularSessionsTotal' => $regularSessionsTotal,
+            'totalSessionsValue' => $totalSessionsValue,
+            'totalBilledHours' => $formatHours($totalBilledHours),
+            'birthdayBilledHours' => $formatHours($birthdayBilledHours),
+            'totalVoucherHours' => $formatHours($totalVoucherHours),
+            'productsGrouped' => $productsGrouped,
+            'totalProductsValue' => $totalProductsValue,
             'date' => Carbon::today()->format('d.m.Y'),
         ]);
     }
@@ -153,18 +219,74 @@ class EndOfDayController extends Controller
         }
 
         try {
-            // Send request to bridge
+            // Send request to bridge (increase timeout to 90 seconds for Z report)
+            // Bridge waits up to 60 seconds for ECR response, so we need more time
             $bridgeUrl = config('services.fiscal_bridge.url', 'http://localhost:9000');
-            $response = Http::timeout(10)->post($bridgeUrl . '/z-report');
+            $response = Http::timeout(90)->post($bridgeUrl . '/z-report');
 
             if (!$response->successful()) {
+                // Save error log for connection failure
+                // Get tenant_id from user if available (works for both super admin and regular users)
+                $tenantId = $user->tenant_id ?? null;
+                
+                try {
+                    FiscalReceiptLog::create([
+                        'type' => 'z_report',
+                        'play_session_id' => null,
+                        'tenant_id' => $tenantId,
+                        'filename' => null,
+                        'status' => 'error',
+                        'error_message' => 'Nu s-a putut conecta la bridge-ul fiscal (HTTP ' . $response->status() . ')',
+                    ]);
+                } catch (\Exception $logError) {
+                    \Log::error('Failed to save Z report error log', ['error' => $logError->getMessage()]);
+                }
+                
                 throw new \Exception('Nu s-a putut conecta la bridge-ul fiscal');
             }
 
             $bridgeData = $response->json();
 
             if (!$bridgeData || ($bridgeData['status'] ?? '') !== 'success') {
-                throw new \Exception($bridgeData['message'] ?? 'Eroare de la bridge-ul fiscal');
+                // Save error log
+                // Get tenant_id from user if available (works for both super admin and regular users)
+                $tenantId = $user->tenant_id ?? null;
+                
+                try {
+                    FiscalReceiptLog::create([
+                        'type' => 'z_report',
+                        'play_session_id' => null,
+                        'tenant_id' => $tenantId,
+                        'filename' => $bridgeData['file'] ?? null,
+                        'status' => 'error',
+                        'error_message' => $bridgeData['message'] ?? $bridgeData['details'] ?? 'Eroare de la bridge-ul fiscal',
+                    ]);
+                } catch (\Exception $logError) {
+                    \Log::error('Failed to save Z report error log', ['error' => $logError->getMessage()]);
+                }
+                
+                throw new \Exception($bridgeData['message'] ?? $bridgeData['details'] ?? 'Eroare de la bridge-ul fiscal');
+            }
+
+            // Save success log
+            // Get tenant_id from user if available (works for both super admin and regular users)
+            $tenantId = $user->tenant_id ?? null;
+            
+            try {
+                FiscalReceiptLog::create([
+                    'type' => 'z_report',
+                    'play_session_id' => null,
+                    'tenant_id' => $tenantId,
+                    'filename' => $bridgeData['file'] ?? null,
+                    'status' => 'success',
+                    'error_message' => null,
+                ]);
+            } catch (\Exception $logError) {
+                \Log::error('Failed to save Z report success log', [
+                    'error' => $logError->getMessage(),
+                    'bridge_data' => $bridgeData
+                ]);
+                // Don't fail the request if log saving fails
             }
 
             return response()->json([
@@ -173,6 +295,11 @@ class EndOfDayController extends Controller
                 'file' => $bridgeData['file'] ?? null,
             ]);
         } catch (\Exception $e) {
+            \Log::error('Z report generation failed', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id ?? null
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Eroare la generarea raportului Z: ' . $e->getMessage(),

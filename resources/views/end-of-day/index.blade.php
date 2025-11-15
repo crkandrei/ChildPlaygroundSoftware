@@ -76,7 +76,76 @@
     </div>
 </div>
 
+<!-- Z Report Modal -->
+<div id="z-report-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) closeZReportModal()">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <!-- Step 1: Loading -->
+            <div id="z-report-step-loading">
+                <div class="text-center py-8">
+                    <i class="fas fa-spinner fa-spin text-4xl text-indigo-600 mb-4"></i>
+                    <p class="text-gray-700 text-lg font-semibold">Se generează raportul Z...</p>
+                    <p class="text-gray-500 text-sm mt-2">Vă rugăm să așteptați</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Result (Success/Error) -->
+            <div id="z-report-step-result" class="hidden">
+                <div id="z-report-result-content" class="text-center py-6">
+                    <!-- Success or Error icon and message will be inserted here -->
+                </div>
+                <div class="flex justify-end gap-3 mt-4">
+                    <button 
+                        onclick="closeZReportModal()"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        Închide
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Z Report Modal Functions
+function openZReportModal() {
+    document.getElementById('z-report-modal').classList.remove('hidden');
+    document.getElementById('z-report-step-loading').classList.remove('hidden');
+    document.getElementById('z-report-step-result').classList.add('hidden');
+}
+
+function closeZReportModal() {
+    document.getElementById('z-report-modal').classList.add('hidden');
+}
+
+function showZReportResult(type, message, file) {
+    // Hide loading, show result
+    document.getElementById('z-report-step-loading').classList.add('hidden');
+    document.getElementById('z-report-step-result').classList.remove('hidden');
+    
+    // Build result content
+    const resultContent = document.getElementById('z-report-result-content');
+    
+    if (type === 'success') {
+        resultContent.innerHTML = `
+            <div class="mb-4">
+                <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Raport Z generat cu succes!</h3>
+            <p class="text-gray-700 mb-2 font-semibold text-lg">${message}</p>
+            ${file ? `<p class="text-sm text-gray-500 mt-2">Fișier: ${file}</p>` : ''}
+        `;
+    } else {
+        resultContent.innerHTML = `
+            <div class="mb-4">
+                <i class="fas fa-exclamation-circle text-5xl text-red-500 mb-4"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Eroare</h3>
+            <p class="text-gray-700">${message}</p>
+        `;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Print Z Report button
     const printZReportBtn = document.getElementById('print-z-report-btn');
@@ -86,32 +155,47 @@ document.addEventListener('DOMContentLoaded', function() {
             printZReportBtn.disabled = true;
             printZReportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Se procesează...';
 
+            // Open modal with loading state
+            openZReportModal();
+
             try {
-                const response = await fetch('{{ route("end-of-day.print-z") }}', {
+                // Use Laravel endpoint which saves the log to database
+                const response = await fetch('/end-of-day/print-z', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                     }
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Eroare la generarea raportului Z');
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    // Response is not valid JSON
+                    const text = await response.text();
+                    throw new Error('Răspuns invalid de la server: ' + text);
                 }
 
-                const data = await response.json();
-
-                if (data.success) {
-                    const fileInfo = data.file ? `\nFișier: ${data.file}` : '';
-                    alert((data.message || 'Raportul Z a fost generat cu succes') + fileInfo);
+                if (!response.ok || !data.success) {
+                    // Error case
+                    const errorMessage = data.message || 'Eroare necunoscută la generarea raportului Z';
+                    showZReportResult('error', errorMessage, null);
                 } else {
-                    alert('Eroare: ' + (data.message || 'Eroare necunoscută'));
+                    // Success case - show "Z;1" message
+                    showZReportResult('success', 'Z;1', data.file || null);
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('Eroare la procesarea raportului Z: ' + error.message);
+                // Network error or other exception
+                let errorMessage;
+                if (error.message && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+                    errorMessage = 'Nu s-a putut conecta la bridge-ul fiscal. Asigură-te că bridge-ul rulează pe localhost:9000';
+                } else {
+                    errorMessage = error.message || 'Eroare necunoscută';
+                }
+                showZReportResult('error', errorMessage, null);
             } finally {
                 printZReportBtn.disabled = false;
                 printZReportBtn.innerHTML = originalBtnText;

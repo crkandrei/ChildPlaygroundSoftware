@@ -32,7 +32,7 @@
                 </select>
             </div>
             <div class="relative">
-                <input id="searchInput" type="text" placeholder="Caută după nume fișier, copil sau eroare..." class="w-64 px-3 py-2 border border-gray-300 rounded-md pr-8">
+                <input id="searchInput" type="text" placeholder="Caută după nume fișier sau eroare..." class="w-64 px-3 py-2 border border-gray-300 rounded-md pr-8">
                 <i class="fas fa-search absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
         </div>
@@ -43,8 +43,8 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="created_at">Data <span class="sort-ind" data-col="created_at"></span></th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tip</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sesiune</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Copil</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="filename">Fișier <span class="sort-ind" data-col="filename"></span></th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="status">Status <span class="sort-ind" data-col="status"></span></th>
@@ -115,11 +115,17 @@
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${row.created_at_formatted}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
-                    <a href="/sessions/${row.play_session_id}/show" class="text-blue-600 hover:text-blue-800">
-                        #${row.play_session_id}
-                    </a>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                        row.type === 'z_report' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-blue-100 text-blue-800'
+                    }">
+                        ${row.type === 'z_report' ? 'Raport Z' : 'Sesiune'}
+                    </span>
                 </td>
-                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${row.child_name}</td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                    ${row.play_session_id ? `<a href="/sessions/${row.play_session_id}/show" class="text-blue-600 hover:text-blue-800">#${row.play_session_id}</a>` : '<span class="text-gray-400">-</span>'}
+                </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${row.tenant_name}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${row.filename || '<span class="text-gray-400">-</span>'}</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">

@@ -20,6 +20,10 @@ class PlaySession extends Model
         'calculated_price',
         'price_per_hour_at_calculation',
         'is_birthday',
+        'paid_at',
+        'voucher_hours',
+        'payment_status',
+        'payment_method',
     ];
 
     protected $casts = [
@@ -28,6 +32,8 @@ class PlaySession extends Model
         'calculated_price' => 'decimal:2',
         'price_per_hour_at_calculation' => 'decimal:2',
         'is_birthday' => 'boolean',
+        'paid_at' => 'datetime',
+        'voucher_hours' => 'decimal:2',
     ];
 
     /**
@@ -73,6 +79,12 @@ class PlaySession extends Model
         }
         // Paused = active session with no open interval
         return !$this->intervals()->whereNull('ended_at')->exists();
+    }
+
+    /** Determine if the session has been paid. */
+    public function isPaid(): bool
+    {
+        return !is_null($this->paid_at);
     }
 
     /**
@@ -286,6 +298,117 @@ class PlaySession extends Model
         $pricingService = app(PricingService::class);
         $pricingService->calculateAndSavePrice($this);
         return $this;
+    }
+
+    /**
+     * Get billed duration (rounded hours) formatted string
+     * This is the duration that was actually billed (excluding voucher hours if any)
+     * 
+     * @return string Formatted duration (e.g., "2h 30m" or "1h")
+     */
+    public function getFormattedBilledDuration(): string
+    {
+        $pricingService = app(PricingService::class);
+        $durationInHours = $pricingService->getDurationInHours($this);
+        $roundedHours = $pricingService->roundToHalfHour($durationInHours);
+        
+        // Subtract voucher hours if any
+        $billedHours = max(0, $roundedHours - ($this->voucher_hours ?? 0));
+        
+        $hoursInt = floor($billedHours);
+        $minutesInt = round(($billedHours - $hoursInt) * 60);
+        if ($minutesInt >= 60) {
+            $hoursInt += 1;
+            $minutesInt = 0;
+        }
+        
+        if ($hoursInt === 0 && $minutesInt === 0) {
+            return '0m';
+        }
+        
+        if ($hoursInt === 0) {
+            return "{$minutesInt}m";
+        }
+        
+        if ($minutesInt === 0) {
+            return "{$hoursInt}h";
+        }
+        
+        return "{$hoursInt}h {$minutesInt}m";
+    }
+
+    /**
+     * Get total billed duration (rounded hours) - before voucher discount
+     * 
+     * @return string Formatted duration (e.g., "2h 30m" or "1h")
+     */
+    public function getFormattedTotalBilledDuration(): string
+    {
+        $pricingService = app(PricingService::class);
+        $durationInHours = $pricingService->getDurationInHours($this);
+        $roundedHours = $pricingService->roundToHalfHour($durationInHours);
+        
+        $hoursInt = floor($roundedHours);
+        $minutesInt = round(($roundedHours - $hoursInt) * 60);
+        if ($minutesInt >= 60) {
+            $hoursInt += 1;
+            $minutesInt = 0;
+        }
+        
+        if ($hoursInt === 0 && $minutesInt === 0) {
+            return '0m';
+        }
+        
+        if ($hoursInt === 0) {
+            return "{$minutesInt}m";
+        }
+        
+        if ($minutesInt === 0) {
+            return "{$hoursInt}h";
+        }
+        
+        return "{$hoursInt}h {$minutesInt}m";
+    }
+
+    /**
+     * Get amount collected (cash/card payment)
+     * Voucher applies ONLY to time, not to products
+     * 
+     * @return float Amount collected in RON
+     */
+    public function getAmountCollected(): float
+    {
+        if (!$this->isPaid()) {
+            return 0.0;
+        }
+        
+        $timePrice = $this->calculated_price ?? $this->calculatePrice();
+        $productsPrice = $this->getProductsTotalPrice();
+        $voucherPrice = 0.0;
+        
+        // Calculate voucher price if voucher was used (voucher applies only to time)
+        if ($this->voucher_hours && $this->voucher_hours > 0 && $this->price_per_hour_at_calculation) {
+            $voucherPrice = $this->voucher_hours * $this->price_per_hour_at_calculation;
+        }
+        
+        // Amount collected = final time price (after voucher) + products price
+        // Products are never affected by voucher
+        $finalTimePrice = max(0, $timePrice - $voucherPrice);
+        return $finalTimePrice + $productsPrice;
+    }
+
+    /**
+     * Get voucher price if voucher was used
+     * 
+     * @return float Voucher price in RON
+     */
+    public function getVoucherPrice(): float
+    {
+        if (!$this->voucher_hours || $this->voucher_hours <= 0 || !$this->price_per_hour_at_calculation) {
+            return 0.0;
+        }
+        
+        return $this->voucher_hours * $this->price_per_hour_at_calculation;
     }
 }
 

@@ -43,16 +43,19 @@ class FiscalReceiptLogController extends Controller
         $sortBy = (string) $request->input('sort_by', 'created_at');
         $sortDir = strtolower((string) $request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        // Build query
-        $query = FiscalReceiptLog::with(['playSession.child', 'playSession.tenant']);
+        // Build query - include both session receipts and Z reports
+        $query = FiscalReceiptLog::with(['playSession.tenant', 'tenant']);
 
         // Search filter
         if ($search !== '') {
             $query->where(function($q) use ($search) {
                 $q->where('filename', 'like', "%{$search}%")
                   ->orWhere('error_message', 'like', "%{$search}%")
+                  ->orWhereHas('tenant', function($q) use ($search) {
+                      $q->where('name', 'like', "%{$search}%");
+                  })
                   ->orWhereHas('playSession', function($q) use ($search) {
-                      $q->whereHas('child', function($q) use ($search) {
+                      $q->whereHas('tenant', function($q) use ($search) {
                           $q->where('name', 'like', "%{$search}%");
                       });
                   });
@@ -77,16 +80,25 @@ class FiscalReceiptLogController extends Controller
 
         // Format data
         $rows = $logs->map(function($log) {
+            // For Z reports, get tenant from direct relationship
+            // For session receipts, get tenant from playSession
+            $tenantName = null;
+            if ($log->type === 'z_report') {
+                $tenantName = $log->tenant->name ?? 'N/A';
+            } else {
+                $tenantName = $log->playSession->tenant->name ?? 'N/A';
+            }
+
             return [
                 'id' => $log->id,
+                'type' => $log->type,
                 'play_session_id' => $log->play_session_id,
                 'filename' => $log->filename,
                 'status' => $log->status,
                 'error_message' => $log->error_message,
                 'created_at' => $log->created_at->format('Y-m-d H:i:s'),
                 'created_at_formatted' => $log->created_at->format('d.m.Y H:i'),
-                'child_name' => $log->playSession->child->name ?? 'N/A',
-                'tenant_name' => $log->playSession->tenant->name ?? 'N/A',
+                'tenant_name' => $tenantName,
             ];
         });
 

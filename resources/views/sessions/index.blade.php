@@ -37,6 +37,7 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="child_name">Copil <span class="sort-ind" data-col="child_name"></span></th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durată live</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preț</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Plată</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acțiuni</th>
                 </tr>
             </thead>
@@ -86,6 +87,33 @@
                         Card
                     </button>
                 </div>
+                
+                <!-- Voucher Toggle -->
+                <div class="mb-6 pt-4 border-t border-gray-200">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="checkbox" 
+                               id="voucher-toggle"
+                               onchange="toggleVoucherInput()"
+                               class="mr-3 w-5 h-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <span class="text-gray-700 font-medium">Folosește Voucher</span>
+                    </label>
+                    
+                    <!-- Voucher Hours Input (hidden by default) -->
+                    <div id="voucher-input-container" class="hidden mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Ore Voucher <span class="text-red-500">*</span>
+                        </label>
+                        <input type="number" 
+                               id="voucher-hours-input"
+                               min="0"
+                               step="0.5"
+                               value="0"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                               placeholder="Ex: 1">
+                        <p class="mt-1 text-xs text-gray-500">Introduceți numărul de ore de pe voucher</p>
+                    </div>
+                </div>
+                
                 <div class="flex justify-end gap-3">
                     <button onclick="closeFiscalModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                         Anulează
@@ -273,16 +301,31 @@
                     ${row.formatted_price ? `<span class="font-semibold ${row.ended_at ? 'text-green-600' : 'text-amber-600'}">${row.formatted_price}</span>` : '-'}
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
+                    ${row.ended_at && !row.is_birthday ? `
+                        ${row.is_paid ? `
+                            <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 inline-flex items-center w-fit">
+                                <i class="fas fa-check-circle mr-1"></i>${row.payment_status === 'paid_voucher' ? 'Plătit (Voucher)' : 'Plătit'}
+                            </span>
+                        ` : `
+                            <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800 inline-flex items-center w-fit">
+                                <i class="fas fa-clock mr-1"></i>Neplătit
+                            </span>
+                        `}
+                    ` : '-'}
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm">
                     <div class="flex items-center gap-2">
                         <a href="/sessions/${row.id}/show" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
                             <i class="fas fa-eye mr-1"></i>Detalii
                         </a>
-                        <button onclick="toggleBirthdayQuick(${row.id}, ${row.is_birthday})" 
-                            class="px-2 py-1 ${row.is_birthday ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs transition-colors"
-                            title="${row.is_birthday ? 'Demarchează Birthday' : 'Marchează ca Birthday'}">
-                            <i class="fas fa-birthday-cake mr-1"></i>${row.is_birthday ? 'ON' : 'OFF'}
-                        </button>
-                        ${row.ended_at && !row.is_birthday ? `
+                        ${!row.is_paid ? `
+                            <button onclick="toggleBirthdayQuick(${row.id}, ${row.is_birthday})" 
+                                class="px-2 py-1 ${row.is_birthday ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs transition-colors"
+                                title="${row.is_birthday ? 'Demarchează Birthday' : 'Marchează ca Birthday'}">
+                                <i class="fas fa-birthday-cake mr-1"></i>${row.is_birthday ? 'ON' : 'OFF'}
+                            </button>
+                        ` : ''}
+                        ${row.ended_at && !row.is_birthday && !row.is_paid ? `
                             <button onclick="openFiscalModal(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
                                 <i class="fas fa-receipt mr-1"></i>Bon
                             </button>
@@ -391,12 +434,14 @@
     let fiscalModalSessionId = null;
     let fiscalModalPaymentType = null;
     let fiscalModalData = null;
+    let fiscalModalReceiptData = null;
 
     function openFiscalModal(sessionId) {
         fiscalModalSessionId = sessionId;
         fiscalModalCurrentStep = 1;
         fiscalModalPaymentType = null;
         fiscalModalData = null;
+        fiscalModalReceiptData = null;
         
         // Reset modal state
         document.getElementById('fiscal-modal-step-1').classList.remove('hidden');
@@ -417,6 +462,20 @@
             btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
         });
         
+        // Reset voucher toggle and input
+        const voucherToggle = document.getElementById('voucher-toggle');
+        const voucherInput = document.getElementById('voucher-hours-input');
+        const voucherContainer = document.getElementById('voucher-input-container');
+        if (voucherToggle) {
+            voucherToggle.checked = false;
+        }
+        if (voucherInput) {
+            voucherInput.value = '0';
+        }
+        if (voucherContainer) {
+            voucherContainer.classList.add('hidden');
+        }
+        
         // Show modal
         document.getElementById('fiscal-modal').classList.remove('hidden');
     }
@@ -427,12 +486,33 @@
         fiscalModalSessionId = null;
         fiscalModalPaymentType = null;
         fiscalModalData = null;
+        fiscalModalReceiptData = null;
         
         // Reset continue button state
         const continueBtn = document.getElementById('fiscal-continue-btn');
         if (continueBtn) {
             continueBtn.disabled = true;
             continueBtn.innerHTML = 'Continuă';
+        }
+    }
+
+    function toggleVoucherInput() {
+        const voucherToggle = document.getElementById('voucher-toggle');
+        const voucherContainer = document.getElementById('voucher-input-container');
+        const voucherInput = document.getElementById('voucher-hours-input');
+        
+        if (voucherToggle && voucherContainer) {
+            if (voucherToggle.checked) {
+                voucherContainer.classList.remove('hidden');
+                if (voucherInput) {
+                    voucherInput.focus();
+                }
+            } else {
+                voucherContainer.classList.add('hidden');
+                if (voucherInput) {
+                    voucherInput.value = '0';
+                }
+            }
         }
     }
 
@@ -466,6 +546,19 @@
             return;
         }
         
+        // Get voucher hours if voucher is enabled
+        const voucherToggle = document.getElementById('voucher-toggle');
+        const voucherInput = document.getElementById('voucher-hours-input');
+        let voucherHours = 0;
+        
+        if (voucherToggle && voucherToggle.checked && voucherInput) {
+            voucherHours = parseFloat(voucherInput.value) || 0;
+            if (voucherHours < 0) {
+                alert('Orele de voucher trebuie să fie pozitive');
+                return;
+            }
+        }
+        
         // Show loading state
         const continueBtn = document.getElementById('fiscal-continue-btn');
         const originalBtnText = continueBtn.innerHTML;
@@ -482,7 +575,8 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    paymentType: fiscalModalPaymentType
+                    paymentType: fiscalModalPaymentType,
+                    voucherHours: voucherHours > 0 ? voucherHours : null
                 })
             });
 
@@ -498,9 +592,17 @@
             }
 
             fiscalModalData = prepareData.data;
+            fiscalModalReceiptData = prepareData.receipt || {};
+
+            // Check if no receipt is needed (voucher covers everything)
+            if (fiscalModalReceiptData.noReceiptNeeded) {
+                // Mark as paid with voucher directly
+                await markPaidWithVoucherDirectly(voucherHours);
+                return;
+            }
 
             // Update receipt preview with data
-            const receipt = prepareData.receipt || {};
+            const receipt = fiscalModalReceiptData;
             
             // Tenant name
             document.getElementById('receipt-tenant-name').textContent = receipt.tenantName || '-';
@@ -509,17 +611,21 @@
             const receiptItems = document.getElementById('receipt-items');
             receiptItems.innerHTML = '';
             
-            // Time item
-            const timeItem = document.createElement('div');
-            timeItem.className = 'flex justify-between text-sm';
-            timeItem.innerHTML = `
-                <div>
-                    <span class="font-medium text-gray-900">${prepareData.data.productName}</span>
-                    <span class="text-gray-500 ml-2">${receipt.durationReal || prepareData.data.duration} (fiscalizat: ${receipt.durationFiscalized || prepareData.data.duration})</span>
-                </div>
-                <span class="font-semibold text-gray-900">${parseFloat(receipt.timePrice || 0).toFixed(2)} RON</span>
-            `;
-            receiptItems.appendChild(timeItem);
+            // Time item - ALWAYS show original price (timePrice) with original duration (durationFiscalized) in preview
+            // This is the price BEFORE voucher discount
+            // Even if voucher covers all time, show it in preview (but it won't appear on actual receipt)
+            if (receipt.timePrice > 0) {
+                const timeItem = document.createElement('div');
+                timeItem.className = 'flex justify-between text-sm';
+                timeItem.innerHTML = `
+                    <div>
+                        <span class="font-medium text-gray-900">${prepareData.data.productName}</span>
+                        <span class="text-gray-500 ml-2">${receipt.durationFiscalized || prepareData.data.duration}</span>
+                    </div>
+                    <span class="font-semibold text-gray-900">${parseFloat(receipt.timePrice || 0).toFixed(2)} RON</span>
+                `;
+                receiptItems.appendChild(timeItem);
+            }
             
             // Products items
             if (receipt.products && receipt.products.length > 0) {
@@ -537,8 +643,21 @@
                 });
             }
             
-            // Total price
-            document.getElementById('receipt-total-price').textContent = `${parseFloat(prepareData.data.price).toFixed(2)} RON`;
+            // Voucher discount line (if voucher was used)
+            if (receipt.voucherHours > 0 && receipt.voucherPrice > 0) {
+                const voucherItem = document.createElement('div');
+                voucherItem.className = 'flex justify-between text-sm text-green-600 border-t border-gray-300 pt-2 mt-2';
+                voucherItem.innerHTML = `
+                    <div>
+                        <span class="font-medium">Voucher (${receipt.voucherHours}h)</span>
+                    </div>
+                    <span class="font-semibold">-${parseFloat(receipt.voucherPrice).toFixed(2)} RON</span>
+                `;
+                receiptItems.appendChild(voucherItem);
+            }
+            
+            // Total price (final price after voucher) - this is what will be on the receipt
+            document.getElementById('receipt-total-price').textContent = `${parseFloat(receipt.finalPrice || prepareData.data.price || 0).toFixed(2)} RON`;
             
             // Payment method
             document.getElementById('receipt-payment-method').textContent = fiscalModalPaymentType === 'CASH' ? 'Cash' : 'Card';
@@ -553,6 +672,42 @@
             showFiscalResult('error', error.message, null);
             continueBtn.disabled = false;
             continueBtn.innerHTML = originalBtnText;
+        }
+    }
+
+    async function markPaidWithVoucherDirectly(voucherHours) {
+        try {
+            const response = await fetch(`/sessions/${fiscalModalSessionId}/mark-paid-with-voucher`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    voucher_hours: voucherHours
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Eroare la marcarea sesiunii ca plătită');
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                showFiscalResult('success', 'Valoarea orelor a fost acoperită de voucher. Sesiunea va fi trecută plătită fără a mai scoate bon fiscal.', null);
+                setTimeout(() => {
+                    fetchData();
+                    closeFiscalModal();
+                }, 5000); // 5 seconds to allow operator to read the message
+            } else {
+                throw new Error(result.message || 'Eroare necunoscută');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showFiscalResult('error', error.message, null);
         }
     }
 
@@ -599,11 +754,15 @@
 
             // Save log to database
             try {
+                const voucherHours = fiscalModalData.voucherHours || 0;
                 await saveFiscalReceiptLog({
                     play_session_id: fiscalModalSessionId,
                     filename: bridgeData.file || null,
                     status: bridgeData.status === 'success' ? 'success' : 'error',
                     error_message: bridgeData.status === 'success' ? null : (bridgeData.message || bridgeData.details || 'Eroare necunoscută'),
+                    voucher_hours: voucherHours > 0 ? voucherHours : null,
+                    payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
+                    payment_method: fiscalModalPaymentType,
                 });
             } catch (logError) {
                 console.error('Error saving log:', logError);
@@ -613,15 +772,20 @@
             // Show result in modal
             if (bridgeData.status === 'success') {
                 showFiscalResult('success', 'Bon fiscal emis cu succes!', bridgeData.file || null);
+                // Refresh table to reflect payment status changes
+                fetchData();
             } else {
                 const errorMessage = bridgeData.message || bridgeData.details || 'Eroare necunoscută';
                 showFiscalResult('error', errorMessage, null);
+                // Refresh table even on error to ensure consistency
+                fetchData();
             }
         } catch (error) {
             console.error('Error:', error);
             
             // Save error log to database
             try {
+                const voucherHours = fiscalModalData?.voucherHours || 0;
                 await saveFiscalReceiptLog({
                     play_session_id: fiscalModalSessionId,
                     filename: null,
@@ -629,6 +793,9 @@
                     error_message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
                         ? 'Nu s-a putut conecta la bridge-ul fiscal local. Verifică că serviciul Node.js rulează pe calculatorul tău.'
                         : error.message,
+                    voucher_hours: voucherHours > 0 ? voucherHours : null,
+                    payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
+                    payment_method: fiscalModalPaymentType,
                 });
             } catch (logError) {
                 console.error('Error saving log:', logError);
@@ -641,6 +808,8 @@
                 : error.message;
             
             showFiscalResult('error', errorMessage, null);
+            // Refresh table even on error to ensure consistency
+            fetchData();
         }
     }
 
