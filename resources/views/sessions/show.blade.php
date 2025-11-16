@@ -44,6 +44,10 @@
                             <i class="fas fa-check-circle mr-1"></i>
                             @if($session->payment_status === 'paid_voucher')
                                 Plătit (Voucher)
+                            @elseif($session->payment_method === 'CASH')
+                                Plătit (Cash)
+                            @elseif($session->payment_method === 'CARD')
+                                Plătit (Card)
                             @else
                                 Plătit
                             @endif
@@ -522,9 +526,57 @@ $sessionProductsJson = $session->products->map(function($sp) {
     </div>
 </div>
 
+<!-- Payment Method Modal (for Super Admin) -->
+<div id="payment-method-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 class="text-xl font-bold text-gray-900">Selectează Metoda de Plată</h3>
+            <button onclick="closePaymentMethodModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-4">
+            <p class="text-gray-700 mb-4">Cum se plătește?</p>
+            <div class="flex gap-4 mb-6">
+                <button 
+                    data-payment-method-btn="CASH"
+                    onclick="selectPaymentMethod('CASH')"
+                    class="flex-1 px-6 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors">
+                    <i class="fas fa-money-bill-wave mr-2"></i>
+                    Cash
+                </button>
+                <button 
+                    data-payment-method-btn="CARD"
+                    onclick="selectPaymentMethod('CARD')"
+                    class="flex-1 px-6 py-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors">
+                    <i class="fas fa-credit-card mr-2"></i>
+                    Card
+                </button>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button onclick="closePaymentMethodModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    Anulează
+                </button>
+                <button 
+                    id="confirm-payment-method-btn"
+                    onclick="confirmPaymentMethod()"
+                    disabled
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Confirmă
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let printInProgress = false;
 const sessionId = {{ $session->id }};
+const sessionIsPaid = {{ $session->isPaid() ? 'true' : 'false' }};
 let availableProducts = [];
 let sessionProducts = @json($sessionProductsJson);
 
@@ -973,24 +1025,114 @@ function showFiscalResult(type, message, file) {
 
 // ===== PAYMENT STATUS TOGGLE (Super Admin Only) =====
 
-async function togglePaymentStatus(sessionId) {
-    if (!confirm('Sigur doriți să schimbați statusul de plată al acestei sesiuni?')) {
+let paymentMethodModalSessionId = null;
+let selectedPaymentMethod = null;
+
+function togglePaymentStatus(sessionId) {
+    // Check if session is currently paid using the PHP variable
+    if (sessionIsPaid) {
+        // Session is paid, mark as unpaid directly (no modal needed)
+        if (!confirm('Sigur doriți să marcați sesiunea ca neplătită?')) {
+            return;
+        }
+        markPaymentStatus(sessionId, null);
+    } else {
+        // Session is unpaid, show modal to select payment method
+        openPaymentMethodModal(sessionId);
+    }
+}
+
+function openPaymentMethodModal(sessionId) {
+    paymentMethodModalSessionId = sessionId;
+    selectedPaymentMethod = null;
+    
+    // Reset modal state
+    document.querySelectorAll('[data-payment-method-btn]').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+        btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
+    });
+    
+    // Reset confirm button
+    const confirmBtn = document.getElementById('confirm-payment-method-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+    }
+    
+    // Show modal
+    document.getElementById('payment-method-modal').classList.remove('hidden');
+}
+
+function closePaymentMethodModal() {
+    document.getElementById('payment-method-modal').classList.add('hidden');
+    paymentMethodModalSessionId = null;
+    selectedPaymentMethod = null;
+}
+
+function selectPaymentMethod(method) {
+    selectedPaymentMethod = method;
+    
+    // Update UI
+    document.querySelectorAll('[data-payment-method-btn]').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+        btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
+    });
+    
+    const selectedBtn = document.querySelector(`[data-payment-method-btn="${method}"]`);
+    if (selectedBtn) {
+        selectedBtn.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+        selectedBtn.classList.add('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+    }
+    
+    // Enable confirm button
+    document.getElementById('confirm-payment-method-btn').disabled = false;
+}
+
+async function confirmPaymentMethod() {
+    if (!selectedPaymentMethod || !paymentMethodModalSessionId) {
+        alert('Selectați o metodă de plată');
         return;
     }
+    
+    // Save values before closing modal (since closePaymentMethodModal sets them to null)
+    const sessionIdToUse = paymentMethodModalSessionId;
+    const paymentMethodToUse = selectedPaymentMethod;
+    
+    // Close modal
+    closePaymentMethodModal();
+    
+    // Mark as paid with selected payment method
+    markPaymentStatus(sessionIdToUse, paymentMethodToUse);
+}
 
+async function markPaymentStatus(sessionId, paymentMethod) {
     const btn = document.getElementById('toggle-payment-status-btn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Se procesează...';
 
+    // Ensure sessionId is a number
+    const sessionIdNum = parseInt(sessionId, 10);
+    if (isNaN(sessionIdNum)) {
+        alert('ID sesiune invalid: ' + sessionId);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        return;
+    }
+
     try {
-        const response = await fetch(`/sessions/${sessionId}/toggle-payment-status`, {
+        const url = `/sessions/${sessionIdNum}/toggle-payment-status`;
+        console.log('Sending request to:', url, 'with payment_method:', paymentMethod);
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 'Accept': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                payment_method: paymentMethod
+            })
         });
 
         if (!response.ok) {
@@ -1007,7 +1149,7 @@ async function togglePaymentStatus(sessionId) {
             throw new Error(result.message || 'Eroare necunoscută');
         }
     } catch (error) {
-        console.error('Error toggling payment status:', error);
+        console.error('Error updating payment status:', error);
         alert('Eroare: ' + error.message);
         btn.disabled = false;
         btn.innerHTML = originalText;

@@ -614,13 +614,29 @@ class SessionsController extends Controller
             ], 403);
         }
 
-        // Get session (super admin can access any session)
-        $session = PlaySession::find($id);
+        // Validate payment_method if provided
+        $request->validate([
+            'payment_method' => 'nullable|in:CASH,CARD',
+        ]);
 
-        if (!$session) {
+        // Ensure ID is an integer
+        $sessionId = (int) $id;
+        
+        // Get session (super admin can access any session)
+        // Use findOrFail to get better error message, but catch it to return JSON
+        try {
+            $session = PlaySession::findOrFail($sessionId);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            // Log for debugging
+            \Log::warning('Session not found in togglePaymentStatus', [
+                'requested_id' => $id,
+                'casted_id' => $sessionId,
+                'user_id' => $user->id,
+            ]);
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Sesiunea nu a fost găsită'
+                'message' => 'Sesiunea nu a fost găsită (ID: ' . $sessionId . ')'
             ], 404);
         }
 
@@ -640,16 +656,25 @@ class SessionsController extends Controller
             ]);
         } else {
             // Mark as paid
-            $session->update([
+            $paymentMethod = $request->input('payment_method');
+            
+            $updateData = [
                 'paid_at' => now(),
                 'payment_status' => 'paid',
-                'payment_method' => null, // No payment method specified when toggled manually
-            ]);
+            ];
+            
+            // Add payment method if provided
+            if ($paymentMethod && in_array($paymentMethod, ['CASH', 'CARD'])) {
+                $updateData['payment_method'] = $paymentMethod;
+            }
+            
+            $session->update($updateData);
             
             return response()->json([
                 'success' => true,
-                'message' => 'Sesiunea a fost marcată ca plătită',
+                'message' => 'Sesiunea a fost marcată ca plătită' . ($paymentMethod ? ' (' . ($paymentMethod === 'CASH' ? 'Cash' : 'Card') . ')' : ''),
                 'is_paid' => true,
+                'payment_method' => $paymentMethod,
             ]);
         }
     }
