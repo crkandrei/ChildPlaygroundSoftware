@@ -8,9 +8,9 @@
         @media print {
             body {
                 margin: 0;
-                padding: 20px;
+                padding: 2px;
                 font-family: 'Courier New', monospace;
-                font-size: 12pt;
+                font-size: 9pt;
             }
             .no-print {
                 display: none !important;
@@ -20,8 +20,8 @@
         @media screen {
             body {
                 font-family: 'Courier New', monospace;
-                font-size: 14pt;
-                padding: 20px;
+                font-size: 12pt;
+                padding: 10px;
                 max-width: 80mm;
                 margin: 0 auto;
                 background: #f5f5f5;
@@ -30,10 +30,10 @@
         
         body {
             margin: 0;
-            padding: 20px;
+            padding: 2px;
             font-family: 'Courier New', monospace;
-            font-size: 12pt;
-            line-height: 1.5;
+            font-size: 9pt;
+            line-height: 1.1;
         }
         
         .report-content {
@@ -42,19 +42,22 @@
         }
         
         .report-line {
-            margin: 5px 0;
+            margin: 0;
+            padding: 0;
             font-weight: bold;
         }
         
         .report-title {
             font-weight: bold;
-            font-size: 14pt;
-            margin-bottom: 10px;
+            font-size: 10pt;
+            margin-bottom: 0;
+            margin-top: 0;
         }
         
         .report-separator {
             border-top: 1px dashed #000;
-            margin: 10px 0;
+            margin: 1px 0;
+            padding: 0;
         }
         
         .no-print {
@@ -83,31 +86,24 @@
         <div class="report-line report-title">RAPORT FINAL DE ZI</div>
         <div class="report-line">{{ $date }}</div>
         <div class="report-separator"></div>
-        
         <div class="report-line">Sesiuni Total: {{ $totalBilledHours }} {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
-        
-        <div class="report-line">Sesiuni Birthday: {{ $birthdayBilledHours }}</div>
-        
         @if($totalVoucherHours && $totalVoucherHours !== '0h' && $totalVoucherHours !== '0m')
         <div class="report-line">Total Voucher: {{ $totalVoucherHours }}</div>
         @endif
-        
         @if(count($productsGrouped) > 0)
         <div class="report-separator"></div>
-        <div class="report-line report-title" style="font-size: 12pt; margin-top: 10px;">PRODUSE</div>
+        <div class="report-line report-title" style="font-size: 9pt;">PRODUSE</div>
         @foreach($productsGrouped as $product)
         <div class="report-line">{{ $product['name'] }}, {{ $product['quantity'] }} bucati, {{ number_format($product['total'], 2, ',', '.') }} LEI</div>
         @endforeach
         <div class="report-separator"></div>
         <div class="report-line">Total Produse: {{ number_format($totalProductsValue, 2, ',', '.') }} lei</div>
         @endif
-        
         <div class="report-separator"></div>
         <div class="report-line">Total Sesiuni: {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
-        
         @if($cashTotal > 0 || $cardTotal > 0 || $voucherTotal > 0)
         <div class="report-separator"></div>
-        <div class="report-line report-title" style="font-size: 12pt; margin-top: 10px;">PLĂȚI</div>
+        <div class="report-line report-title" style="font-size: 9pt;">PLĂȚI</div>
         @if($cashTotal > 0)
         <div class="report-line">Cash: {{ number_format($cashTotal, 2, ',', '.') }} lei</div>
         @endif
@@ -118,7 +114,6 @@
         <div class="report-line">Voucher: {{ number_format($voucherTotal, 2, ',', '.') }} lei</div>
         @endif
         @endif
-        
         <div class="report-separator"></div>
         <div class="report-line">Total General: {{ number_format($totalSessionsValue + $totalProductsValue, 2, ',', '.') }} lei</div>
     </div>
