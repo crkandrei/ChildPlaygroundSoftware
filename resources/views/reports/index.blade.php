@@ -90,10 +90,6 @@
                         <div id="bucket_gt3h" class="text-xl md:text-2xl font-bold mt-1">-</div>
                     </div>
                 </div>
-                <div class="mt-3 md:mt-4 bg-gray-50 rounded p-3 md:p-4 text-center">
-                    <div class="text-xs md:text-sm text-gray-600">Vârsta medie a copiilor</div>
-                    <div id="avg_age" class="text-xl md:text-2xl font-bold mt-1">-</div>
-                </div>
             </div>
         </div>
         
@@ -213,21 +209,6 @@
                 document.getElementById('bucket_2_3').textContent = (r.buckets_today.h2_3.percent || 0) + '%';
                 document.getElementById('bucket_gt3h').textContent = (r.buckets_today.gt_3h.percent || 0) + '%';
                 
-                // Format age as "X ani și Y luni"
-                const years = r.avg_child_age_years || 0;
-                const months = r.avg_child_age_months || 0;
-                let ageText = '';
-                if (years > 0 && months > 0) {
-                    ageText = years + ' ani și ' + months + ' luni';
-                } else if (years > 0) {
-                    ageText = years + ' ani';
-                } else if (months > 0) {
-                    ageText = months + ' luni';
-                } else {
-                    ageText = '0 ani';
-                }
-                document.getElementById('avg_age').textContent = ageText;
-                
                 renderHourlyTrafficChart(r.hourly_traffic || Array(24).fill(0));
             };
             if (reportsData.success) {
@@ -235,8 +216,6 @@
             } else {
                 setReports({
                     buckets_today: { lt_1h: { percent: 0 }, h1_2: { percent: 0 }, h2_3: { percent: 0 }, gt_3h: { percent: 0 } },
-                    avg_child_age_years: 0,
-                    avg_child_age_months: 0,
                     hourly_traffic: Array(24).fill(0)
                 });
             }
@@ -252,21 +231,23 @@
         const ctx = document.getElementById('hourlyTrafficChart').getContext('2d');
         const isMobile = window.innerWidth < 768;
         
-        // Store data for PDF export
+        // Store data for PDF export (full data)
         currentHourlyTrafficData = hourlyData;
         
-        // Create labels for hour intervals (0-1, 1-2, ..., 23-0)
+        // Filter to only show hours 8-23
+        const filteredData = [];
         const labels = [];
-        for (let i = 0; i < 24; i++) {
-            const nextHour = (i + 1) % 24;
+        for (let i = 8; i <= 23; i++) {
+            const nextHour = i + 1;
             labels.push(`${i}-${nextHour}`);
+            filteredData.push(hourlyData[i] || 0);
         }
         
         const data = {
             labels: labels,
             datasets: [{
                 label: 'Număr sesiuni',
-                data: hourlyData,
+                data: filteredData,
                 backgroundColor: 'rgba(99, 102, 241, 0.8)',
                 borderColor: 'rgba(99, 102, 241, 1)',
                 borderWidth: 1,
@@ -617,10 +598,10 @@
         doc.setFontSize(12);
         doc.text('pentru zilele de: ' + weekdaysText, 14, 36);
         
-        // Prepare table data
+        // Prepare table data - only hours 8-23
         const tableData = [];
-        for (let i = 0; i < 24; i++) {
-            const nextHour = (i + 1) % 24;
+        for (let i = 8; i <= 23; i++) {
+            const nextHour = i + 1;
             const interval = `${i}-${nextHour}`;
             const count = currentHourlyTrafficData[i] || 0;
             tableData.push([interval, count.toString()]);
