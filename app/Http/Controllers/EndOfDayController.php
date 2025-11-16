@@ -204,18 +204,23 @@ class EndOfDayController extends Controller
             }
         }
         
-        // Calculate total sessions value
-        $totalSessionsValue = $birthdaySessionsTotal + $regularSessionsTotal;
-        
         // Calculate payment breakdown: cash, card, voucher
+        // Also calculate totalSessionsValue (time only) for paid sessions
         $cashTotal = 0;
         $cardTotal = 0;
         $voucherTotal = 0;
+        $totalSessionsValue = 0; // Only time price for paid sessions (without products)
         
         foreach ($sessionsToday as $session) {
             if ($session->ended_at && $session->isPaid()) {
-                $amountCollected = $session->getAmountCollected();
+                $amountCollected = $session->getAmountCollected(); // This includes time + products
                 $voucherPrice = $session->getVoucherPrice();
+                
+                // Calculate time price only (without products) for paid sessions
+                $timePrice = $session->calculated_price ?? $session->calculatePrice();
+                $finalTimePrice = max(0, $timePrice - $voucherPrice);
+                // Total sessions value = time paid + voucher value (time only, no products)
+                $totalSessionsValue += $finalTimePrice + $voucherPrice;
                 
                 // Add voucher value
                 if ($voucherPrice > 0) {
@@ -237,9 +242,12 @@ class EndOfDayController extends Controller
             }
         }
 
-        // Get all products sold today
-        $sessionIds = $sessionsToday->pluck('id');
-        $productsSold = PlaySessionProduct::whereIn('play_session_id', $sessionIds)
+        // Get all products sold today (only from paid sessions)
+        $paidSessionIds = $sessionsToday->filter(function($session) {
+            return $session->ended_at && $session->isPaid();
+        })->pluck('id');
+        
+        $productsSold = PlaySessionProduct::whereIn('play_session_id', $paidSessionIds)
             ->with('product')
             ->get();
 
