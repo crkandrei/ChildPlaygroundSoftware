@@ -99,8 +99,6 @@
         <div class="report-separator"></div>
         <div class="report-line">Total Produse: {{ number_format($totalProductsValue, 2, ',', '.') }} lei</div>
         @endif
-        <div class="report-separator"></div>
-        <div class="report-line">Total Sesiuni: {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
         @if($cashTotal > 0 || $cardTotal > 0 || $voucherTotal > 0)
         <div class="report-separator"></div>
         <div class="report-line report-title" style="font-size: 9pt;">PLĂȚI</div>
