@@ -364,13 +364,61 @@
 
             const pauseBtn = tr.querySelector(`[data-pause="${row.id}"]`);
             if (pauseBtn) pauseBtn.addEventListener('click', async () => {
-                await fetch(`/dashboard-api/sessions/${row.id}/pause`, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, credentials: 'same-origin' });
-                fetchData();
+                // Prevent double-click
+                if (pauseBtn.disabled) return;
+                
+                // Disable button immediately and show loader
+                pauseBtn.disabled = true;
+                const originalContent = pauseBtn.innerHTML;
+                pauseBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                pauseBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                
+                try {
+                    const res = await fetch(`/dashboard-api/sessions/${row.id}/pause`, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (data.success) {
+                        fetchData();
+                    } else {
+                        alert(data.message || 'Nu s-a putut pune pe pauză');
+                        pauseBtn.disabled = false;
+                        pauseBtn.innerHTML = originalContent;
+                        pauseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                } catch (error) {
+                    alert('Eroare de rețea la pauză');
+                    pauseBtn.disabled = false;
+                    pauseBtn.innerHTML = originalContent;
+                    pauseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             });
             const resumeBtn = tr.querySelector(`[data-resume="${row.id}"]`);
             if (resumeBtn) resumeBtn.addEventListener('click', async () => {
-                await fetch(`/dashboard-api/sessions/${row.id}/resume`, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, credentials: 'same-origin' });
-                fetchData();
+                // Prevent double-click
+                if (resumeBtn.disabled) return;
+                
+                // Disable button immediately and show loader
+                resumeBtn.disabled = true;
+                const originalContent = resumeBtn.innerHTML;
+                resumeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                resumeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                
+                try {
+                    const res = await fetch(`/dashboard-api/sessions/${row.id}/resume`, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (data.success) {
+                        fetchData();
+                    } else {
+                        alert(data.message || 'Nu s-a putut relua');
+                        resumeBtn.disabled = false;
+                        resumeBtn.innerHTML = originalContent;
+                        resumeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                } catch (error) {
+                    alert('Eroare de rețea la reluare');
+                    resumeBtn.disabled = false;
+                    resumeBtn.innerHTML = originalContent;
+                    resumeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             });
             const stopBtn = tr.querySelector(`[data-stop="${row.id}"]`);
             if (stopBtn) stopBtn.addEventListener('click', async () => {
