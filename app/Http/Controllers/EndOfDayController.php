@@ -61,6 +61,7 @@ class EndOfDayController extends Controller
         // Calculate statistics
         $totalSessions = $sessionsToday->count();
         $birthdaySessions = $sessionsToday->where('is_birthday', true)->count();
+        $jungleSessions = $sessionsToday->where('is_jungle', true)->count();
         
         // Calculate payment breakdown: cash, card, voucher
         $cashTotal = 0;
@@ -105,6 +106,7 @@ class EndOfDayController extends Controller
         $totalMoney = $cashTotal + $cardTotal + $voucherTotal;
 
         // Calculate total billed hours
+        // IMPORTANT: Jungle sessions ARE INCLUDED in billed hours (unlike Birthday which is excluded)
         $totalBilledHours = 0;
         foreach ($sessionsToday as $session) {
             if ($session->ended_at && !$session->is_birthday) {
@@ -117,6 +119,7 @@ class EndOfDayController extends Controller
         return view('end-of-day.index', [
             'totalSessions' => $totalSessions,
             'birthdaySessions' => $birthdaySessions,
+            'jungleSessions' => $jungleSessions,
             'totalMoney' => $totalMoney,
             'totalBilledHours' => $totalBilledHours,
             'cashTotal' => round($cashTotal, 2),
@@ -169,13 +172,17 @@ class EndOfDayController extends Controller
         // Calculate statistics
         $totalSessions = $sessionsToday->count();
         $birthdaySessions = $sessionsToday->where('is_birthday', true)->count();
-        $regularSessions = $sessionsToday->where('is_birthday', false)->count();
+        $jungleSessions = $sessionsToday->where('is_jungle', true)->count();
+        $regularSessions = $sessionsToday->where('is_birthday', false)->where('is_jungle', false)->count();
         
         // Calculate total billed hours and totals by category
+        // IMPORTANT: Jungle sessions ARE INCLUDED in billed hours and reports (unlike Birthday which is excluded)
         $totalBilledHours = 0;
         $birthdayBilledHours = 0;
+        $jungleBilledHours = 0;
         $regularBilledHours = 0;
         $birthdaySessionsTotal = 0;
+        $jungleSessionsTotal = 0;
         $regularSessionsTotal = 0;
         $totalVoucherHours = 0;
         
@@ -194,13 +201,20 @@ class EndOfDayController extends Controller
                     if ($session->calculated_price) {
                         $birthdaySessionsTotal += $session->calculated_price;
                     }
+                } elseif ($session->is_jungle) {
+                    $jungleBilledHours += $roundedHours;
+                    if ($session->calculated_price) {
+                        $jungleSessionsTotal += $session->calculated_price;
+                    }
+                    // Jungle sessions ARE INCLUDED in total billed hours
+                    $totalBilledHours += $roundedHours;
                 } else {
                     $regularBilledHours += $roundedHours;
                     if ($session->calculated_price) {
                         $regularSessionsTotal += $session->calculated_price;
                     }
+                    $totalBilledHours += $roundedHours;
                 }
-                $totalBilledHours += $roundedHours;
             }
         }
         
@@ -289,12 +303,15 @@ class EndOfDayController extends Controller
         return view('end-of-day.print-non-fiscal', [
             'totalSessions' => $totalSessions,
             'birthdaySessions' => $birthdaySessions,
+            'jungleSessions' => $jungleSessions,
             'regularSessions' => $regularSessions,
             'birthdaySessionsTotal' => $birthdaySessionsTotal,
+            'jungleSessionsTotal' => $jungleSessionsTotal,
             'regularSessionsTotal' => $regularSessionsTotal,
             'totalSessionsValue' => $totalSessionsValue,
             'totalBilledHours' => $formatHours($totalBilledHours),
             'birthdayBilledHours' => $formatHours($birthdayBilledHours),
+            'jungleBilledHours' => $formatHours($jungleBilledHours),
             'totalVoucherHours' => $formatHours($totalVoucherHours),
             'productsGrouped' => $productsGrouped,
             'totalProductsValue' => $totalProductsValue,

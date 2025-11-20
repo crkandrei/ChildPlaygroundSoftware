@@ -228,10 +228,13 @@
         date: getCurrentLocalDate() // Current date in local timezone (YYYY-MM-DD format)
     };
     let timerIntervals = new Map();
+    let pauseWarningIntervals = new Map();
 
     function clearAllTimers() {
         timerIntervals.forEach((intv) => clearInterval(intv));
         timerIntervals.clear();
+        pauseWarningIntervals.forEach((intv) => clearInterval(intv));
+        pauseWarningIntervals.clear();
     }
 
     function formatDateTime(iso) {
@@ -284,6 +287,73 @@
         timerIntervals.set(row.id, intv);
     }
 
+    function startPauseWarningCheck(row) {
+        console.log('Checking pause warning for session:', row.id, {
+            ended_at: row.ended_at,
+            is_paused: row.is_paused,
+            last_pause_end: row.last_pause_end,
+            pause_threshold: row.pause_threshold,
+            current_pause_minutes: row.current_pause_minutes
+        });
+        
+        // Only check for active sessions that are paused
+        if (row.ended_at) {
+            console.log(`Session ${row.id} is ended, skipping pause check`);
+            return;
+        }
+        
+        if (!row.is_paused) {
+            console.log(`Session ${row.id} is not paused, skipping pause check`);
+            return;
+        }
+        
+        if (!row.last_pause_end) {
+            console.log(`Session ${row.id} has no last_pause_end, skipping pause check`);
+            return;
+        }
+
+        const warningEl = document.getElementById(`pause-warning-${row.id}`);
+        if (!warningEl) {
+            console.warn(`Warning element not found for session ${row.id}`);
+            return;
+        }
+
+        const pauseThreshold = row.pause_threshold || 15;
+        const pauseEndMs = Date.parse(row.last_pause_end);
+        
+        if (!pauseEndMs || isNaN(pauseEndMs)) {
+            console.warn(`Invalid pause end time for session ${row.id}:`, row.last_pause_end);
+            return;
+        }
+
+        console.log(`Starting pause check for session ${row.id}, threshold: ${pauseThreshold} minutes`);
+
+        const checkPause = () => {
+            const now = Date.now();
+            const pauseSeconds = Math.max(0, Math.floor((now - pauseEndMs) / 1000));
+            const pauseMinutes = Math.floor(pauseSeconds / 60);
+
+            console.log(`Session ${row.id} pause check: ${pauseMinutes} minutes (threshold: ${pauseThreshold})`);
+
+            if (pauseMinutes >= pauseThreshold) {
+                // Show warning badge with live update (appears when pause equals or exceeds threshold)
+                warningEl.innerHTML = `<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800 animate-pulse" title="Pauză lungă: ${pauseMinutes} minute (threshold: ${pauseThreshold} minute)"><i class="fas fa-exclamation-triangle mr-1"></i>Pauză ${pauseMinutes}m</span>`;
+                console.log(`Showing pause warning for session ${row.id}: ${pauseMinutes} minutes`);
+            } else {
+                // Clear warning if pause is below threshold
+                warningEl.innerHTML = '';
+            }
+        };
+
+        // Check immediately
+        checkPause();
+        
+        // Check every 10 seconds for live updates (will update badge when threshold is exceeded)
+        const intv = setInterval(checkPause, 10000);
+        pauseWarningIntervals.set(row.id, intv);
+        console.log(`Started pause warning interval for session ${row.id}`);
+    }
+
     async function fetchData() {
         const url = new URL(`{{ route('sessions.data') }}`, window.location.origin);
         url.searchParams.set('page', state.page);
@@ -308,8 +378,21 @@
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                    ${row.child_name || '-'}
-                    ${row.is_birthday ? `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-pink-100 text-pink-800"><i class="fas fa-birthday-cake mr-1"></i>Birthday</span>` : ''}
+                    <div class="flex items-center">
+                        <span>${row.child_name || '-'}</span>
+                        ${row.is_birthday ? `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-pink-100 text-pink-800"><i class="fas fa-birthday-cake mr-1"></i>Birthday</span>` : ''}
+                        ${row.is_jungle ? `<span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800"><i class="fas fa-tree mr-1"></i>Jungle</span>` : ''}
+                        <span id="pause-warning-${row.id}" class="ml-2">
+                            ${(() => {
+                                // Only show badge for CURRENT active pause that exceeds threshold
+                                // Don't show for historical pauses or if session is not paused
+                                if (row.is_paused && !row.ended_at && row.current_pause_minutes >= (row.pause_threshold || 15)) {
+                                    return `<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800 animate-pulse" title="Pauză lungă: ${row.current_pause_minutes} minute (threshold: ${row.pause_threshold || 15} minute)"><i class="fas fa-exclamation-triangle mr-1"></i>Pauză ${row.current_pause_minutes}m</span>`;
+                                }
+                                return '';
+                            })()}
+                        </span>
+                    </div>
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-mono" id="timer-${row.id}">--:--:--</td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
@@ -319,7 +402,7 @@
                     ` : '-'}
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm">
-                    ${row.ended_at && !row.is_birthday ? `
+                    ${row.ended_at && !row.is_birthday && !row.is_jungle ? `
                         ${row.is_paid ? `
                             <span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 inline-flex items-center w-fit">
                                 <i class="fas fa-check-circle mr-1"></i>${row.payment_status === 'paid_voucher' ? 'Plătit (Voucher)' : 'Plătit'}
@@ -337,13 +420,22 @@
                             <i class="fas fa-eye mr-1"></i>Detalii
                         </a>
                         ${!row.is_paid ? `
-                            <button onclick="toggleBirthdayQuick(${row.id}, ${row.is_birthday})" 
-                                class="px-2 py-1 ${row.is_birthday ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs transition-colors"
-                                title="${row.is_birthday ? 'Demarchează Birthday' : 'Marchează ca Birthday'}">
-                                <i class="fas fa-birthday-cake mr-1"></i>${row.is_birthday ? 'ON' : 'OFF'}
-                            </button>
+                            ${!row.is_jungle ? `
+                                <button onclick="toggleBirthdayQuick(${row.id}, ${row.is_birthday})" 
+                                    class="px-2 py-1 ${row.is_birthday ? 'bg-pink-600 hover:bg-pink-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs transition-colors"
+                                    title="${row.is_birthday ? 'Demarchează Birthday' : 'Marchează ca Birthday'}">
+                                    <i class="fas fa-birthday-cake mr-1"></i>${row.is_birthday ? 'ON' : 'OFF'}
+                                </button>
+                            ` : ''}
+                            ${row.can_toggle_jungle && !row.is_birthday ? `
+                                <button onclick="toggleJungleQuick(${row.id}, ${row.is_jungle})" 
+                                    class="px-2 py-1 ${row.is_jungle ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs transition-colors"
+                                    title="${row.is_jungle ? 'Demarchează Jungle' : 'Marchează ca Jungle'}">
+                                    <i class="fas fa-tree mr-1"></i>${row.is_jungle ? 'ON' : 'OFF'}
+                                </button>
+                            ` : ''}
                         ` : ''}
-                        ${row.ended_at && !row.is_birthday && !row.is_paid ? `
+                        ${row.ended_at && !row.is_birthday && !row.is_jungle && !row.is_paid ? `
                             <button onclick="openFiscalModal(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
                                 <i class="fas fa-receipt mr-1"></i>Bon
                             </button>
@@ -361,6 +453,21 @@
             `;
             tbody.appendChild(tr);
             startLiveTimer(row);
+            
+            // Debug: log row data for paused sessions
+            if (row.is_paused && !row.ended_at) {
+                console.log('Paused session found:', {
+                    id: row.id,
+                    child_name: row.child_name,
+                    is_paused: row.is_paused,
+                    last_pause_end: row.last_pause_end,
+                    pause_threshold: row.pause_threshold,
+                    current_pause_minutes: row.current_pause_minutes,
+                    has_long_pause: row.has_long_pause
+                });
+            }
+            
+            startPauseWarningCheck(row);
 
             const pauseBtn = tr.querySelector(`[data-pause="${row.id}"]`);
             if (pauseBtn) pauseBtn.addEventListener('click', async () => {
@@ -395,6 +502,19 @@
             if (resumeBtn) resumeBtn.addEventListener('click', async () => {
                 // Prevent double-click
                 if (resumeBtn.disabled) return;
+                
+                // Hide pause warning badge immediately
+                const warningEl = document.getElementById(`pause-warning-${row.id}`);
+                if (warningEl) {
+                    warningEl.innerHTML = '';
+                }
+                
+                // Stop pause warning interval for this session
+                const pauseInterval = pauseWarningIntervals.get(row.id);
+                if (pauseInterval) {
+                    clearInterval(pauseInterval);
+                    pauseWarningIntervals.delete(row.id);
+                }
                 
                 // Disable button immediately and show loader
                 resumeBtn.disabled = true;
@@ -983,6 +1103,36 @@ async function toggleBirthdayQuick(sessionId, currentStatus) {
         fetchData();
     } catch (error) {
         console.error('Error toggling birthday status:', error);
+        alert('Eroare: ' + error.message);
+    }
+}
+
+// Quick toggle jungle status from list
+async function toggleJungleQuick(sessionId, currentStatus) {
+    const newStatus = !currentStatus;
+    
+    try {
+        const response = await fetch(`/sessions/${sessionId}/update-jungle-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                is_jungle: newStatus
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la actualizarea statusului');
+        }
+
+        // Reload table data
+        fetchData();
+    } catch (error) {
+        console.error('Error toggling jungle status:', error);
         alert('Eroare: ' + error.message);
     }
 }

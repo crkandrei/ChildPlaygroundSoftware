@@ -20,6 +20,7 @@ class PlaySession extends Model
         'calculated_price',
         'price_per_hour_at_calculation',
         'is_birthday',
+        'is_jungle',
         'paid_at',
         'voucher_hours',
         'payment_status',
@@ -32,9 +33,25 @@ class PlaySession extends Model
         'calculated_price' => 'decimal:2',
         'price_per_hour_at_calculation' => 'decimal:2',
         'is_birthday' => 'boolean',
+        'is_jungle' => 'boolean',
         'paid_at' => 'datetime',
         'voucher_hours' => 'decimal:2',
     ];
+
+    /**
+     * Boot method to ensure mutual exclusivity
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($session) {
+            // Ensure mutual exclusivity: cannot be both birthday and jungle
+            if ($session->is_birthday && $session->is_jungle) {
+                throw new \Exception('O sesiune nu poate fi simultan Birthday și Jungle');
+            }
+        });
+    }
 
     /**
      * Get the tenant that owns the play session.
@@ -128,6 +145,86 @@ class PlaySession extends Model
     }
 
     /**
+     * Get the maximum pause duration in minutes between intervals
+     * Returns the longest gap between consecutive intervals
+     * Includes current pause if session is paused
+     * 
+     * @return int Maximum pause duration in minutes (0 if no pauses or only one interval)
+     */
+    public function getMaxPauseMinutes(): int
+    {
+        $intervals = $this->relationLoaded('intervals') ? $this->intervals : $this->intervals()->get();
+        
+        if ($intervals->count() < 2 && !$this->isPaused()) {
+            return 0; // No pauses if less than 2 intervals and not paused
+        }
+
+        // Sort intervals by started_at
+        $sortedIntervals = $intervals->sortBy('started_at')->values();
+        
+        $maxPauseMinutes = 0;
+        
+        // Check gaps between consecutive intervals
+        for ($i = 0; $i < $sortedIntervals->count() - 1; $i++) {
+            $currentInterval = $sortedIntervals[$i];
+            $nextInterval = $sortedIntervals[$i + 1];
+            
+            // Both intervals must be closed to calculate pause
+            if ($currentInterval->ended_at && $nextInterval->started_at) {
+                $pauseSeconds = $currentInterval->ended_at->diffInSeconds($nextInterval->started_at);
+                $pauseMinutes = (int) floor($pauseSeconds / 60);
+                
+                if ($pauseMinutes > $maxPauseMinutes) {
+                    $maxPauseMinutes = $pauseMinutes;
+                }
+            }
+        }
+        
+        // If session is currently paused, check current pause duration
+        if ($this->isPaused() && $sortedIntervals->count() > 0) {
+            $lastInterval = $sortedIntervals->last();
+            if ($lastInterval && $lastInterval->ended_at) {
+                $currentPauseSeconds = $lastInterval->ended_at->diffInSeconds(now());
+                $currentPauseMinutes = (int) floor($currentPauseSeconds / 60);
+                
+                if ($currentPauseMinutes > $maxPauseMinutes) {
+                    $maxPauseMinutes = $currentPauseMinutes;
+                }
+            }
+        }
+        
+        return $maxPauseMinutes;
+    }
+
+    /**
+     * Get current pause duration in minutes if session is paused
+     * Returns 0 if session is not paused
+     * 
+     * @return int Current pause duration in minutes
+     */
+    public function getCurrentPauseMinutes(): int
+    {
+        if (!$this->isPaused()) {
+            return 0;
+        }
+
+        $intervals = $this->relationLoaded('intervals') ? $this->intervals : $this->intervals()->get();
+        $sortedIntervals = $intervals->sortBy('started_at')->values();
+        
+        if ($sortedIntervals->count() === 0) {
+            return 0;
+        }
+
+        $lastInterval = $sortedIntervals->last();
+        if ($lastInterval && $lastInterval->ended_at) {
+            $currentPauseSeconds = $lastInterval->ended_at->diffInSeconds(now());
+            return (int) floor($currentPauseSeconds / 60);
+        }
+        
+        return 0;
+    }
+
+    /**
      * Get formatted duration string
      */
     public function getFormattedDuration(): string
@@ -146,14 +243,20 @@ class PlaySession extends Model
     /**
      * Start a new play session
      */
-    public static function startSession(Tenant $tenant, Child $child, string $braceletCode, bool $isBirthday = false): self
+    public static function startSession(Tenant $tenant, Child $child, string $braceletCode, bool $isBirthday = false, bool $isJungle = false): self
     {
+        // Ensure mutual exclusivity
+        if ($isBirthday && $isJungle) {
+            throw new \Exception('O sesiune nu poate fi simultan Birthday și Jungle');
+        }
+
         $session = self::create([
             'tenant_id' => $tenant->id,
             'child_id' => $child->id,
             'bracelet_code' => $braceletCode,
             'started_at' => now(),
             'is_birthday' => $isBirthday,
+            'is_jungle' => $isJungle,
         ]);
 
         // Create initial open interval

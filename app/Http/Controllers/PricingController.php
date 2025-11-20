@@ -176,6 +176,67 @@ class PricingController extends Controller
     }
 
     /**
+     * Show jungle session days configuration
+     */
+    public function showJungleSessionDays(Request $request)
+    {
+        $this->checkPricingAccess();
+
+        $tenantId = $this->getTenantIdForUser($request->get('tenant_id'));
+        if (!$tenantId) {
+            return redirect()->route('pricing.index')
+                ->with('error', 'Selectați un tenant');
+        }
+
+        $tenant = Tenant::findOrFail($tenantId);
+        $this->ensureTenantAccess($tenant->id);
+        
+        // Get existing jungle session days from configuration
+        $jungleSessionDays = \App\Models\TenantConfiguration::getJungleSessionDays($tenant->id);
+
+        return view('pricing.jungle-session-days', [
+            'tenant' => $tenant,
+            'jungleSessionDays' => $jungleSessionDays,
+        ]);
+    }
+
+    /**
+     * Update jungle session days configuration
+     */
+    public function updateJungleSessionDays(Request $request)
+    {
+        $this->checkPricingAccess();
+
+        $tenantId = $this->getTenantIdForUser($request->tenant_id);
+        if (!$tenantId) {
+            return redirect()->route('pricing.index')
+                ->with('error', 'Tenant invalid');
+        }
+
+        $request->validate([
+            'days' => 'nullable|array',
+            'days.*' => 'integer|min:0|max:6',
+        ]);
+
+        $tenant = Tenant::findOrFail($tenantId);
+        $this->ensureTenantAccess($tenant->id);
+
+        // Get selected days (array of day numbers: 0=Luni, 1=Marți, ..., 6=Duminică)
+        $selectedDays = $request->days ?? [];
+
+        // Save configuration
+        \App\Models\TenantConfiguration::setJungleSessionDays($tenant->id, $selectedDays);
+
+        $redirectParams = [];
+        if (Auth::user()->isSuperAdmin()) {
+            $redirectParams['tenant_id'] = $tenant->id;
+        }
+
+        return redirect()->route('pricing.index', $redirectParams)
+            ->with('success', 'Zilele pentru sesiuni Jungle au fost actualizate cu succes');
+    }
+
+    /**
      * List special periods
      */
     public function indexSpecialPeriods(Request $request)

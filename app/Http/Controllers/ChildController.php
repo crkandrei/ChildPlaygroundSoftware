@@ -170,6 +170,7 @@ class ChildController extends Controller
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
                         'is_birthday' => $session->is_birthday ?? false,
+                        'is_jungle' => $session->is_jungle ?? false,
                     ];
                 } else {
                     // Closed session: use all intervals
@@ -191,13 +192,14 @@ class ChildController extends Controller
                         'price' => $price,
                         'formatted_price' => $session->getFormattedPrice(),
                         'is_birthday' => $session->is_birthday ?? false,
+                        'is_jungle' => $session->is_jungle ?? false,
                     ];
                 }
             });
 
-        // Calculate total price (exclude birthday sessions)
+        // Calculate total price (exclude birthday and jungle sessions)
         $totalPrice = $playSessions->filter(function($session) {
-            return !($session['is_birthday'] ?? false);
+            return !($session['is_birthday'] ?? false) && !($session['is_jungle'] ?? false);
         })->sum('price');
 
         return view('children.show', compact('child', 'playSessions', 'totalPrice'));

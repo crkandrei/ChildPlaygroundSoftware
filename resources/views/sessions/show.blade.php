@@ -24,7 +24,7 @@
                     <h2 class="text-xl font-bold text-gray-900">Informații Sesiune</h2>
                 </div>
                 <div class="flex items-center gap-3">
-                    @if($session->ended_at && Auth::user() && !$session->is_birthday && !$session->isPaid())
+                    @if($session->ended_at && Auth::user() && !$session->is_birthday && !$session->is_jungle && !$session->isPaid())
                     <button onclick="openFiscalModal({{ $session->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
                         <i class="fas fa-receipt mr-2"></i>
                         Printează Bon
@@ -36,6 +36,11 @@
                     @if($session->is_birthday)
                     <span class="px-3 py-1 text-sm font-medium rounded-full bg-pink-100 text-pink-800">
                         <i class="fas fa-birthday-cake mr-1"></i>Birthday
+                    </span>
+                    @endif
+                    @if($session->is_jungle)
+                    <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
+                        <i class="fas fa-tree mr-1"></i>Jungle
                     </span>
                     @endif
                     @if($session->ended_at)
@@ -170,7 +175,8 @@
                 </div>
                 @endif
                 @if(Auth::user() && !$session->isPaid())
-                <div class="col-span-full pt-4 border-t border-gray-200">
+                <div class="col-span-full pt-4 border-t border-gray-200 space-y-4">
+                    @if(!$session->is_jungle)
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-sm font-medium text-gray-900 mb-1">Tip Sesiune</div>
@@ -182,6 +188,20 @@
                             <span class="ml-3 text-sm font-medium text-gray-700">Birthday</span>
                         </label>
                     </div>
+                    @endif
+                    @if($canToggleJungle && !$session->is_birthday)
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm font-medium text-gray-900 mb-1">Tip Sesiune</div>
+                            <div class="text-xs text-gray-500">Marchează sesiunea ca Jungle pentru a o face gratuită</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="jungle-toggle" class="sr-only peer" {{ $session->is_jungle ? 'checked' : '' }} onchange="toggleJungleStatus({{ $session->id }}, this.checked)">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-700">Jungle</span>
+                        </label>
+                    </div>
+                    @endif
                 </div>
                 @endif
             </div>
@@ -1186,6 +1206,42 @@ async function toggleBirthdayStatus(sessionId, isBirthday) {
         alert('Eroare: ' + error.message);
         // Revert toggle on error
         document.getElementById('birthday-toggle').checked = !isBirthday;
+    }
+}
+
+// ===== JUNGLE STATUS TOGGLE =====
+
+async function toggleJungleStatus(sessionId, isJungle) {
+    try {
+        const response = await fetch(`/sessions/${sessionId}/update-jungle-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                is_jungle: isJungle
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la actualizarea statusului');
+        }
+
+        const result = await response.json();
+        
+        // Reload the page to reflect changes
+        window.location.reload();
+    } catch (error) {
+        console.error('Error toggling jungle status:', error);
+        alert('Eroare: ' + error.message);
+        // Revert toggle on error
+        const jungleToggle = document.getElementById('jungle-toggle');
+        if (jungleToggle) {
+            jungleToggle.checked = !isJungle;
+        }
     }
 }
 
