@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\PlaySession;
 use App\Models\Tenant;
 use App\Models\SpecialPeriodRate;
+use App\Models\TenantConfiguration;
 use Carbon\Carbon;
 
 class PricingService
@@ -17,8 +18,8 @@ class PricingService
      */
     public function calculateSessionPrice(PlaySession $session): float
     {
-        // Birthday sessions are free
-        if ($session->is_birthday) {
+        // Birthday and Jungle sessions are free
+        if ($session->is_birthday || $session->is_jungle) {
             return 0.00;
         }
 
@@ -183,8 +184,8 @@ class PricingService
      */
     public function calculateAndSavePrice(PlaySession $session): PlaySession
     {
-        // Birthday sessions are free
-        if ($session->is_birthday) {
+        // Birthday and Jungle sessions are free
+        if ($session->is_birthday || $session->is_jungle) {
             $session->update([
                 'calculated_price' => 0.00,
                 'price_per_hour_at_calculation' => 0.00,
@@ -206,6 +207,35 @@ class PricingService
         ]);
 
         return $session;
+    }
+
+    /**
+     * Check if Jungle session is allowed for a tenant on a specific date
+     * 
+     * @param Tenant $tenant
+     * @param Carbon|string|null $date Date to check. If null, uses current date.
+     * @return bool True if Jungle session is allowed on the specified date
+     */
+    public function isJungleSessionAllowed(Tenant $tenant, $date = null): bool
+    {
+        $checkDate = $date ? Carbon::parse($date) : Carbon::now();
+        
+        // Get allowed days from configuration
+        $allowedDays = TenantConfiguration::getJungleSessionDays($tenant->id);
+        
+        // If no configuration exists, default to not allowed
+        if (empty($allowedDays)) {
+            return false;
+        }
+
+        // Convert Carbon dayOfWeek to our system dayOfWeek
+        // Carbon: 0=Sunday, 1=Monday, ..., 6=Saturday
+        // Our system: 0=Monday, 1=Tuesday, ..., 6=Sunday
+        $carbonDayOfWeek = $checkDate->dayOfWeek; // Carbon: 0=Sunday, 6=Saturday
+        $systemDayOfWeek = $carbonDayOfWeek === 0 ? 6 : $carbonDayOfWeek - 1; // Convert to our system (0=Monday)
+
+        // Check if current day is in allowed days
+        return in_array($systemDayOfWeek, $allowedDays);
     }
 }
 

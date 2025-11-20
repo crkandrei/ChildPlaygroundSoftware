@@ -21,6 +21,7 @@ class AssignBraceletRequest extends FormRequest
             ],
             'child_id' => ['required', 'exists:children,id'],
             'is_birthday' => ['nullable', 'boolean'],
+            'is_jungle' => ['nullable', 'boolean'],
         ];
     }
 

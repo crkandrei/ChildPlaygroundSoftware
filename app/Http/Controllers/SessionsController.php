@@ -86,14 +86,22 @@ class SessionsController extends Controller
 
         $session = $query->with(['child.guardian', 'intervals' => function($query) {
                 $query->orderBy('started_at', 'asc');
-            }, 'products.product'])
+            }, 'products.product', 'tenant'])
             ->first();
 
         if (!$session) {
             abort(404, 'Sesiunea nu a fost găsită');
         }
 
-        return view('sessions.show', compact('session'));
+        // Check if jungle toggle is allowed (check if session date allows jungle)
+        $canToggleJungle = false;
+        if ($session->tenant) {
+            $pricingService = app(\App\Services\PricingService::class);
+            $sessionDate = $session->started_at ? $session->started_at : now();
+            $canToggleJungle = $pricingService->isJungleSessionAllowed($session->tenant, $sessionDate);
+        }
+
+        return view('sessions.show', compact('session', 'canToggleJungle'));
     }
 
     /** Generate receipt for session */
@@ -119,8 +127,8 @@ class SessionsController extends Controller
             abort(400, 'Bonul poate fi generat doar pentru sesiuni finalizate');
         }
 
-        if ($session->is_birthday) {
-            abort(400, 'Nu se poate printa bon pentru sesiuni de tip Birthday');
+        if ($session->is_birthday || $session->is_jungle) {
+            abort(400, 'Nu se poate printa bon pentru sesiuni de tip Birthday sau Jungle');
         }
 
         // Ensure price is calculated
@@ -180,10 +188,10 @@ class SessionsController extends Controller
             ], 400);
         }
 
-        if ($session->is_birthday) {
+        if ($session->is_birthday || $session->is_jungle) {
             return response()->json([
                 'success' => false,
-                'message' => 'Nu se poate printa bon pentru sesiuni de tip Birthday'
+                'message' => 'Nu se poate printa bon pentru sesiuni de tip Birthday sau Jungle'
             ], 400);
         }
 
@@ -586,6 +594,85 @@ class SessionsController extends Controller
             'message' => $request->is_birthday ? 'Sesiunea a fost marcată ca Birthday' : 'Sesiunea nu mai este marcată ca Birthday',
             'session' => [
                 'id' => $session->id,
+                'is_birthday' => $session->is_birthday,
+                'calculated_price' => $session->calculated_price,
+                'formatted_price' => $session->getFormattedPrice(),
+            ],
+        ]);
+    }
+
+    /**
+     * Update session jungle status
+     */
+    public function updateJungleStatus($id, Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+
+        $request->validate([
+            'is_jungle' => 'required|boolean',
+        ]);
+
+        // For SUPER_ADMIN, can access any session (tenant comes from session)
+        // For other roles, restrict to their tenant
+        $sessionQuery = PlaySession::where('id', $id);
+        
+        if (!$user->isSuperAdmin() && $user->tenant) {
+            $sessionQuery->where('tenant_id', $user->tenant->id);
+        }
+        
+        $session = $sessionQuery->first();
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea nu a fost găsită'
+            ], 404);
+        }
+
+        // Prevent modification if session is already paid
+        if ($session->isPaid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nu se poate modifica statusul Jungle pentru o sesiune deja plătită'
+            ], 400);
+        }
+
+        // Validate Jungle session is allowed on session date
+        if ($request->is_jungle) {
+            $pricingService = app(\App\Services\PricingService::class);
+            $sessionDate = $session->started_at ? $session->started_at : now();
+            if (!$pricingService->isJungleSessionAllowed($session->tenant, $sessionDate)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesiunile Jungle nu sunt permise în ziua sesiunii. Te rog verifică configurarea zilelor disponibile.'
+                ], 400);
+            }
+        }
+
+        $session->update([
+            'is_jungle' => $request->is_jungle,
+            // Ensure mutual exclusivity: if setting jungle, unset birthday
+            'is_birthday' => $request->is_jungle ? false : $session->is_birthday,
+        ]);
+
+        // Recalculate price if session is ended
+        if ($session->ended_at) {
+            $session->saveCalculatedPrice();
+            $session->refresh();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $request->is_jungle ? 'Sesiunea a fost marcată ca Jungle' : 'Sesiunea nu mai este marcată ca Jungle',
+            'session' => [
+                'id' => $session->id,
+                'is_jungle' => $session->is_jungle,
                 'is_birthday' => $session->is_birthday,
                 'calculated_price' => $session->calculated_price,
                 'formatted_price' => $session->getFormattedPrice(),

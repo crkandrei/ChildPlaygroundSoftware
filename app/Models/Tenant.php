@@ -85,4 +85,12 @@ class Tenant extends Model
     {
         return $this->hasMany(SpecialPeriodRate::class);
     }
+
+    /**
+     * Get the configurations for the tenant.
+     */
+    public function configurations(): HasMany
+    {
+        return $this->hasMany(TenantConfiguration::class);
+    }
 }

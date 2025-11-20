@@ -6,6 +6,7 @@ use App\Models\ScanEvent;
 use App\Models\PlaySession;
 use App\Models\Child;
 use App\Models\Tenant;
+use App\Services\PricingService;
 use App\Support\ActionLogger;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -252,7 +253,7 @@ class ScanService
     /**
      * Începe o sesiune de joacă pentru un copil cu un cod de bare
      */
-    public function startPlaySession(Tenant $tenant, Child $child, string $braceletCode): PlaySession
+    public function startPlaySession(Tenant $tenant, Child $child, string $braceletCode, bool $isBirthday = false, bool $isJungle = false): PlaySession
     {
         // Trim only (no normalization - code should already be correct from frontend)
         $braceletCode = trim($braceletCode);
@@ -282,12 +283,22 @@ class ScanService
             throw new \Exception('Codul este deja folosit într-o sesiune activă. Te rog oprește sesiunea existentă înainte.');
         }
 
-        $session = PlaySession::startSession($tenant, $child, $braceletCode);
+        // Validate Jungle session is allowed on current day
+        if ($isJungle) {
+            $pricingService = app(PricingService::class);
+            if (!$pricingService->isJungleSessionAllowed($tenant)) {
+                throw new \Exception('Sesiunile Jungle nu sunt permise în această zi. Te rog verifică configurarea zilelor disponibile.');
+            }
+        }
+
+        $session = PlaySession::startSession($tenant, $child, $braceletCode, $isBirthday, $isJungle);
 
         ActionLogger::logSession('started', $session->id, [
             'child_id' => $child->id,
             'child_name' => $child->name,
             'bracelet_code' => $braceletCode,
+            'is_birthday' => $isBirthday,
+            'is_jungle' => $isJungle,
         ]);
 
         return $session;

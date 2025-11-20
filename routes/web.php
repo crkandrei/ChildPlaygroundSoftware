@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sessions/save-fiscal-receipt-log', [App\Http\Controllers\SessionsController::class, 'saveFiscalReceiptLog'])->name('sessions.save-fiscal-receipt-log');
     Route::post('/sessions/{id}/mark-paid-with-voucher', [App\Http\Controllers\SessionsController::class, 'markPaidWithVoucher'])->name('sessions.mark-paid-with-voucher');
     Route::post('/sessions/{id}/update-birthday-status', [App\Http\Controllers\SessionsController::class, 'updateBirthdayStatus'])->name('sessions.update-birthday-status');
+    Route::post('/sessions/{id}/update-jungle-status', [App\Http\Controllers\SessionsController::class, 'updateJungleStatus'])->name('sessions.update-jungle-status');
     Route::post('/sessions/{id}/toggle-payment-status', [App\Http\Controllers\SessionsController::class, 'togglePaymentStatus'])->name('sessions.toggle-payment-status');
 
     // Dashboard API (session-auth via web guard)
@@ -119,6 +120,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/pricing', [App\Http\Controllers\PricingController::class, 'index'])->name('pricing.index');
     Route::get('/pricing/weekly-rates', [App\Http\Controllers\PricingController::class, 'showWeeklyRates'])->name('pricing.weekly-rates');
     Route::post('/pricing/weekly-rates', [App\Http\Controllers\PricingController::class, 'updateWeeklyRates'])->name('pricing.weekly-rates.update');
+    Route::get('/pricing/jungle-session-days', [App\Http\Controllers\PricingController::class, 'showJungleSessionDays'])->name('pricing.jungle-session-days');
+    Route::post('/pricing/jungle-session-days', [App\Http\Controllers\PricingController::class, 'updateJungleSessionDays'])->name('pricing.jungle-session-days.update');
     Route::get('/pricing/special-periods', [App\Http\Controllers\PricingController::class, 'indexSpecialPeriods'])->name('pricing.special-periods');
     Route::post('/pricing/special-periods', [App\Http\Controllers\PricingController::class, 'storeSpecialPeriod'])->name('pricing.special-periods.store');
     Route::put('/pricing/special-periods/{id}', [App\Http\Controllers\PricingController::class, 'updateSpecialPeriod'])->name('pricing.special-periods.update');

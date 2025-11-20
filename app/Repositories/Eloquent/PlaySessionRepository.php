@@ -3,7 +3,9 @@
 namespace App\Repositories\Eloquent;
 
 use App\Models\PlaySession;
+use App\Models\TenantConfiguration;
 use App\Repositories\Contracts\PlaySessionRepositoryInterface;
+use App\Services\PricingService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -93,6 +95,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                 'play_sessions.calculated_price',
                 'play_sessions.price_per_hour_at_calculation',
                 'play_sessions.is_birthday',
+                'play_sessions.is_jungle',
                 'play_sessions.paid_at',
                 'play_sessions.payment_status',
                 'play_sessions.voucher_hours',
@@ -131,9 +134,20 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                 
                 $isPaused = $ps ? $ps->isPaused() : false;
                 $currentStart = null;
+                $lastPauseEnd = null; // When did the current pause start (last interval ended_at)
                 if ($ps && !$row->ended_at) {
-                    $open = $ps->intervals()->whereNull('ended_at')->latest('started_at')->first();
-                    $currentStart = $open && $open->started_at ? $open->started_at->toISOString() : null;
+                    if ($isPaused) {
+                        // Get the last closed interval's ended_at (when pause started)
+                        $lastClosedInterval = $ps->intervals()->whereNotNull('ended_at')->latest('ended_at')->first();
+                        if ($lastClosedInterval && $lastClosedInterval->ended_at) {
+                            $lastPauseEnd = $lastClosedInterval->ended_at->toISOString();
+                        }
+                    } else {
+                        $open = $ps->intervals()->whereNull('ended_at')->latest('started_at')->first();
+                        if ($open && $open->started_at) {
+                            $currentStart = $open->started_at->toISOString();
+                        }
+                    }
                 }
                 
                 // Calculate price - use saved price for completed sessions, calculate for active ones
@@ -159,6 +173,32 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                     }
                 }
                 
+                // Check if jungle toggle is allowed (check if session date allows jungle)
+                $canToggleJungle = false;
+                if ($ps && $ps->tenant) {
+                    $pricingService = app(PricingService::class);
+                    $sessionDate = $row->started_at ? Carbon::parse($row->started_at) : now();
+                    $canToggleJungle = $pricingService->isJungleSessionAllowed($ps->tenant, $sessionDate);
+                }
+                
+                // Get current pause duration ONLY if session is currently paused
+                // We only care about the CURRENT active pause, not historical pauses
+                $currentPauseMinutes = 0;
+                if ($ps && $isPaused && !$row->ended_at) {
+                    $currentPauseMinutes = $ps->getCurrentPauseMinutes();
+                }
+                
+                // Get pause warning threshold from configuration
+                $pauseThreshold = 15; // Default
+                if ($ps && $ps->tenant) {
+                    $pauseThreshold = TenantConfiguration::getPauseWarningThresholdMinutes($ps->tenant->id);
+                }
+                
+                // Only show badge if session is currently paused AND current pause exceeds threshold
+                // We don't care about historical pauses, only the current active pause
+                $hasLongPause = $isPaused && !$row->ended_at && $currentPauseMinutes >= $pauseThreshold;
+                $currentPauseExceedsThreshold = $currentPauseMinutes >= $pauseThreshold;
+                
                 return [
                     'id' => $row->id,
                     'child_name' => $childName,
@@ -170,12 +210,19 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
                     'is_paused' => $isPaused,
                     'effective_seconds' => $effectiveSeconds,
                     'current_interval_started_at' => $currentStart,
+                    'last_pause_end' => $lastPauseEnd,
                     'price' => $price,
                     'formatted_price' => $formattedPrice,
                     'products_price' => (float) $productsPrice,
                     'products_formatted_price' => $productsFormattedPrice,
                     'price_per_hour_at_calculation' => $row->price_per_hour_at_calculation ? (float) $row->price_per_hour_at_calculation : null,
                     'is_birthday' => (bool) $row->is_birthday,
+                    'is_jungle' => (bool) ($row->is_jungle ?? false),
+                    'can_toggle_jungle' => $canToggleJungle,
+                    'current_pause_minutes' => $currentPauseMinutes,
+                    'has_long_pause' => $hasLongPause,
+                    'current_pause_exceeds_threshold' => $currentPauseExceedsThreshold,
+                    'pause_threshold' => (int) $pauseThreshold,
                     'paid_at' => optional($row->paid_at)->toISOString(),
                     'is_paid' => !is_null($row->paid_at),
                     'payment_status' => $row->payment_status ?? null,

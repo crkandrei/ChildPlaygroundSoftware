@@ -55,6 +55,13 @@
                     <i class="fas fa-calendar-alt mr-2"></i>
                     Perioade Speciale
                 </a>
+                <a href="#jungle-session-days" 
+                   onclick="showTab('jungle-session-days'); return false;"
+                   class="tab-link flex-1 text-center py-4 px-6 border-b-2 font-medium text-sm transition-colors"
+                   id="tab-jungle-session-days">
+                    <i class="fas fa-tree mr-2"></i>
+                    Zile Jungle
+                </a>
             </nav>
         </div>
 
@@ -83,6 +90,19 @@
                    class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
                     <i class="fas fa-calendar-alt mr-2"></i>
                     Gestionare Perioade Speciale
+                </a>
+            </div>
+
+            <!-- Jungle Session Days Tab -->
+            <div id="content-jungle-session-days" class="tab-content hidden">
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-gray-900 mb-2">Zile Sesiuni Jungle</h2>
+                    <p class="text-gray-600">Configurați zilele când sunt permise sesiunile Jungle pentru tenant-ul <strong>{{ $selectedTenant->name }}</strong></p>
+                </div>
+                <a href="{{ route('pricing.jungle-session-days') }}{{ $isSuperAdmin ? '?tenant_id=' . $selectedTenant->id : '' }}" 
+                   class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                    <i class="fas fa-tree mr-2"></i>
+                    Configurare Zile Jungle
                 </a>
             </div>
         </div>

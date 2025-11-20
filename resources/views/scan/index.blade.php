@@ -156,11 +156,19 @@
                         <p class="text-xs text-gray-500 mt-1">* Poți scrie în câmp pentru a căuta</p>
                     </div>
                     
-                    <div class="flex items-center gap-2 pt-2 border-t border-gray-200">
-                        <input type="checkbox" id="isBirthdayAssign" class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
-                        <label for="isBirthdayAssign" class="text-sm font-medium text-gray-700 cursor-pointer">
-                            <i class="fas fa-birthday-cake mr-1 text-pink-600"></i>Sesiune Birthday (gratuită)
-                        </label>
+                    <div class="flex flex-col gap-2 pt-2 border-t border-gray-200">
+                        <div class="flex items-center gap-2" id="birthdayAssignContainer">
+                            <input type="checkbox" id="isBirthdayAssign" class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                            <label for="isBirthdayAssign" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                <i class="fas fa-birthday-cake mr-1 text-pink-600"></i>Sesiune Birthday (gratuită)
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-2" id="jungleAssignContainer" style="display: none;">
+                            <input type="checkbox" id="isJungleAssign" class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                            <label for="isJungleAssign" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                <i class="fas fa-tree mr-1 text-green-600"></i>Sesiune Jungle (gratuită)
+                            </label>
+                        </div>
                     </div>
                     
                     <button 
@@ -271,11 +279,19 @@
                             </div>
                         </div>
                         
-                        <div class="flex items-center gap-2 pt-2 border-t border-gray-200">
-                            <input type="checkbox" id="isBirthdayCreate" class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
-                            <label for="isBirthdayCreate" class="text-sm font-medium text-gray-700 cursor-pointer">
-                                <i class="fas fa-birthday-cake mr-1 text-pink-600"></i>Sesiune Birthday (gratuită)
-                            </label>
+                        <div class="flex flex-col gap-2 pt-2 border-t border-gray-200">
+                            <div class="flex items-center gap-2" id="birthdayCreateContainer">
+                                <input type="checkbox" id="isBirthdayCreate" class="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500">
+                                <label for="isBirthdayCreate" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                    <i class="fas fa-birthday-cake mr-1 text-pink-600"></i>Sesiune Birthday (gratuită)
+                                </label>
+                            </div>
+                            <div class="flex items-center gap-2" id="jungleCreateContainer" style="display: none;">
+                                <input type="checkbox" id="isJungleCreate" class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                                <label for="isJungleCreate" class="text-sm font-medium text-gray-700 cursor-pointer">
+                                    <i class="fas fa-tree mr-1 text-green-600"></i>Sesiune Jungle (gratuită)
+                                </label>
+                            </div>
                         </div>
                         
                         <button 
@@ -1761,12 +1777,14 @@
         
         try {
             const isBirthday = document.getElementById('isBirthdayAssign')?.checked || false;
+            const isJungle = document.getElementById('isJungleAssign')?.checked || false;
             const result = await apiCall('/scan-api/assign', {
                 method: 'POST',
                 body: JSON.stringify({
                     bracelet_code: currentBracelet ? currentBracelet.code : null,
                     child_id: childId,
-                    is_birthday: isBirthday
+                    is_birthday: isBirthday,
+                    is_jungle: isJungle
                 })
             });
             
@@ -1870,11 +1888,13 @@
         
         try {
             const isBirthday = document.getElementById('isBirthdayCreate')?.checked || false;
+            const isJungle = document.getElementById('isJungleCreate')?.checked || false;
             const payload = {
                 first_name: childFirstName,
                 allergies: null,
                 bracelet_code: currentBracelet.code,
-                is_birthday: isBirthday
+                is_birthday: isBirthday,
+                is_jungle: isJungle
             };
             
             if (guardianMode === 'existing' && guardianId) {
@@ -2477,6 +2497,96 @@
 
     // Load products on page load
     loadAvailableProducts();
+
+    // ===== JUNGLE SESSION LOGIC =====
+    const isJungleAllowedToday = @json($isJungleAllowedToday ?? false);
+    
+    // Show/hide jungle checkboxes based on day configuration
+    // Also hide if birthday is checked
+    function updateJungleCheckboxesVisibility() {
+        const jungleAssignContainer = document.getElementById('jungleAssignContainer');
+        const jungleCreateContainer = document.getElementById('jungleCreateContainer');
+        const birthdayAssign = document.getElementById('isBirthdayAssign');
+        const birthdayCreate = document.getElementById('isBirthdayCreate');
+        
+        if (jungleAssignContainer) {
+            const shouldShow = isJungleAllowedToday && (!birthdayAssign || !birthdayAssign.checked);
+            jungleAssignContainer.style.display = shouldShow ? 'flex' : 'none';
+        }
+        if (jungleCreateContainer) {
+            const shouldShow = isJungleAllowedToday && (!birthdayCreate || !birthdayCreate.checked);
+            jungleCreateContainer.style.display = shouldShow ? 'flex' : 'none';
+        }
+    }
+    
+    // Mutual exclusivity: Birthday and Jungle cannot be both checked
+    // Also hide/show checkboxes based on the other's state
+    function setupMutualExclusivity() {
+        const birthdayAssign = document.getElementById('isBirthdayAssign');
+        const jungleAssign = document.getElementById('isJungleAssign');
+        const birthdayCreate = document.getElementById('isBirthdayCreate');
+        const jungleCreate = document.getElementById('isJungleCreate');
+        const jungleAssignContainer = document.getElementById('jungleAssignContainer');
+        const jungleCreateContainer = document.getElementById('jungleCreateContainer');
+        const birthdayAssignContainer = document.getElementById('birthdayAssignContainer');
+        const birthdayCreateContainer = document.getElementById('birthdayCreateContainer');
+        
+        // Assign panel
+        if (birthdayAssign && jungleAssign && jungleAssignContainer && birthdayAssignContainer) {
+            birthdayAssign.addEventListener('change', function() {
+                if (this.checked) {
+                    // Hide jungle checkbox when birthday is checked
+                    jungleAssignContainer.style.display = 'none';
+                    jungleAssign.checked = false;
+                } else {
+                    // Show jungle checkbox when birthday is unchecked (if allowed today)
+                    if (isJungleAllowedToday) {
+                        jungleAssignContainer.style.display = 'flex';
+                    }
+                }
+            });
+            jungleAssign.addEventListener('change', function() {
+                if (this.checked) {
+                    // Hide birthday checkbox when jungle is checked
+                    birthdayAssignContainer.style.display = 'none';
+                    birthdayAssign.checked = false;
+                } else {
+                    // Show birthday checkbox when jungle is unchecked
+                    birthdayAssignContainer.style.display = 'flex';
+                }
+            });
+        }
+        
+        // Create panel
+        if (birthdayCreate && jungleCreate && jungleCreateContainer && birthdayCreateContainer) {
+            birthdayCreate.addEventListener('change', function() {
+                if (this.checked) {
+                    // Hide jungle checkbox when birthday is checked
+                    jungleCreateContainer.style.display = 'none';
+                    jungleCreate.checked = false;
+                } else {
+                    // Show jungle checkbox when birthday is unchecked (if allowed today)
+                    if (isJungleAllowedToday) {
+                        jungleCreateContainer.style.display = 'flex';
+                    }
+                }
+            });
+            jungleCreate.addEventListener('change', function() {
+                if (this.checked) {
+                    // Hide birthday checkbox when jungle is checked
+                    birthdayCreateContainer.style.display = 'none';
+                    birthdayCreate.checked = false;
+                } else {
+                    // Show birthday checkbox when jungle is unchecked
+                    birthdayCreateContainer.style.display = 'flex';
+                }
+            });
+        }
+    }
+    
+    // Initialize on page load
+    updateJungleCheckboxesVisibility();
+    setupMutualExclusivity();
 
 </script>
 @endsection

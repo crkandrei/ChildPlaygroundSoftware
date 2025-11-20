@@ -8,7 +8,9 @@ use App\Models\PlaySession;
 use App\Models\PlaySessionProduct;
 use App\Models\Product;
 use App\Models\Tenant;
+use App\Models\TenantConfiguration;
 use App\Services\ScanService;
+use App\Services\PricingService;
 use App\Support\ApiResponder;
 use Illuminate\Http\Request;
 use App\Http\Requests\Scan\LookupBraceletRequest;
@@ -38,13 +40,23 @@ class ScanPageController extends Controller
         
         // Get available children for the tenant
         $children = [];
+        $jungleSessionDays = [];
+        $isJungleAllowedToday = false;
+        
         if ($tenant) {
             $children = Child::where('tenant_id', $tenant->id)
                 ->with('guardian')
                 ->get();
+            
+            // Get jungle session days configuration
+            $jungleSessionDays = TenantConfiguration::getJungleSessionDays($tenant->id);
+            
+            // Check if jungle is allowed today
+            $pricingService = app(PricingService::class);
+            $isJungleAllowedToday = $pricingService->isJungleSessionAllowed($tenant);
         }
 
-        return view('scan.index', compact('children'));
+        return view('scan.index', compact('children', 'jungleSessionDays', 'isJungleAllowedToday'));
     }
 
     /**
@@ -142,7 +154,8 @@ class ScanPageController extends Controller
 
         try {
             $isBirthday = $request->boolean('is_birthday', false);
-            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday);
+            $isJungle = $request->boolean('is_jungle', false);
+            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday, $isJungle);
 
             return ApiResponder::success([
                 'message' => 'Sesiune pornită cu succes',
@@ -151,6 +164,7 @@ class ScanPageController extends Controller
                     'started_at' => $session->started_at->toISOString(),
                     'bracelet_code' => $braceletCode,
                     'is_birthday' => $session->is_birthday,
+                    'is_jungle' => $session->is_jungle,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -236,7 +250,8 @@ class ScanPageController extends Controller
 
                 // Pornește sesiunea cu codul de bare
                 $isBirthday = $request->boolean('is_birthday', false);
-                $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday);
+                $isJungle = $request->boolean('is_jungle', false);
+                $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday, $isJungle);
 
                 return [
                     'child' => $child,
@@ -364,7 +379,8 @@ class ScanPageController extends Controller
 
             $braceletCode = trim($request->bracelet_code);
             $isBirthday = $request->boolean('is_birthday', false);
-            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday);
+            $isJungle = $request->boolean('is_jungle', false);
+            $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday, $isJungle);
 
             return ApiResponder::success([
                 'message' => 'Sesiunea a început cu succes',
@@ -375,6 +391,7 @@ class ScanPageController extends Controller
                     'started_at' => $session->started_at->toISOString(),
                     'bracelet_code' => $braceletCode,
                     'is_birthday' => $session->is_birthday,
+                    'is_jungle' => $session->is_jungle,
                 ],
             ]);
 
