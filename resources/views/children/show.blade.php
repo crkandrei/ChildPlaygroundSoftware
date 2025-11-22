@@ -18,12 +18,13 @@
                     <p class="text-gray-600">Detalii copil și informații asociate</p>
                 </div>
             </div>
-            @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+            @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff())
             <div class="flex items-center space-x-3">
                 <a href="{{ route('children.edit', $child) }}" 
                    class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
                     Editează
                 </a>
+                @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
                 <form method="POST" action="{{ route('children.destroy', $child) }}" 
                       class="inline" onsubmit="return confirm('Sigur vrei să ștergi acest copil?')">
                     @csrf
@@ -33,6 +34,7 @@
                         Șterge
                     </button>
                 </form>
+                @endif
             </div>
             @endif
         </div>

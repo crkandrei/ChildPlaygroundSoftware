@@ -117,12 +117,24 @@ class PlaySession extends Model
     {
         $seconds = 0;
         $intervals = $this->relationLoaded('intervals') ? $this->intervals : $this->intervals()->get();
-        foreach ($intervals as $iv) {
-            $end = $iv->ended_at ?: now();
-            if ($iv->started_at) {
-                $seconds += $iv->started_at->diffInSeconds($end);
+        
+        // If we have intervals, sum their durations (this excludes pauses)
+        if ($intervals->isNotEmpty()) {
+            foreach ($intervals as $iv) {
+                $end = $iv->ended_at ?: now();
+                if ($iv->started_at) {
+                    $seconds += $iv->started_at->diffInSeconds($end);
+                }
+            }
+        } else {
+            // Fallback: if no intervals exist (shouldn't happen for new sessions, but might for old data),
+            // use the session's started_at and ended_at as a single interval
+            if ($this->started_at) {
+                $end = $this->ended_at ?: now();
+                $seconds = $this->started_at->diffInSeconds($end);
             }
         }
+        
         return $seconds;
     }
 
@@ -286,6 +298,9 @@ class PlaySession extends Model
         $this->update([
             'ended_at' => $now,
         ]);
+
+        // Refresh intervals relationship to ensure we have the latest data including the just-closed interval
+        $this->unsetRelation('intervals');
 
         // Calculate and save price
         $this->saveCalculatedPrice();
