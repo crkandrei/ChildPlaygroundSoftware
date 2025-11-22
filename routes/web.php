@@ -4,7 +4,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\WebController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [WebController::class, 'index']);
+// Include landing page routes first (they have priority)
+require __DIR__.'/landing.php';
 
 // Auth routes
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
