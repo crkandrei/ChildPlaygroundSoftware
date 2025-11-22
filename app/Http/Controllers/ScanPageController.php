@@ -690,9 +690,9 @@ class ScanPageController extends Controller
                 return ApiResponder::error('Sesiunea nu a fost găsită', 404);
             }
 
-            // Verifică că sesiunea este activă (nu este oprită)
-            if ($session->ended_at) {
-                return ApiResponder::error('Nu se pot adăuga produse la o sesiune oprită', 400);
+            // Verifică că sesiunea nu este plătită (se pot adăuga produse la sesiuni închise dar neplătite)
+            if ($session->isPaid()) {
+                return ApiResponder::error('Nu se pot adăuga produse la o sesiune deja plătită', 400);
             }
 
             // Verifică că produsele aparțin tenant-ului și sunt active
