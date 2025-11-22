@@ -65,7 +65,7 @@
     </div>
 
     <!-- Children Table -->
-    <div id="children-table-root" class="bg-white rounded-lg shadow overflow-hidden" data-children-data-url="{{ route('children.data') }}" data-guardians-search-url="{{ route('guardians.search') }}" data-guardians-store-url="{{ route('guardians.store') }}" data-can-edit="{{ (Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin()) ? '1' : '0' }}" data-has-validation-errors="{{ $errors->any() ? '1' : '0' }}">
+    <div id="children-table-root" class="bg-white rounded-lg shadow overflow-hidden" data-children-data-url="{{ route('children.data') }}" data-guardians-search-url="{{ route('guardians.search') }}" data-guardians-store-url="{{ route('guardians.store') }}" data-can-edit="{{ (Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff()) ? '1' : '0' }}" data-has-validation-errors="{{ $errors->any() ? '1' : '0' }}">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <h2 class="text-xl font-bold text-gray-900">Lista Copiilor</h2>
@@ -266,16 +266,18 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50';
                 
-                @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff())
                 const actionsHtml = `
                     <div class="flex space-x-2">
                         <a href="/children/${row.id}" class="text-indigo-600 hover:text-indigo-900">Vezi</a>
                         <a href="/children/${row.id}/edit" class="text-yellow-600 hover:text-yellow-900">Editează</a>
+                        @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
                         <form method="POST" action="/children/${row.id}" class="inline" onsubmit="return confirm('Sigur vrei să ștergi acest copil?')">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-900">Șterge</button>
                         </form>
+                        @endif
                     </div>
                 `;
                 @else

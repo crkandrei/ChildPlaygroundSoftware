@@ -170,7 +170,7 @@
                                 <a href="{{ route('children.show', $child) }}" class="text-indigo-600 hover:text-indigo-900">
                                     Vezi
                                 </a>
-                                @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                                @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff())
                                 <a href="{{ route('children.edit', $child) }}" class="text-yellow-600 hover:text-yellow-900">
                                     Editează
                                 </a>

@@ -115,7 +115,7 @@
             <div class="flex items-center justify-between pt-6 border-t border-gray-200">
                 <a href="{{ route('children.index') }}" class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Anulează</a>
                 <div class="flex items-center space-x-2">
-                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin())
+                    @if(Auth::user()->isSuperAdmin() || Auth::user()->isCompanyAdmin() || Auth::user()->isStaff())
                         <button type="submit" class="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700">Salvează</button>
                     @endif
                 </div>
