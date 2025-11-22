@@ -38,6 +38,9 @@
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        <input type="checkbox" id="selectAllCheckbox" class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" onchange="toggleSelectAll()">
+                    </th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort="child_name">Copil <span class="sort-ind" data-col="child_name"></span></th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durată live</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preț</th>
@@ -50,7 +53,12 @@
     </div>
 
     <div class="flex items-center justify-between mt-4">
-        <div class="text-sm text-gray-600" id="resultsInfo"></div>
+        <div class="flex items-center gap-3">
+            <div class="text-sm text-gray-600" id="resultsInfo"></div>
+            <button id="combinedReceiptBtn" class="hidden px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm transition-colors" onclick="openCombinedFiscalModal()">
+                <i class="fas fa-receipt mr-2"></i>Generează bon combinat (<span id="selectedCount">0</span>)
+            </button>
+        </div>
         <div class="flex items-center gap-2">
             <button id="prevPage" class="px-3 py-2 border rounded-md text-sm disabled:opacity-50">Înapoi</button>
             <span id="pageLabel" class="text-sm text-gray-700"></span>
@@ -229,6 +237,7 @@
     };
     let timerIntervals = new Map();
     let pauseWarningIntervals = new Map();
+    let selectedSessions = new Set(); // Track selected session IDs
 
     function clearAllTimers() {
         timerIntervals.forEach((intv) => clearInterval(intv));
@@ -376,7 +385,20 @@
         tbody.innerHTML = '';
         rows.forEach(row => {
             const tr = document.createElement('tr');
+            // Check if this session can be selected (ended, unpaid, not birthday/jungle)
+            const canSelect = row.ended_at && !row.is_paid && !row.is_birthday && !row.is_jungle;
+            const isSelected = selectedSessions.has(row.id);
+            
             tr.innerHTML = `
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
+                    ${canSelect ? `
+                        <input type="checkbox" 
+                               class="session-checkbox w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" 
+                               data-session-id="${row.id}"
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleSessionSelection(${row.id}, this.checked)">
+                    ` : ''}
+                </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     <div class="flex items-center">
                         <span>${row.child_name || '-'}</span>
@@ -635,6 +657,102 @@
     // Initial load
     fetchData();
     
+    // ===== MULTIPLE SESSION SELECTION =====
+    
+    function toggleSessionSelection(sessionId, checked) {
+        if (checked) {
+            selectedSessions.add(sessionId);
+        } else {
+            selectedSessions.delete(sessionId);
+        }
+        updateCombinedButton();
+    }
+    
+    function toggleSelectAll() {
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        const checkboxes = document.querySelectorAll('.session-checkbox');
+        const checked = selectAllCheckbox.checked;
+        
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked !== checked) {
+                checkbox.checked = checked;
+                const sessionId = parseInt(checkbox.getAttribute('data-session-id'));
+                toggleSessionSelection(sessionId, checked);
+            }
+        });
+    }
+    
+    function updateCombinedButton() {
+        const btn = document.getElementById('combinedReceiptBtn');
+        const countSpan = document.getElementById('selectedCount');
+        const count = selectedSessions.size;
+        
+        if (count >= 2) {
+            btn.classList.remove('hidden');
+            countSpan.textContent = count;
+        } else {
+            btn.classList.add('hidden');
+        }
+        
+        // Update select all checkbox state
+        const checkboxes = document.querySelectorAll('.session-checkbox');
+        const checkedCheckboxes = Array.from(checkboxes).filter(cb => cb.checked);
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = checkboxes.length > 0 && checkedCheckboxes.length === checkboxes.length;
+            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < checkboxes.length;
+        }
+    }
+    
+    function openCombinedFiscalModal() {
+        if (selectedSessions.size < 2) {
+            alert('Selectați minim 2 sesiuni pentru bon combinat');
+            return;
+        }
+        
+        fiscalModalSessionId = null; // Clear single session ID
+        fiscalModalCurrentStep = 1;
+        fiscalModalPaymentType = null;
+        fiscalModalData = null;
+        fiscalModalReceiptData = null;
+        
+        // Reset modal state
+        document.getElementById('fiscal-modal-step-1').classList.remove('hidden');
+        document.getElementById('fiscal-modal-step-2').classList.add('hidden');
+        document.getElementById('fiscal-modal-step-3').classList.add('hidden');
+        document.getElementById('fiscal-modal-step-4').classList.add('hidden');
+        
+        // Reset continue button state
+        const continueBtn = document.getElementById('fiscal-continue-btn');
+        if (continueBtn) {
+            continueBtn.disabled = true;
+            continueBtn.innerHTML = 'Continuă';
+        }
+        
+        // Reset payment buttons selection
+        document.querySelectorAll('[data-payment-btn]').forEach(btn => {
+            btn.classList.remove('bg-indigo-600', 'ring-2', 'ring-indigo-500');
+            btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
+        });
+        
+        // Reset voucher toggle and input
+        const voucherToggle = document.getElementById('voucher-toggle');
+        const voucherInput = document.getElementById('voucher-hours-input');
+        const voucherContainer = document.getElementById('voucher-input-container');
+        if (voucherToggle) {
+            voucherToggle.checked = false;
+        }
+        if (voucherInput) {
+            voucherInput.value = '0';
+        }
+        if (voucherContainer) {
+            voucherContainer.classList.add('hidden');
+        }
+        
+        // Show modal
+        document.getElementById('fiscal-modal').classList.remove('hidden');
+    }
+    
     // ===== FISCAL RECEIPT MODAL =====
 
     let fiscalModalCurrentStep = 1;
@@ -690,7 +808,11 @@
     function closeFiscalModal() {
         document.getElementById('fiscal-modal').classList.add('hidden');
         fiscalModalCurrentStep = 1;
-        fiscalModalSessionId = null;
+        // Don't clear fiscalModalSessionId if it was a combined receipt (it's already null)
+        // Only clear if it was a single session receipt
+        if (fiscalModalSessionId !== null) {
+            fiscalModalSessionId = null;
+        }
         fiscalModalPaymentType = null;
         fiscalModalData = null;
         fiscalModalReceiptData = null;
@@ -748,8 +870,12 @@
             return;
         }
         
-        if (!fiscalModalSessionId) {
-            alert('Sesiune invalidă');
+        // Check if single session or multiple sessions
+        const isCombined = !fiscalModalSessionId && selectedSessions.size >= 2;
+        const isSingle = fiscalModalSessionId !== null;
+        
+        if (!isSingle && !isCombined) {
+            alert(isCombined ? 'Selectați minim 2 sesiuni' : 'Sesiune invalidă');
             return;
         }
         
@@ -774,17 +900,29 @@
         
         try {
             // Get prepared data from server
-            const prepareResponse = await fetch(`/sessions/${fiscalModalSessionId}/prepare-fiscal-print`, {
+            const url = isCombined 
+                ? '/sessions/prepare-combined-fiscal-print'
+                : `/sessions/${fiscalModalSessionId}/prepare-fiscal-print`;
+            
+            const body = isCombined
+                ? {
+                    session_ids: Array.from(selectedSessions),
+                    paymentType: fiscalModalPaymentType,
+                    voucherHours: voucherHours > 0 ? voucherHours : null
+                }
+                : {
+                    paymentType: fiscalModalPaymentType,
+                    voucherHours: voucherHours > 0 ? voucherHours : null
+                };
+            
+            const prepareResponse = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    paymentType: fiscalModalPaymentType,
-                    voucherHours: voucherHours > 0 ? voucherHours : null
-                })
+                body: JSON.stringify(body)
             });
 
             if (!prepareResponse.ok) {
@@ -818,53 +956,114 @@
             const receiptItems = document.getElementById('receipt-items');
             receiptItems.innerHTML = '';
             
-            // Time item - ALWAYS show original price (timePrice) with original duration (durationFiscalized) in preview
-            // This is the price BEFORE voucher discount
-            // Even if voucher covers all time, show it in preview (but it won't appear on actual receipt)
-            if (receipt.timePrice > 0) {
-                const timeItem = document.createElement('div');
-                timeItem.className = 'flex justify-between text-sm';
-                timeItem.innerHTML = `
-                    <div>
-                        <span class="font-medium text-gray-900">${prepareData.data.productName}</span>
-                        <span class="text-gray-500 ml-2">${receipt.durationFiscalized || prepareData.data.duration}</span>
-                    </div>
-                    <span class="font-semibold text-gray-900">${parseFloat(receipt.timePrice || 0).toFixed(2)} RON</span>
-                `;
-                receiptItems.appendChild(timeItem);
-            }
-            
-            // Products items
-            if (receipt.products && receipt.products.length > 0) {
-                receipt.products.forEach(product => {
-                    const productItem = document.createElement('div');
-                    productItem.className = 'flex justify-between text-sm';
-                    productItem.innerHTML = `
+            // For combined receipts, show all original time items with full hours and prices
+            // Then show subtotal, voucher (if any), and final total
+            // For single receipts, show single time item
+            if (isCombined && receipt.originalTimeItems) {
+                // Show all original time items with full hours (before voucher)
+                const originalTimeItems = receipt.originalTimeItems;
+                
+                originalTimeItems.forEach((timeItem) => {
+                    const timeItemDiv = document.createElement('div');
+                    timeItemDiv.className = 'flex justify-between text-sm';
+                    timeItemDiv.innerHTML = `
                         <div>
-                            <span class="font-medium text-gray-900">${product.name}</span>
-                            <span class="text-gray-500 ml-2">×${product.quantity}</span>
+                            <span class="font-medium text-gray-900">Ora de joacă (${timeItem.duration})</span>
+                            <span class="text-gray-500 ml-2 text-xs">- ${timeItem.childName}</span>
                         </div>
-                        <span class="font-semibold text-gray-900">${parseFloat(product.total_price).toFixed(2)} RON</span>
+                        <span class="font-semibold text-gray-900">${parseFloat(timeItem.price).toFixed(2)} RON</span>
                     `;
-                    receiptItems.appendChild(productItem);
+                    receiptItems.appendChild(timeItemDiv);
                 });
-            }
-            
-            // Voucher discount line (if voucher was used)
-            if (receipt.voucherHours > 0 && receipt.voucherPrice > 0) {
-                const voucherItem = document.createElement('div');
-                voucherItem.className = 'flex justify-between text-sm text-green-600 border-t border-gray-300 pt-2 mt-2';
-                voucherItem.innerHTML = `
-                    <div>
-                        <span class="font-medium">Voucher (${receipt.voucherHours}h)</span>
-                    </div>
-                    <span class="font-semibold">-${parseFloat(receipt.voucherPrice).toFixed(2)} RON</span>
+                
+                // Show products items
+                if (receipt.products && receipt.products.length > 0) {
+                    receipt.products.forEach(product => {
+                        const productItem = document.createElement('div');
+                        productItem.className = 'flex justify-between text-sm';
+                        productItem.innerHTML = `
+                            <div>
+                                <span class="font-medium text-gray-900">${product.name}</span>
+                                <span class="text-gray-500 ml-2">×${product.quantity}</span>
+                            </div>
+                            <span class="font-semibold text-gray-900">${parseFloat(product.total_price).toFixed(2)} RON</span>
+                        `;
+                        receiptItems.appendChild(productItem);
+                    });
+                }
+                
+                // Show subtotal (before voucher)
+                const subtotalDiv = document.createElement('div');
+                subtotalDiv.className = 'flex justify-between text-sm border-t border-gray-300 pt-2 mt-2';
+                subtotalDiv.innerHTML = `
+                    <span class="font-medium text-gray-700">Subtotal:</span>
+                    <span class="font-semibold text-gray-900">${parseFloat(receipt.totalPrice || 0).toFixed(2)} RON</span>
                 `;
-                receiptItems.appendChild(voucherItem);
+                receiptItems.appendChild(subtotalDiv);
+                
+                // Show voucher discount (if any)
+                if (receipt.voucherHours > 0 && receipt.voucherPrice > 0) {
+                    const voucherDiv = document.createElement('div');
+                    voucherDiv.className = 'flex justify-between text-sm text-green-600';
+                    voucherDiv.innerHTML = `
+                        <span class="font-medium">Voucher (${receipt.voucherHours}h):</span>
+                        <span class="font-semibold">-${parseFloat(receipt.voucherPrice).toFixed(2)} RON</span>
+                    `;
+                    receiptItems.appendChild(voucherDiv);
+                }
+                
+                // Set total price for combined receipt
+                document.getElementById('receipt-total-price').textContent = `${parseFloat(receipt.finalPrice || prepareData.data.price || 0).toFixed(2)} RON`;
+            } else {
+                // Single receipt - show time item
+                // Time item - ALWAYS show original price (timePrice) with original duration (durationFiscalized) in preview
+                // This is the price BEFORE voucher discount
+                // Even if voucher covers all time, show it in preview (but it won't appear on actual receipt)
+                if (receipt.timePrice > 0) {
+                    const timeItem = document.createElement('div');
+                    timeItem.className = 'flex justify-between text-sm';
+                    timeItem.innerHTML = `
+                        <div>
+                            <span class="font-medium text-gray-900">${prepareData.data.productName}</span>
+                            <span class="text-gray-500 ml-2">${receipt.durationFiscalized || prepareData.data.duration}</span>
+                        </div>
+                        <span class="font-semibold text-gray-900">${parseFloat(receipt.timePrice || 0).toFixed(2)} RON</span>
+                    `;
+                    receiptItems.appendChild(timeItem);
+                }
+                
+                // Single receipt - also show products items
+                if (receipt.products && receipt.products.length > 0) {
+                    receipt.products.forEach(product => {
+                        const productItem = document.createElement('div');
+                        productItem.className = 'flex justify-between text-sm';
+                        productItem.innerHTML = `
+                            <div>
+                                <span class="font-medium text-gray-900">${product.name}</span>
+                                <span class="text-gray-500 ml-2">×${product.quantity}</span>
+                            </div>
+                            <span class="font-semibold text-gray-900">${parseFloat(product.total_price).toFixed(2)} RON</span>
+                        `;
+                        receiptItems.appendChild(productItem);
+                    });
+                }
+                
+                // Single receipt - show voucher discount line if voucher was used
+                if (receipt.voucherHours > 0 && receipt.voucherPrice > 0) {
+                    const voucherItem = document.createElement('div');
+                    voucherItem.className = 'flex justify-between text-sm text-green-600 border-t border-gray-300 pt-2 mt-2';
+                    voucherItem.innerHTML = `
+                        <div>
+                            <span class="font-medium">Voucher (${receipt.voucherHours}h)</span>
+                        </div>
+                        <span class="font-semibold">-${parseFloat(receipt.voucherPrice).toFixed(2)} RON</span>
+                    `;
+                    receiptItems.appendChild(voucherItem);
+                }
+                
+                // Total price (final price after voucher) - this is what will be on the receipt
+                document.getElementById('receipt-total-price').textContent = `${parseFloat(receipt.finalPrice || prepareData.data.price || 0).toFixed(2)} RON`;
             }
-            
-            // Total price (final price after voucher) - this is what will be on the receipt
-            document.getElementById('receipt-total-price').textContent = `${parseFloat(receipt.finalPrice || prepareData.data.price || 0).toFixed(2)} RON`;
             
             // Payment method
             document.getElementById('receipt-payment-method').textContent = fiscalModalPaymentType === 'CASH' ? 'Cash' : 'Card';
@@ -919,7 +1118,16 @@
     }
 
     async function confirmAndPrint() {
-        if (!fiscalModalSessionId || !fiscalModalPaymentType || !fiscalModalData) {
+        if (!fiscalModalPaymentType || !fiscalModalData) {
+            alert('Date incomplete');
+            return;
+        }
+        
+        // Check if single session or multiple sessions
+        const isCombined = !fiscalModalSessionId && selectedSessions.size >= 2;
+        const isSingle = fiscalModalSessionId !== null;
+        
+        if (!isSingle && !isCombined) {
             alert('Date incomplete');
             return;
         }
@@ -962,15 +1170,27 @@
             // Save log to database
             try {
                 const voucherHours = fiscalModalData.voucherHours || 0;
-                await saveFiscalReceiptLog({
-                    play_session_id: fiscalModalSessionId,
-                    filename: bridgeData.file || null,
-                    status: bridgeData.status === 'success' ? 'success' : 'error',
-                    error_message: bridgeData.status === 'success' ? null : (bridgeData.message || bridgeData.details || 'Eroare necunoscută'),
-                    voucher_hours: voucherHours > 0 ? voucherHours : null,
-                    payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
-                    payment_method: fiscalModalPaymentType,
-                });
+                if (isCombined) {
+                    await saveCombinedFiscalReceiptLog({
+                        play_session_ids: Array.from(selectedSessions),
+                        filename: bridgeData.file || null,
+                        status: bridgeData.status === 'success' ? 'success' : 'error',
+                        error_message: bridgeData.status === 'success' ? null : (bridgeData.message || bridgeData.details || 'Eroare necunoscută'),
+                        voucher_hours: voucherHours > 0 ? voucherHours : null,
+                        payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
+                        payment_method: fiscalModalPaymentType,
+                    });
+                } else {
+                    await saveFiscalReceiptLog({
+                        play_session_id: fiscalModalSessionId,
+                        filename: bridgeData.file || null,
+                        status: bridgeData.status === 'success' ? 'success' : 'error',
+                        error_message: bridgeData.status === 'success' ? null : (bridgeData.message || bridgeData.details || 'Eroare necunoscută'),
+                        voucher_hours: voucherHours > 0 ? voucherHours : null,
+                        payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
+                        payment_method: fiscalModalPaymentType,
+                    });
+                }
             } catch (logError) {
                 console.error('Error saving log:', logError);
                 // Don't block the UI if log saving fails
@@ -979,6 +1199,11 @@
             // Show result in modal
             if (bridgeData.status === 'success') {
                 showFiscalResult('success', 'Bon fiscal emis cu succes!', bridgeData.file || null);
+                // Clear selected sessions if combined receipt
+                if (isCombined) {
+                    selectedSessions.clear();
+                    updateCombinedButton();
+                }
                 // Refresh table to reflect payment status changes
                 fetchData();
             } else {
@@ -993,17 +1218,31 @@
             // Save error log to database
             try {
                 const voucherHours = fiscalModalData?.voucherHours || 0;
-                await saveFiscalReceiptLog({
-                    play_session_id: fiscalModalSessionId,
-                    filename: null,
-                    status: 'error',
-                    error_message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
-                        ? 'Nu s-a putut conecta la bridge-ul fiscal local. Verifică că serviciul Node.js rulează pe calculatorul tău.'
-                        : error.message,
-                    voucher_hours: voucherHours > 0 ? voucherHours : null,
-                    payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
-                    payment_method: fiscalModalPaymentType,
-                });
+                if (isCombined) {
+                    await saveCombinedFiscalReceiptLog({
+                        play_session_ids: Array.from(selectedSessions),
+                        filename: null,
+                        status: 'error',
+                        error_message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+                            ? 'Nu s-a putut conecta la bridge-ul fiscal local. Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                            : error.message,
+                        voucher_hours: voucherHours > 0 ? voucherHours : null,
+                        payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
+                        payment_method: fiscalModalPaymentType,
+                    });
+                } else {
+                    await saveFiscalReceiptLog({
+                        play_session_id: fiscalModalSessionId,
+                        filename: null,
+                        status: 'error',
+                        error_message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+                            ? 'Nu s-a putut conecta la bridge-ul fiscal local. Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                            : error.message,
+                        voucher_hours: voucherHours > 0 ? voucherHours : null,
+                        payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
+                        payment_method: fiscalModalPaymentType,
+                    });
+                }
             } catch (logError) {
                 console.error('Error saving log:', logError);
                 // Don't block the UI if log saving fails
@@ -1041,6 +1280,31 @@
             return result;
         } catch (error) {
             console.error('Error saving fiscal receipt log:', error);
+            throw error;
+        }
+    }
+
+    async function saveCombinedFiscalReceiptLog(data) {
+        try {
+            const response = await fetch('{{ route("sessions.save-combined-fiscal-receipt-log") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Eroare la salvarea logului');
+            }
+
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Error saving combined fiscal receipt log:', error);
             throw error;
         }
     }

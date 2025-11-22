@@ -218,7 +218,7 @@
                     </div>
                     <h2 class="text-xl font-bold text-gray-900">Produse</h2>
                 </div>
-                @if(!$session->ended_at)
+                @if(!$session->isPaid())
                 <button id="addProductsBtn" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors">
                     <i class="fas fa-plus mr-2"></i>
                     Adaugă Produse
@@ -1426,7 +1426,7 @@ async function addProductToSession() {
 }
 
 // Bind events
-@if(!$session->ended_at)
+@if(!$session->isPaid())
 const addProductsBtn = document.getElementById('addProductsBtn');
 if (addProductsBtn) {
     addProductsBtn.addEventListener('click', openAddProductsModal);

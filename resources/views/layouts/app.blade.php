@@ -247,7 +247,9 @@
                         <i class="fas fa-users sidebar-icon mr-3"></i>
                         <span class="sidebar-text">Părinți</span>
                     </a>
+                    @endif
                     
+                    @if($currentUser && ($currentUser->isSuperAdmin() || $currentUser->isCompanyAdmin()))
                     <a href="{{ route('reports.index') }}" 
                        data-title="Rapoarte"
                        class="flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('reports.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">

@@ -383,6 +383,329 @@ class SessionsController extends Controller
     }
 
     /**
+     * Prepare fiscal receipt data for printing multiple sessions combined
+     * Returns calculated data that will be sent to bridge from client-side
+     */
+    public function prepareCombinedFiscalPrint(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+        
+        $request->validate([
+            'session_ids' => 'required|array|min:2',
+            'session_ids.*' => 'required|integer|exists:play_sessions,id',
+            'paymentType' => 'required|in:CASH,CARD',
+            'voucherHours' => 'nullable|numeric|min:0',
+        ]);
+
+        $sessionIds = $request->input('session_ids');
+        
+        // Load all sessions
+        $sessionQuery = PlaySession::whereIn('id', $sessionIds)
+            ->with(['products.product', 'tenant', 'child']);
+        
+        if (!$user->isSuperAdmin() && $user->tenant) {
+            $sessionQuery->where('tenant_id', $user->tenant->id);
+        }
+        
+        $sessions = $sessionQuery->get();
+
+        if ($sessions->count() !== count($sessionIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unele sesiuni nu au fost găsite'
+            ], 404);
+        }
+
+        if ($sessions->count() < 2) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Trebuie să selectați minim 2 sesiuni pentru bon combinat'
+            ], 400);
+        }
+
+        // Validate all sessions are from the same tenant
+        $tenantIds = $sessions->pluck('tenant_id')->unique();
+        if ($tenantIds->count() > 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Toate sesiunile trebuie să fie din același tenant'
+            ], 400);
+        }
+        $tenant = $sessions->first()->tenant;
+
+        // Validate all sessions are ended, unpaid, and not Birthday/Jungle
+        foreach ($sessions as $session) {
+            if (!$session->ended_at) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Toate sesiunile trebuie să fie finalizate'
+                ], 400);
+            }
+
+            if ($session->is_birthday || $session->is_jungle) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nu se pot combina sesiuni de tip Birthday sau Jungle'
+                ], 400);
+            }
+
+            if ($session->isPaid()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Toate sesiunile trebuie să fie neplătite'
+                ], 400);
+            }
+        }
+
+        // Ensure prices are calculated for all sessions
+        foreach ($sessions as $session) {
+            if (!$session->calculated_price || $session->calculated_price == 0) {
+                $session->saveCalculatedPrice();
+                $session->refresh();
+            }
+        }
+
+        // Get voucher hours from request
+        $voucherHours = $request->input('voucherHours', 0);
+        if ($voucherHours > 0) {
+            $voucherHours = (float) $voucherHours;
+        } else {
+            $voucherHours = 0;
+        }
+
+        // Get pricing service
+        $pricingService = app(\App\Services\PricingService::class);
+
+        // Calculate totals across all sessions
+        $totalTimePrice = 0;
+        $totalProductsPrice = 0;
+        $totalRoundedHours = 0;
+        $allProducts = collect();
+        $timeItems = [];
+
+        foreach ($sessions as $session) {
+            // Calculate rounded duration for this session
+            $durationInHours = $pricingService->getDurationInHours($session);
+            $roundedHours = $pricingService->roundToHalfHour($durationInHours);
+            $totalRoundedHours += $roundedHours;
+
+            // Get price per hour for this session
+            $pricePerHour = $session->price_per_hour_at_calculation ?? $pricingService->getHourlyRate($session->tenant, $session->started_at);
+            
+            // Get time price
+            $timePrice = $session->calculated_price ?? $session->calculatePrice();
+            $totalTimePrice += $timePrice;
+
+            // Format duration for this session
+            $roundedHoursInt = floor($roundedHours);
+            $roundedMinutes = round(($roundedHours - $roundedHoursInt) * 60);
+            if ($roundedMinutes >= 60) {
+                $roundedHoursInt += 1;
+                $roundedMinutes = 0;
+            }
+            $durationBilled = $this->formatDuration($roundedHoursInt, $roundedMinutes);
+
+            // Get child name for preview
+            $childName = $session->child ? $session->child->name : 'Copil necunoscut';
+            
+            // Store time item for this session (will be added to items if billed hours > 0)
+            $timeItems[] = [
+                'duration' => $durationBilled,
+                'roundedHours' => $roundedHours,
+                'price' => $timePrice,
+                'pricePerHour' => $pricePerHour,
+                'childName' => $childName, // For preview only, not sent to bridge
+                'sessionId' => $session->id, // For reference
+            ];
+
+            // Collect products from this session
+            $sessionProducts = $session->products->map(function($sp) {
+                $productName = null;
+                if ($sp->product && $sp->product->name) {
+                    $productName = trim($sp->product->name);
+                }
+                
+                if (empty($productName) && $sp->product_id) {
+                    $product = \App\Models\Product::find($sp->product_id);
+                    if ($product && $product->name) {
+                        $productName = trim($product->name);
+                    }
+                }
+                
+                if (empty($productName)) {
+                    $productName = 'Produs ID: ' . $sp->product_id;
+                }
+                
+                return [
+                    'name' => $productName,
+                    'quantity' => $sp->quantity,
+                    'unit_price' => (float) $sp->unit_price,
+                    'total_price' => (float) $sp->total_price,
+                ];
+            });
+
+            $allProducts = $allProducts->merge($sessionProducts);
+            $totalProductsPrice += $session->getProductsTotalPrice();
+        }
+
+        // Validate voucher hours don't exceed total duration
+        if ($voucherHours > $totalRoundedHours) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Orele de voucher nu pot depăși durata totală (' . $this->formatDuration(floor($totalRoundedHours), round(($totalRoundedHours - floor($totalRoundedHours)) * 60)) . ')'
+            ], 400);
+        }
+
+        // Calculate voucher price by subtracting full hours from first child(ren) that have at least 1 hour
+        // Find which child to apply voucher to (first one with at least voucherHours)
+        $voucherPrice = 0;
+        $remainingVoucherHours = $voucherHours;
+        $adjustedTimeItems = [];
+        
+        foreach ($timeItems as $index => $timeItem) {
+            if ($remainingVoucherHours <= 0) {
+                // No more voucher to apply, add full item
+                $adjustedTimeItems[] = $timeItem;
+                continue;
+            }
+            
+            // Check if this child has enough hours for remaining voucher
+            if ($timeItem['roundedHours'] >= $remainingVoucherHours) {
+                // Apply remaining voucher to this child
+                $adjustedHours = $timeItem['roundedHours'] - $remainingVoucherHours;
+                $voucherPrice += $remainingVoucherHours * $timeItem['pricePerHour'];
+                
+                if ($adjustedHours > 0) {
+                    // Child still has some hours left
+                    $adjustedHoursInt = floor($adjustedHours);
+                    $adjustedMinutes = round(($adjustedHours - $adjustedHoursInt) * 60);
+                    if ($adjustedMinutes >= 60) {
+                        $adjustedHoursInt += 1;
+                        $adjustedMinutes = 0;
+                    }
+                    $adjustedDuration = $this->formatDuration($adjustedHoursInt, $adjustedMinutes);
+                    
+                    $adjustedTimeItems[] = [
+                        'duration' => $adjustedDuration,
+                        'roundedHours' => $adjustedHours,
+                        'price' => $adjustedHours * $timeItem['pricePerHour'],
+                        'pricePerHour' => $timeItem['pricePerHour'],
+                        'childName' => $timeItem['childName'],
+                        'sessionId' => $timeItem['sessionId'],
+                    ];
+                }
+                // Voucher fully applied
+                $remainingVoucherHours = 0;
+            } else {
+                // Apply full hours from this child
+                $voucherPrice += $timeItem['roundedHours'] * $timeItem['pricePerHour'];
+                $remainingVoucherHours -= $timeItem['roundedHours'];
+                // This child's time is fully covered by voucher, don't add to adjusted items
+            }
+        }
+
+        // Calculate final time price after voucher discount
+        $finalTimePrice = max(0, $totalTimePrice - $voucherPrice);
+        
+        // Final total price = final time price + products price
+        $finalPrice = $finalTimePrice + $totalProductsPrice;
+
+        // If voucher covers all time AND there are no products, no receipt needed
+        $noReceiptNeeded = ($finalTimePrice <= 0 && $totalProductsPrice <= 0);
+
+        // Calculate billed hours (total hours minus voucher hours)
+        $billedHours = max(0, $totalRoundedHours - $voucherHours);
+
+        // Build items array for bridge: separate items for each child with adjusted hours after voucher
+        $items = [];
+        
+        if (!$noReceiptNeeded) {
+            // Add separate time items for each child with adjusted hours (after voucher deduction)
+            // adjustedTimeItems already has hours reduced by voucher
+            foreach ($adjustedTimeItems as $timeItem) {
+                if ($timeItem['roundedHours'] > 0 && $timeItem['price'] > 0) {
+                    $items[] = [
+                        'name' => 'Ora de joacă (' . $timeItem['duration'] . ')',
+                        'quantity' => 1,
+                        'price' => (float) $timeItem['price'],
+                    ];
+                }
+            }
+            
+            // Add all product items
+            foreach ($allProducts as $product) {
+                if ($product['total_price'] > 0) {
+                    $items[] = [
+                        'name' => $product['name'],
+                        'quantity' => $product['quantity'],
+                        'price' => (float) $product['unit_price'],
+                    ];
+                }
+            }
+        }
+
+        // Format total duration for display
+        $totalRoundedHoursInt = floor($totalRoundedHours);
+        $totalRoundedMinutes = round(($totalRoundedHours - $totalRoundedHoursInt) * 60);
+        if ($totalRoundedMinutes >= 60) {
+            $totalRoundedHoursInt += 1;
+            $totalRoundedMinutes = 0;
+        }
+        $durationFiscalized = $this->formatDuration($totalRoundedHoursInt, $totalRoundedMinutes);
+
+        // Format billed hours for display
+        $billedHoursInt = floor($billedHours);
+        $billedMinutes = round(($billedHours - $billedHoursInt) * 60);
+        if ($billedMinutes >= 60) {
+            $billedHoursInt += 1;
+            $billedMinutes = 0;
+        }
+        $durationBilled = $this->formatDuration($billedHoursInt, $billedMinutes);
+
+        // Get tenant name
+        $tenantName = $tenant->name ?? 'Loc de Joacă';
+
+        // Return data for client-side bridge call
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'items' => $items,
+                'paymentType' => $request->paymentType,
+                'voucherHours' => $voucherHours,
+                'productName' => 'Ora de joacă',
+                'duration' => $durationBilled,
+                'price' => max(0, $finalPrice),
+            ],
+            'receipt' => [
+                'tenantName' => $tenantName,
+                'timePrice' => (float) $totalTimePrice,
+                'finalTimePrice' => (float) $finalTimePrice,
+                'billedTimePrice' => (float) $finalTimePrice,
+                'voucherHours' => $voucherHours,
+                'voucherPrice' => (float) $voucherPrice,
+                'durationFiscalized' => $durationFiscalized,
+                'durationBilled' => $durationBilled,
+                'timeItems' => $adjustedTimeItems, // Include adjusted time items (after voucher) with child names for preview
+                'originalTimeItems' => $timeItems, // Original time items before voucher adjustment
+                'products' => $allProducts->values()->toArray(),
+                'productsPrice' => (float) $totalProductsPrice,
+                'totalPrice' => (float) ($totalTimePrice + $totalProductsPrice),
+                'finalPrice' => max(0, $finalPrice),
+                'noReceiptNeeded' => $noReceiptNeeded,
+            ],
+            'sessions' => [
+                'ids' => $sessionIds,
+            ],
+        ]);
+    }
+
+    /**
      * Save fiscal receipt log
      */
     public function saveFiscalReceiptLog(Request $request)
@@ -449,6 +772,114 @@ class SessionsController extends Controller
                 }
                 
                 $playSession->update($updateData);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Log salvat cu succes',
+                'log' => $log,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Eroare la salvarea logului: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Save fiscal receipt log for combined receipt (multiple sessions)
+     */
+    public function saveCombinedFiscalReceiptLog(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+        
+        $request->validate([
+            'play_session_ids' => 'required|array|min:2',
+            'play_session_ids.*' => 'required|integer|exists:play_sessions,id',
+            'filename' => 'nullable|string|max:255',
+            'status' => 'required|in:success,error',
+            'error_message' => 'nullable|string',
+            'voucher_hours' => 'nullable|numeric|min:0',
+            'payment_status' => 'nullable|string|in:paid,paid_voucher',
+            'payment_method' => 'nullable|string|in:CASH,CARD',
+        ]);
+        
+        try {
+            $sessionIds = $request->input('play_session_ids');
+            
+            // Load all sessions to get tenant_id
+            $sessions = PlaySession::whereIn('id', $sessionIds)->get();
+            
+            if ($sessions->count() !== count($sessionIds)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unele sesiuni nu au fost găsite'
+                ], 404);
+            }
+
+            // Validate all sessions are from the same tenant
+            $tenantIds = $sessions->pluck('tenant_id')->unique();
+            if ($tenantIds->count() > 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Toate sesiunile trebuie să fie din același tenant'
+                ], 400);
+            }
+            
+            $tenantId = $sessions->first()->tenant_id;
+            
+            $voucherHours = $request->input('voucher_hours', null);
+            if ($voucherHours !== null) {
+                $voucherHours = (float) $voucherHours;
+            }
+            
+            // Create log with play_session_ids array and play_session_id NULL
+            $log = \App\Models\FiscalReceiptLog::create([
+                'type' => 'session',
+                'play_session_id' => null, // NULL for combined receipts
+                'play_session_ids' => $sessionIds, // Array of session IDs
+                'tenant_id' => $tenantId,
+                'filename' => $request->filename,
+                'status' => $request->status,
+                'error_message' => $request->error_message,
+                'voucher_hours' => $voucherHours,
+            ]);
+            
+            // Mark all sessions as paid if receipt was successfully printed
+            if ($request->status === 'success') {
+                $updateData = [
+                    'paid_at' => now(),
+                ];
+                
+                // Add voucher hours and payment status if provided
+                if ($voucherHours !== null) {
+                    $updateData['voucher_hours'] = $voucherHours;
+                }
+                
+                $paymentStatus = $request->input('payment_status', 'paid');
+                if ($paymentStatus === 'paid_voucher' || ($voucherHours !== null && $voucherHours > 0)) {
+                    $updateData['payment_status'] = 'paid_voucher';
+                } else {
+                    $updateData['payment_status'] = 'paid';
+                }
+                
+                // Add payment method if provided
+                $paymentMethod = $request->input('payment_method');
+                if ($paymentMethod && in_array($paymentMethod, ['CASH', 'CARD'])) {
+                    $updateData['payment_method'] = $paymentMethod;
+                }
+                
+                // Update all sessions
+                PlaySession::whereIn('id', $sessionIds)
+                    ->whereNull('paid_at') // Only update unpaid sessions
+                    ->update($updateData);
             }
             
             return response()->json([
