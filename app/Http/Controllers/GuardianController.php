@@ -17,11 +17,6 @@ class GuardianController extends Controller
      */
     public function index()
     {
-        // STAFF nu are acces la index-ul de părinți
-        if (Auth::user()->isStaff()) {
-            abort(403, 'Acces interzis');
-        }
-        
         $user = Auth::user();
         $tenant = $user->tenant;
         
@@ -362,11 +357,6 @@ class GuardianController extends Controller
      */
     public function data(Request $request)
     {
-        // STAFF nu are acces la datele de părinți
-        if (Auth::user()->isStaff()) {
-            abort(403, 'Acces interzis');
-        }
-        
         $user = Auth::user();
         if (!$user || !$user->tenant) {
             return response()->json([
