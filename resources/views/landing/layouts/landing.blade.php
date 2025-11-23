@@ -42,25 +42,28 @@
     
     @stack('styles')
     
-    {{-- Professional Design System --}}
+    {{-- Jungle Cartoon Theme 🌴🦁 --}}
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Chewy&family=Comic+Neue:wght@400;700&display=swap');
         
         :root {
-            --primary: #2563EB;
-            --primary-dark: #1E40AF;
-            --secondary: #F59E0B;
-            --accent: #EC4899;
-            --success: #10B981;
-            --text-primary: #111827;
-            --text-secondary: #6B7280;
-            --bg-primary: #FFFFFF;
-            --bg-secondary: #F9FAFB;
-            --border: #E5E7EB;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --jungle-green: #2ECC71;
+            --jungle-dark: #27AE60;
+            --jungle-lime: #7FD12D;
+            --sunshine-yellow: #FFD93D;
+            --orange-fun: #FF9F1C;
+            --brown-earth: #8B6F47;
+            --sky-blue: #6BCFFF;
+            --coral-pink: #FF6B9D;
+            --purple-fun: #9B59B6;
+            --text-dark: #2C3E50;
+            --text-light: #546E7A;
+            --bg-cream: #FFF9E6;
+            --bg-light-green: #E8F8F5;
+            --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 8px 0 rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 16px 0 rgba(0, 0, 0, 0.15);
+            --shadow-xl: 0 12px 24px 0 rgba(0, 0, 0, 0.18);
         }
         
         * {
@@ -70,17 +73,18 @@
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            color: var(--text-primary);
-            line-height: 1.6;
+            font-family: 'Fredoka', 'Comic Neue', cursive, sans-serif;
+            color: var(--text-dark);
+            line-height: 1.7;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            background: var(--bg-cream);
         }
         
         .font-display {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            letter-spacing: -0.025em;
+            font-family: 'Chewy', 'Fredoka', cursive;
+            font-weight: 400;
+            letter-spacing: 0.02em;
         }
         
         .section-padding {
@@ -118,94 +122,110 @@
         }
         
         .card {
-            background: var(--bg-primary);
-            border-radius: 1rem;
+            background: white;
+            border-radius: 2rem;
             box-shadow: var(--shadow-md);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 4px solid transparent;
         }
         
         .card:hover {
             box-shadow: var(--shadow-xl);
-            transform: translateY(-4px);
+            transform: translateY(-8px) rotate(-1deg);
+            border-color: var(--sunshine-yellow);
         }
         
         .btn-primary {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--jungle-green) 0%, var(--jungle-lime) 100%);
             color: white;
-            padding: 0.875rem 2rem;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 2rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            border: 4px solid var(--jungle-dark);
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            text-transform: uppercase;
+            box-shadow: 0 6px 0 var(--jungle-dark);
         }
         
         .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 0 var(--jungle-dark);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 var(--jungle-dark);
         }
         
         .btn-secondary {
-            background: white;
-            color: var(--primary);
-            padding: 0.875rem 2rem;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-            border: 2px solid var(--primary);
+            background: linear-gradient(135deg, var(--sunshine-yellow) 0%, var(--orange-fun) 100%);
+            color: var(--text-dark);
+            padding: 1rem 2.5rem;
+            border-radius: 2rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            border: 4px solid #E5A712;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            text-transform: uppercase;
+            box-shadow: 0 6px 0 #E5A712;
         }
         
         .btn-secondary:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 0 #E5A712;
+        }
+        
+        .btn-secondary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #E5A712;
         }
         
         .gradient-text {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            background: linear-gradient(135deg, var(--jungle-green) 0%, var(--jungle-lime) 50%, var(--sunshine-yellow) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
         
         .section-title {
             font-size: 2.5rem;
-            font-weight: 800;
-            line-height: 1.2;
+            font-weight: 400;
+            line-height: 1.3;
             margin-bottom: 1rem;
-            color: var(--text-primary);
+            color: var(--text-dark);
+            text-shadow: 3px 3px 0px rgba(255, 217, 61, 0.4);
         }
         
         @media (min-width: 768px) {
-            .section-title {
-                font-size: 3rem;
-            }
-        }
-        
-        @media (min-width: 1024px) {
             .section-title {
                 font-size: 3.5rem;
             }
         }
         
+        @media (min-width: 1024px) {
+            .section-title {
+                font-size: 4rem;
+            }
+        }
+        
         .section-subtitle {
             font-size: 1.25rem;
-            color: var(--text-secondary);
+            color: var(--text-light);
             max-width: 42rem;
             margin: 0 auto;
+            font-weight: 500;
         }
         
         @media (min-width: 768px) {
@@ -215,26 +235,30 @@
         }
         
         .nav-link {
-            color: var(--text-secondary);
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease;
+            color: var(--text-dark);
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+            border-radius: 1.5rem;
+            transition: all 0.3s ease;
             position: relative;
+            font-size: 1.05rem;
         }
         
         .nav-link:hover {
-            color: var(--primary);
-            background: rgba(37, 99, 235, 0.05);
+            color: white;
+            background: linear-gradient(135deg, var(--jungle-green), var(--jungle-lime));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3);
         }
         
         .nav-link.active {
-            color: var(--primary);
-            background: rgba(37, 99, 235, 0.1);
+            color: white;
+            background: linear-gradient(135deg, var(--jungle-green), var(--jungle-lime));
+            box-shadow: 0 4px 8px rgba(46, 204, 113, 0.3);
         }
         
         .hero-gradient {
-            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+            background: linear-gradient(135deg, var(--jungle-green) 0%, var(--jungle-lime) 50%, var(--sunshine-yellow) 100%);
         }
         
         .feature-icon {
@@ -255,33 +279,82 @@
         html {
             scroll-behavior: smooth;
         }
+        
+        /* Jungle-themed animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes swing {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
+        }
+        
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-3deg); }
+            50% { transform: rotate(3deg); }
+            75% { transform: rotate(-3deg); }
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .animate-swing {
+            animation: swing 2s ease-in-out infinite;
+        }
+        
+        .animate-wiggle {
+            animation: wiggle 1s ease-in-out infinite;
+        }
+        
+        /* Fun hover effects */
+        .hover-grow:hover {
+            transform: scale(1.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .hover-shake:hover {
+            animation: wiggle 0.5s ease-in-out;
+        }
+        
+        /* Jungle gradient background patterns */
+        .jungle-pattern {
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(46, 204, 113, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 217, 61, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(127, 209, 45, 0.1) 0%, transparent 50%);
+        }
     </style>
 </head>
-<body class="bg-white antialiased smooth-scroll">
+<body class="antialiased smooth-scroll">
     {{-- Navigation --}}
-    <nav class="bg-white/95 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
+    <nav class="bg-gradient-to-r from-jungle-green via-jungle-lime to-sunshine-yellow shadow-lg sticky top-0 z-50 border-b-4 border-jungle-dark" style="background: linear-gradient(90deg, #2ECC71 0%, #7FD12D 50%, #FFD93D 100%);">
         <div class="container-custom">
             <div class="flex justify-between items-center h-20">
                 <div class="flex items-center">
                     <a href="{{ route('landing.index') }}" class="flex items-center space-x-3 group">
                         @php $logoExists = file_exists(public_path('images/kidspass-logo.png')); @endphp
                         @if($logoExists)
-                            <img src="{{ asset('images/kidspass-logo.png') }}" alt="Bongoland Logo" class="h-10 w-auto transition-transform group-hover:scale-105">
+                            <img src="{{ asset('images/kidspass-logo.png') }}" alt="Bongoland Logo" class="h-12 w-auto transition-transform group-hover:scale-105 drop-shadow-lg">
                         @endif
-                        <span class="text-2xl font-display font-bold gradient-text">Bongoland</span>
+                        <span class="text-3xl font-display text-white drop-shadow-lg">🌴 Bongoland 🦁</span>
                     </a>
                 </div>
                 
                 <div class="hidden md:flex items-center space-x-2">
-                    <a href="{{ route('landing.index') }}#hero" class="nav-link {{ request()->routeIs('landing.index') ? 'active' : '' }}">Acasă</a>
-                    <a href="{{ route('landing.index') }}#activitati" class="nav-link">Activități</a>
-                    <a href="{{ route('landing.index') }}#orar" class="nav-link">Orar</a>
-                    <a href="{{ route('landing.index') }}#petreceri" class="nav-link">Petreceri</a>
-                    <a href="{{ route('landing.index') }}#contact" class="nav-link">Contact</a>
+                    <a href="{{ route('landing.index') }}#hero" class="bg-white/90 hover:bg-white text-jungle-dark font-bold px-5 py-3 rounded-full transition-all hover:scale-105 shadow-md">🏠 Acasă</a>
+                    <a href="{{ route('landing.index') }}#activitati" class="bg-white/90 hover:bg-white text-jungle-dark font-bold px-5 py-3 rounded-full transition-all hover:scale-105 shadow-md">🎨 Activități</a>
+                    <a href="{{ route('landing.index') }}#orar" class="bg-white/90 hover:bg-white text-jungle-dark font-bold px-5 py-3 rounded-full transition-all hover:scale-105 shadow-md">📅 Orar</a>
+                    <a href="{{ route('landing.index') }}#petreceri" class="bg-white/90 hover:bg-white text-jungle-dark font-bold px-5 py-3 rounded-full transition-all hover:scale-105 shadow-md">🎉 Petreceri</a>
+                    <a href="{{ route('landing.index') }}#contact" class="bg-white/90 hover:bg-white text-jungle-dark font-bold px-5 py-3 rounded-full transition-all hover:scale-105 shadow-md">📞 Contact</a>
                 </div>
                 
                 {{-- Mobile menu button --}}
-                <button id="mobile-menu-button" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+                <button id="mobile-menu-button" class="md:hidden p-3 rounded-xl bg-white/90 text-jungle-dark hover:bg-white transition-all shadow-md">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
@@ -290,13 +363,13 @@
         </div>
         
         {{-- Mobile menu --}}
-        <div id="mobile-menu" class="hidden md:hidden border-t border-gray-100 bg-white">
-            <div class="container-custom py-4 space-y-1">
-                <a href="{{ route('landing.index') }}#hero" class="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">Acasă</a>
-                <a href="{{ route('landing.index') }}#activitati" class="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">Activități</a>
-                <a href="{{ route('landing.index') }}#orar" class="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">Orar</a>
-                <a href="{{ route('landing.index') }}#petreceri" class="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">Petreceri</a>
-                <a href="{{ route('landing.index') }}#contact" class="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors">Contact</a>
+        <div id="mobile-menu" class="hidden md:hidden border-t-4 border-jungle-dark bg-white/95">
+            <div class="container-custom py-4 space-y-2">
+                <a href="{{ route('landing.index') }}#hero" class="block px-5 py-4 rounded-2xl bg-gradient-to-r from-jungle-green to-jungle-lime text-white font-bold transition-all shadow-md">🏠 Acasă</a>
+                <a href="{{ route('landing.index') }}#activitati" class="block px-5 py-4 rounded-2xl bg-sky-blue/20 text-jungle-dark font-bold hover:bg-sky-blue/40 transition-all">🎨 Activități</a>
+                <a href="{{ route('landing.index') }}#orar" class="block px-5 py-4 rounded-2xl bg-sunshine-yellow/20 text-jungle-dark font-bold hover:bg-sunshine-yellow/40 transition-all">📅 Orar</a>
+                <a href="{{ route('landing.index') }}#petreceri" class="block px-5 py-4 rounded-2xl bg-coral-pink/20 text-jungle-dark font-bold hover:bg-coral-pink/40 transition-all">🎉 Petreceri</a>
+                <a href="{{ route('landing.index') }}#contact" class="block px-5 py-4 rounded-2xl bg-purple-fun/20 text-jungle-dark font-bold hover:bg-purple-fun/40 transition-all">📞 Contact</a>
             </div>
         </div>
     </nav>
@@ -363,37 +436,40 @@
     </main>
 
     {{-- Footer --}}
-    <footer class="bg-gray-900 text-white mt-24">
-        <div class="container-custom py-16">
+    <footer class="bg-gradient-to-br from-jungle-dark to-brown-earth text-white mt-24 relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10">
+            <div class="text-9xl">🌴🦁🐒🦜🌺🍃🌴🦒🐘🦓</div>
+        </div>
+        <div class="container-custom py-16 relative z-10">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
                 <div>
-                    <h3 class="text-xl font-display font-bold mb-4">Bongoland</h3>
-                    <p class="text-gray-400 leading-relaxed">Cel mai bun loc de joacă din Vaslui pentru copii. Oferim un mediu sigur și distractiv.</p>
+                    <h3 class="text-2xl font-display mb-4">🌴 Bongoland 🦁</h3>
+                    <p class="text-white/80 leading-relaxed font-medium">Cel mai distractiv loc de joacă din Vaslui pentru copii! Aventură în junglă cu securitate maximă! 🎉</p>
                 </div>
                 
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Link-uri Rapide</h4>
-                    <ul class="space-y-2 text-gray-400">
-                        <li><a href="{{ route('landing.index') }}#activitati" class="hover:text-white transition-colors">Activități</a></li>
-                        <li><a href="{{ route('landing.index') }}#orar" class="hover:text-white transition-colors">Orar</a></li>
-                        <li><a href="{{ route('landing.index') }}#petreceri" class="hover:text-white transition-colors">Petreceri</a></li>
-                        <li><a href="{{ route('landing.index') }}#contact" class="hover:text-white transition-colors">Contact</a></li>
+                    <h4 class="text-xl font-bold mb-4">🔗 Link-uri Rapide</h4>
+                    <ul class="space-y-3 text-white/80 font-medium">
+                        <li><a href="{{ route('landing.index') }}#activitati" class="hover:text-sunshine-yellow transition-colors inline-flex items-center">🎨 Activități</a></li>
+                        <li><a href="{{ route('landing.index') }}#orar" class="hover:text-sunshine-yellow transition-colors inline-flex items-center">📅 Orar</a></li>
+                        <li><a href="{{ route('landing.index') }}#petreceri" class="hover:text-sunshine-yellow transition-colors inline-flex items-center">🎉 Petreceri</a></li>
+                        <li><a href="{{ route('landing.index') }}#contact" class="hover:text-sunshine-yellow transition-colors inline-flex items-center">📞 Contact</a></li>
                     </ul>
                 </div>
                 
                 <div>
-                    <h4 class="text-lg font-semibold mb-4">Contact</h4>
-                    <ul class="space-y-2 text-gray-400">
-                        <li>Vaslui, România</li>
-                        <li>Email: contact@bongoland.ro</li>
-                        <li>Telefon: +40 XXX XXX XXX</li>
+                    <h4 class="text-xl font-bold mb-4">📍 Contact</h4>
+                    <ul class="space-y-3 text-white/80 font-medium">
+                        <li>📍 Vaslui, România</li>
+                        <li>📧 contact@bongoland.ro</li>
+                        <li>📞 +40 XXX XXX XXX</li>
                     </ul>
                 </div>
             </div>
             
-            <div class="border-t border-gray-800 mt-12 pt-8 text-center">
-                <p class="text-gray-400">&copy; {{ date('Y') }} Bongoland. Toate drepturile rezervate.</p>
-                <p class="mt-2 text-sm text-gray-500">Vaslui, România</p>
+            <div class="border-t-4 border-sunshine-yellow/30 mt-12 pt-8 text-center">
+                <p class="text-white/90 font-bold text-lg">&copy; {{ date('Y') }} Bongoland 🌴 Toate drepturile rezervate.</p>
+                <p class="mt-2 text-sunshine-yellow font-medium">🦁 Aventura ta în junglă începe aici! 🌴</p>
             </div>
         </div>
     </footer>
