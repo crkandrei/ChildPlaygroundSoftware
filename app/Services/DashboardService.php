@@ -154,13 +154,42 @@ class DashboardService
         $totalToday = $sessionsToday->count();
 
         $buckets = ['<1h' => 0, '1-2h' => 0, '2-3h' => 0, '>3h' => 0];
+        // Track session types for each bucket
+        $bucketTypes = [
+            '<1h' => ['jungle' => 0, 'birthday' => 0, 'normal' => 0],
+            '1-2h' => ['jungle' => 0, 'birthday' => 0, 'normal' => 0],
+            '2-3h' => ['jungle' => 0, 'birthday' => 0, 'normal' => 0],
+            '>3h' => ['jungle' => 0, 'birthday' => 0, 'normal' => 0],
+        ];
+        
         foreach ($sessionsToday as $s) {
             $mins = $s->getCurrentDurationMinutes();
-            if ($mins < 60) $buckets['<1h']++;
-            elseif ($mins < 120) $buckets['1-2h']++;
-            elseif ($mins < 180) $buckets['2-3h']++;
-            else $buckets['>3h']++;
+            $bucketKey = null;
+            
+            if ($mins < 60) {
+                $bucketKey = '<1h';
+                $buckets['<1h']++;
+            } elseif ($mins < 120) {
+                $bucketKey = '1-2h';
+                $buckets['1-2h']++;
+            } elseif ($mins < 180) {
+                $bucketKey = '2-3h';
+                $buckets['2-3h']++;
+            } else {
+                $bucketKey = '>3h';
+                $buckets['>3h']++;
+            }
+            
+            // Count session types for this bucket
+            if ($s->is_jungle) {
+                $bucketTypes[$bucketKey]['jungle']++;
+            } elseif ($s->is_birthday) {
+                $bucketTypes[$bucketKey]['birthday']++;
+            } else {
+                $bucketTypes[$bucketKey]['normal']++;
+            }
         }
+        
         $bucketPerc = [];
         foreach ($buckets as $k => $v) {
             $bucketPerc[$k] = $totalToday > 0 ? round(($v / $totalToday) * 100, 1) : 0.0;
@@ -215,10 +244,34 @@ class DashboardService
         return [
             'total_today' => $totalToday,
             'buckets_today' => [
-                'lt_1h' => ['count' => $buckets['<1h'], 'percent' => $bucketPerc['<1h']],
-                'h1_2' => ['count' => $buckets['1-2h'], 'percent' => $bucketPerc['1-2h']],
-                'h2_3' => ['count' => $buckets['2-3h'], 'percent' => $bucketPerc['2-3h']],
-                'gt_3h' => ['count' => $buckets['>3h'], 'percent' => $bucketPerc['>3h']],
+                'lt_1h' => [
+                    'count' => $buckets['<1h'],
+                    'percent' => $bucketPerc['<1h'],
+                    'jungle' => $bucketTypes['<1h']['jungle'],
+                    'birthday' => $bucketTypes['<1h']['birthday'],
+                    'normal' => $bucketTypes['<1h']['normal'],
+                ],
+                'h1_2' => [
+                    'count' => $buckets['1-2h'],
+                    'percent' => $bucketPerc['1-2h'],
+                    'jungle' => $bucketTypes['1-2h']['jungle'],
+                    'birthday' => $bucketTypes['1-2h']['birthday'],
+                    'normal' => $bucketTypes['1-2h']['normal'],
+                ],
+                'h2_3' => [
+                    'count' => $buckets['2-3h'],
+                    'percent' => $bucketPerc['2-3h'],
+                    'jungle' => $bucketTypes['2-3h']['jungle'],
+                    'birthday' => $bucketTypes['2-3h']['birthday'],
+                    'normal' => $bucketTypes['2-3h']['normal'],
+                ],
+                'gt_3h' => [
+                    'count' => $buckets['>3h'],
+                    'percent' => $bucketPerc['>3h'],
+                    'jungle' => $bucketTypes['>3h']['jungle'],
+                    'birthday' => $bucketTypes['>3h']['birthday'],
+                    'normal' => $bucketTypes['>3h']['normal'],
+                ],
             ],
             'avg_child_age_years' => $avgAgeYears,
             'avg_child_age_months' => $avgAgeMonths,
