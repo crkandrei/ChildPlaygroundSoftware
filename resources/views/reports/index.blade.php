@@ -64,11 +64,14 @@
         <!-- Reports Section -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 card-hover mb-4 md:mb-6">
             <div class="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200">
-                <div class="flex items-center">
-                    <div class="w-8 h-8 md:w-10 md:h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-2 md:mr-3">
-                        <i class="fas fa-chart-pie text-indigo-600 text-sm md:text-base"></i>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 md:w-10 md:h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-2 md:mr-3">
+                            <i class="fas fa-chart-pie text-indigo-600 text-sm md:text-base"></i>
+                        </div>
+                        <h2 class="text-lg md:text-xl font-bold text-gray-900">Rapoarte</h2>
                     </div>
-                    <h2 class="text-lg md:text-xl font-bold text-gray-900">Rapoarte</h2>
+                    <div id="totalSessions" class="text-sm md:text-base text-gray-600 font-medium">-</div>
                 </div>
             </div>
             <div class="p-4 md:p-6">
@@ -222,6 +225,10 @@
             };
             
             const setReports = (r) => {
+                // Total sessions in header
+                const totalSessions = r.total_today || 0;
+                document.getElementById('totalSessions').textContent = totalSessions + ' sesiuni';
+                
                 // Bucket < 1h
                 const lt1h = r.buckets_today.lt_1h || {};
                 document.getElementById('bucket_lt1h_percent').textContent = (lt1h.percent || 0) + '%';
@@ -253,6 +260,7 @@
             } else {
                 const emptyBucket = { percent: 0, count: 0, jungle: 0, birthday: 0, normal: 0 };
                 setReports({
+                    total_today: 0,
                     buckets_today: {
                         lt_1h: emptyBucket,
                         h1_2: emptyBucket,
