@@ -37,6 +37,12 @@ Route::prefix('scan')->group(function () {
     Route::post('/cleanup', [ScanController::class, 'cleanupExpiredCodes']);
 });
 
+// Landing page API routes (public)
+Route::prefix('landing')->group(function () {
+    Route::post('/contact', [App\Http\Controllers\Api\LandingApiController::class, 'contact']);
+    Route::post('/reservation', [App\Http\Controllers\Api\LandingApiController::class, 'reservation']);
+});
+
 // Rute protejate cu autentificare web
 Route::middleware('auth')->group(function () {
 

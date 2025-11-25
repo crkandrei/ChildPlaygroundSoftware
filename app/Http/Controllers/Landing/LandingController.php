@@ -12,7 +12,7 @@ class LandingController extends Controller
      */
     public function index()
     {
-        return view('landing.index', [
+        return view('landing.app', [
             'metaTitle' => 'Bongoland - Loc de Joacă Vaslui | Parc de Joacă pentru Copii',
             'metaDescription' => 'Bongoland este cel mai bun loc de joacă din Vaslui pentru copii. Oferim activități distractive, zile de naștere memorabile și un mediu sigur pentru copiii tăi.',
             'metaKeywords' => 'locuri de joacă Vaslui, parc de joacă Vaslui, playground Vaslui, activități copii Vaslui, zi de naștere copii Vaslui',
