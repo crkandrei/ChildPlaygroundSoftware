@@ -7,9 +7,9 @@
 <div class="space-y-6">
     <!-- Back button -->
     <div>
-        <a href="{{ route('scan') }}" class="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+        <a href="{{ route('sessions.index') }}" class="inline-flex items-center text-indigo-600 hover:text-indigo-800">
             <i class="fas fa-arrow-left mr-2"></i>
-            Înapoi la scanare
+            Înapoi la sesiuni
         </a>
     </div>
 
@@ -28,6 +28,12 @@
                     <button onclick="openFiscalModal({{ $session->id }})" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors">
                         <i class="fas fa-receipt mr-2"></i>
                         Printează Bon
+                    </button>
+                    @endif
+                    @if($session->ended_at && Auth::user() && Auth::user()->isSuperAdmin() && !$session->isPaid())
+                    <button onclick="openRestartModal()" class="inline-flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors">
+                        <i class="fas fa-redo mr-2"></i>
+                        Repornește Sesiunea
                     </button>
                     @endif
                     <span class="px-3 py-1 text-sm font-medium rounded-full {{ $session->ended_at ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
@@ -541,6 +547,59 @@ $sessionProductsJson = $session->products->map(function($sp) {
                         Închide
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restart Session Confirmation Modal (for Super Admin) -->
+<div id="restart-session-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-yellow-50 rounded-t-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-redo text-yellow-600 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900">Repornește Sesiunea</h3>
+            </div>
+            <button onclick="closeRestartModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-6">
+            <p class="text-gray-700 text-lg mb-2">Sigur vrei să repornești această sesiune?</p>
+            <p class="text-gray-600 mb-4">Copil: <strong>{{ $session->child ? $session->child->name : '-' }}</strong></p>
+            
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 mt-0.5"></i>
+                    <div class="text-sm text-yellow-800">
+                        <p class="font-semibold mb-1">Atenție:</p>
+                        <ul class="list-disc ml-4 space-y-1">
+                            <li>Sesiunea va fi reactivată și va continua să numere timpul</li>
+                            <li>Durata anterioară se va păstra (intervalele vechi rămân)</li>
+                            <li>Prețul se va recalcula la noua oprire pe baza duratei totale</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button 
+                    onclick="closeRestartModal()" 
+                    class="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium">
+                    Anulează
+                </button>
+                <button 
+                    id="restart-modal-confirm-btn"
+                    onclick="confirmRestartSession()"
+                    class="px-5 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2">
+                    <i class="fas fa-redo"></i>
+                    <span>Repornește</span>
+                </button>
             </div>
         </div>
     </div>
@@ -1170,6 +1229,61 @@ async function markPaymentStatus(sessionId, paymentMethod) {
         }
     } catch (error) {
         console.error('Error updating payment status:', error);
+        alert('Eroare: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// ===== RESTART SESSION (Super Admin Only) =====
+
+function openRestartModal() {
+    document.getElementById('restart-session-modal').classList.remove('hidden');
+}
+
+function closeRestartModal() {
+    document.getElementById('restart-session-modal').classList.add('hidden');
+    
+    // Reset button state
+    const btn = document.getElementById('restart-modal-confirm-btn');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-redo"></i><span>Repornește</span>';
+    }
+}
+
+async function confirmRestartSession() {
+    const btn = document.getElementById('restart-modal-confirm-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Se procesează...</span>';
+
+    try {
+        const response = await fetch(`/sessions/${sessionId}/restart`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Eroare la repornirea sesiunii');
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+            // Close modal and reload page to show updated session
+            closeRestartModal();
+            window.location.reload();
+        } else {
+            throw new Error(result.message || 'Eroare necunoscută');
+        }
+    } catch (error) {
+        console.error('Error restarting session:', error);
         alert('Eroare: ' + error.message);
         btn.disabled = false;
         btn.innerHTML = originalText;

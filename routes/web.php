@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sessions/{id}/update-birthday-status', [App\Http\Controllers\SessionsController::class, 'updateBirthdayStatus'])->name('sessions.update-birthday-status');
     Route::post('/sessions/{id}/update-jungle-status', [App\Http\Controllers\SessionsController::class, 'updateJungleStatus'])->name('sessions.update-jungle-status');
     Route::post('/sessions/{id}/toggle-payment-status', [App\Http\Controllers\SessionsController::class, 'togglePaymentStatus'])->name('sessions.toggle-payment-status');
+    Route::post('/sessions/{id}/restart', [App\Http\Controllers\SessionsController::class, 'restartSession'])->name('sessions.restart');
 
     // Dashboard API (session-auth via web guard)
     Route::prefix('dashboard-api')->group(function () {
@@ -144,6 +145,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/anomalies', [App\Http\Controllers\AnomaliesController::class, 'index'])->name('anomalies.index');
     Route::post('/anomalies/scan', [App\Http\Controllers\AnomaliesController::class, 'scan'])->name('anomalies.scan');
     Route::get('/anomalies/{type}/sessions', [App\Http\Controllers\AnomaliesController::class, 'getSessions'])->name('anomalies.sessions');
+    
+    // Superadmin reports (super admin only)
+    Route::get('/superadmin-reports', [App\Http\Controllers\SuperAdminReportsController::class, 'index'])->name('superadmin-reports.index');
+    Route::get('/superadmin-reports/data', [App\Http\Controllers\SuperAdminReportsController::class, 'data'])->name('superadmin-reports.data');
 });
 
 // Legal documents accessible without authentication

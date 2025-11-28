@@ -213,6 +213,94 @@
     </div>
 </div>
 
+<!-- Stop Session Confirmation Modal -->
+<div id="stop-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 transform transition-all">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-red-50 rounded-t-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-stop-circle text-red-600 text-xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900">Oprește Sesiunea</h3>
+            </div>
+            <button onclick="closeStopModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-6 py-6">
+            <p class="text-gray-700 text-lg mb-2">Sigur vrei să oprești sesiunea pentru:</p>
+            <p id="stop-modal-child-name" class="text-2xl font-bold text-gray-900 mb-6"></p>
+            
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+                    <p class="text-sm text-amber-800">
+                        Această acțiune va finaliza sesiunea de joacă. După oprire, va trebui să emiteți bonul fiscal pentru plată.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button 
+                    onclick="closeStopModal()" 
+                    class="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium">
+                    Anulează
+                </button>
+                <button 
+                    id="stop-modal-confirm-btn"
+                    onclick="confirmStopSession()"
+                    class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium flex items-center gap-2">
+                    <i class="fas fa-stop-circle"></i>
+                    <span>Oprește Sesiunea</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Styles for session row animations -->
+<style>
+    /* Highlight animation for just-stopped sessions - simple and clean */
+    @keyframes session-stopped-highlight {
+        0% { 
+            background-color: rgba(34, 197, 94, 0.4);
+        }
+        30% { 
+            background-color: rgba(34, 197, 94, 0.3);
+        }
+        100% { 
+            background-color: transparent;
+        }
+    }
+    
+    .session-just-stopped {
+        animation: session-stopped-highlight 3s ease-out forwards;
+    }
+    
+    /* Fade animation before row moves - no transforms to avoid layout issues */
+    @keyframes session-stopping-fade {
+        0% { 
+            background-color: rgba(239, 68, 68, 0.15);
+        }
+        40% { 
+            background-color: rgba(239, 68, 68, 0.25);
+        }
+        70% {
+            background-color: rgba(251, 191, 36, 0.2);
+        }
+        100% { 
+            background-color: rgba(34, 197, 94, 0.25);
+        }
+    }
+    
+    .session-stopping {
+        animation: session-stopping-fade 1s ease-out forwards;
+    }
+</style>
+
 @endsection
 
 @section('scripts')
@@ -238,6 +326,110 @@
     let timerIntervals = new Map();
     let pauseWarningIntervals = new Map();
     let selectedSessions = new Set(); // Track selected session IDs
+    
+    // ===== STOP SESSION MODAL =====
+    let stopModalSessionId = null;
+    let stopModalChildName = null;
+
+    function openStopModal(sessionId, childName) {
+        stopModalSessionId = sessionId;
+        stopModalChildName = childName;
+        
+        // Set child name in modal
+        document.getElementById('stop-modal-child-name').textContent = childName || 'Copil necunoscut';
+        
+        // Reset confirm button state
+        const confirmBtn = document.getElementById('stop-modal-confirm-btn');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<i class="fas fa-stop-circle"></i><span>Oprește Sesiunea</span>';
+            confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        
+        // Show modal
+        document.getElementById('stop-modal').classList.remove('hidden');
+    }
+
+    function closeStopModal() {
+        document.getElementById('stop-modal').classList.add('hidden');
+        stopModalSessionId = null;
+        stopModalChildName = null;
+    }
+
+    async function confirmStopSession() {
+        if (!stopModalSessionId) {
+            alert('Eroare: Sesiune invalidă');
+            closeStopModal();
+            return;
+        }
+        
+        const sessionId = stopModalSessionId;
+        const childName = stopModalChildName;
+        const confirmBtn = document.getElementById('stop-modal-confirm-btn');
+        
+        // Disable button and show loading state
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Se oprește...</span>';
+            confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        
+        try {
+            // Find and highlight the row being stopped
+            const tableRow = document.querySelector(`[data-stop="${sessionId}"]`)?.closest('tr');
+            if (tableRow) {
+                tableRow.classList.add('session-stopping');
+            }
+            
+            // Make the API call
+            const res = await fetch(`/dashboard-api/sessions/${sessionId}/stop`, { 
+                method: 'POST', 
+                headers: { 
+                    'Accept': 'application/json', 
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') 
+                }, 
+                credentials: 'same-origin' 
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                // Store the stopped session ID for highlighting after refresh
+                sessionStorage.setItem('justStoppedSessionId', sessionId);
+                sessionStorage.setItem('justStoppedChildName', childName || '');
+                
+                // Close modal
+                closeStopModal();
+                
+                // Wait for the "stopping" animation to complete (1s), then refresh
+                // This gives the user time to see the visual feedback before the row moves
+                setTimeout(() => {
+                    fetchData();
+                }, 1000);
+            } else {
+                alert(data.message || 'Nu s-a putut opri sesiunea');
+                // Reset button state
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = '<i class="fas fa-stop-circle"></i><span>Oprește Sesiunea</span>';
+                    confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                // Remove stopping class
+                if (tableRow) {
+                    tableRow.classList.remove('session-stopping');
+                }
+            }
+        } catch (error) {
+            console.error('Error stopping session:', error);
+            alert('Eroare de rețea la oprirea sesiunii');
+            // Reset button state
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-stop-circle"></i><span>Oprește Sesiunea</span>';
+                confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }
 
     function clearAllTimers() {
         timerIntervals.forEach((intv) => clearInterval(intv));
@@ -383,11 +575,22 @@
         clearAllTimers();
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
+        
+        // Check if there's a just-stopped session to highlight
+        const justStoppedSessionId = sessionStorage.getItem('justStoppedSessionId');
+        
         rows.forEach(row => {
             const tr = document.createElement('tr');
+            tr.setAttribute('data-session-id', row.id);
+            
             // Check if this session can be selected (ended, unpaid, not birthday/jungle)
             const canSelect = row.ended_at && !row.is_paid && !row.is_birthday && !row.is_jungle;
             const isSelected = selectedSessions.has(row.id);
+            
+            // Apply highlight animation if this is the just-stopped session
+            if (justStoppedSessionId && parseInt(justStoppedSessionId) === row.id) {
+                tr.classList.add('session-just-stopped');
+            }
             
             tr.innerHTML = `
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
@@ -468,7 +671,7 @@
                             ` : `
                                 <button data-pause="${row.id}" class="px-2 py-1 bg-yellow-600 text-white rounded text-xs">Pauză</button>
                             `}
-                            <button data-stop="${row.id}" class="px-2 py-1 bg-red-600 text-white rounded text-xs">Oprește</button>
+                            <button data-stop="${row.id}" data-child-name="${(row.child_name || '').replace(/"/g, '&quot;')}" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors">Oprește</button>
                         `}
                     </div>
                 </td>
@@ -563,11 +766,33 @@
                 }
             });
             const stopBtn = tr.querySelector(`[data-stop="${row.id}"]`);
-            if (stopBtn) stopBtn.addEventListener('click', async () => {
-                await fetch(`/dashboard-api/sessions/${row.id}/stop`, { method: 'POST', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }, credentials: 'same-origin' });
-                fetchData();
+            if (stopBtn) stopBtn.addEventListener('click', () => {
+                // Open confirmation modal instead of direct action
+                const childName = stopBtn.getAttribute('data-child-name') || row.child_name || 'Copil necunoscut';
+                openStopModal(row.id, childName);
             });
         });
+        
+        // Clear the just-stopped session from storage after rendering and scroll to it
+        if (justStoppedSessionId) {
+            // Find the row with the just-stopped session and scroll to it smoothly
+            const stoppedRow = document.querySelector(`tr[data-session-id="${justStoppedSessionId}"]`);
+            if (stoppedRow) {
+                // Wait a tiny bit for the DOM to settle, then scroll
+                setTimeout(() => {
+                    stoppedRow.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
+                }, 50);
+            }
+            
+            // Clear storage after animation completes (3 seconds for the highlight)
+            setTimeout(() => {
+                sessionStorage.removeItem('justStoppedSessionId');
+                sessionStorage.removeItem('justStoppedChildName');
+            }, 3000);
+        }
     }
 
     function renderMeta(meta) {

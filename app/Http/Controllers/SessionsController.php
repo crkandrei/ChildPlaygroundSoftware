@@ -1112,6 +1112,72 @@ class SessionsController extends Controller
     }
 
     /**
+     * Restart a stopped session (Super Admin only)
+     * This reactivates a session that was stopped but not yet paid
+     */
+    public function restartSession($id)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Neautentificat'
+            ], 401);
+        }
+
+        // Only super admin can restart sessions
+        if (!$user->isSuperAdmin()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nu aveți permisiunea de a reporni sesiuni'
+            ], 403);
+        }
+
+        // Ensure ID is an integer
+        $sessionId = (int) $id;
+        
+        // Get session (super admin can access any session)
+        try {
+            $session = PlaySession::findOrFail($sessionId);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea nu a fost găsită (ID: ' . $sessionId . ')'
+            ], 404);
+        }
+
+        // Verify session is stopped
+        if ($session->isActive()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesiunea este deja activă'
+            ], 400);
+        }
+
+        // Verify session is not paid
+        if ($session->isPaid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nu se poate reporni o sesiune plătită'
+            ], 400);
+        }
+
+        try {
+            $session->restart();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Sesiunea a fost repornită cu succes',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Eroare la repornirea sesiunii: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Toggle payment status for a session (Super Admin only)
      */
     public function togglePaymentStatus($id, Request $request)

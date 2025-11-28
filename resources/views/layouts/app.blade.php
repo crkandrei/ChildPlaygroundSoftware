@@ -278,14 +278,14 @@
                     <!-- Loguri Menu -->
                     <div class="relative" id="logs-menu">
                         <button id="logs-menu-btn" 
-                                class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('fiscal-receipt-logs.*') || request()->routeIs('anomalies.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
+                                class="w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors {{ request()->routeIs('fiscal-receipt-logs.*') || request()->routeIs('anomalies.*') || request()->routeIs('superadmin-reports.*') ? 'bg-sky-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white' }}">
                             <div class="flex items-center">
                                 <i class="fas fa-list-alt sidebar-icon mr-3"></i>
                                 <span class="sidebar-text">Loguri</span>
                             </div>
-                            <i id="logs-menu-arrow" class="fas fa-chevron-down text-xs transition-transform {{ request()->routeIs('fiscal-receipt-logs.*') || request()->routeIs('anomalies.*') ? 'rotate-180' : '' }}"></i>
+                            <i id="logs-menu-arrow" class="fas fa-chevron-down text-xs transition-transform {{ request()->routeIs('fiscal-receipt-logs.*') || request()->routeIs('anomalies.*') || request()->routeIs('superadmin-reports.*') ? 'rotate-180' : '' }}"></i>
                         </button>
-                        <div id="logs-submenu" class="ml-4 mt-2 space-y-1 {{ request()->routeIs('fiscal-receipt-logs.*') || request()->routeIs('anomalies.*') ? '' : 'hidden' }}">
+                        <div id="logs-submenu" class="ml-4 mt-2 space-y-1 {{ request()->routeIs('fiscal-receipt-logs.*') || request()->routeIs('anomalies.*') || request()->routeIs('superadmin-reports.*') ? '' : 'hidden' }}">
                             <a href="{{ route('fiscal-receipt-logs.index') }}" 
                                class="flex items-center px-4 py-2 text-sm rounded-lg transition-colors {{ request()->routeIs('fiscal-receipt-logs.*') ? 'bg-sky-500 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
                                 <i class="fas fa-file-invoice mr-2 text-xs"></i>
@@ -295,6 +295,11 @@
                                class="flex items-center px-4 py-2 text-sm rounded-lg transition-colors {{ request()->routeIs('anomalies.*') ? 'bg-sky-500 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
                                 <i class="fas fa-exclamation-triangle mr-2 text-xs"></i>
                                 <span>Probleme</span>
+                            </a>
+                            <a href="{{ route('superadmin-reports.index') }}" 
+                               class="flex items-center px-4 py-2 text-sm rounded-lg transition-colors {{ request()->routeIs('superadmin-reports.*') ? 'bg-sky-500 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white' }}">
+                                <i class="fas fa-chart-bar mr-2 text-xs"></i>
+                                <span>Rapoarte Superadmin</span>
                             </a>
                         </div>
                     </div>

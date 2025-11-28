@@ -344,6 +344,38 @@ class PlaySession extends Model
     }
 
     /**
+     * Restart a stopped session (only if not paid)
+     * This reactivates the session and creates a new interval
+     * Note: started_at is NOT changed to preserve the original hourly rate
+     */
+    public function restart(): self
+    {
+        // Verify session is stopped
+        if ($this->isActive()) {
+            throw new \Exception('Sesiunea este deja activă');
+        }
+
+        // Verify session is not paid
+        if ($this->isPaid()) {
+            throw new \Exception('Nu se poate reporni o sesiune plătită');
+        }
+
+        // Reactivate session: clear ended_at and calculated_price
+        // Note: started_at stays the same to preserve the original hourly rate
+        $this->update([
+            'ended_at' => null,
+            'calculated_price' => null,
+        ]);
+
+        // Create a new interval for the continued play
+        $this->intervals()->create([
+            'started_at' => now(),
+        ]);
+
+        return $this;
+    }
+
+    /**
      * Calculate the price for this session
      * Uses PricingService to calculate based on effective duration and tenant's hourly rate
      * 
