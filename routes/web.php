@@ -16,7 +16,15 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     // Dashboard - doar pentru SUPER_ADMIN și COMPANY_ADMIN (verificarea se face în controller)
     Route::get('/dashboard', [WebController::class, 'dashboard'])->name('dashboard');
-    Route::get('/rapoarte', [App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
+    
+    // Reports submenu routes (SUPER_ADMIN și COMPANY_ADMIN)
+    Route::get('/reports/traffic', [App\Http\Controllers\ReportsController::class, 'traffic'])->name('reports.traffic');
+    Route::get('/reports/general', [App\Http\Controllers\GeneralReportController::class, 'index'])->name('reports.general');
+    Route::get('/reports/general/data', [App\Http\Controllers\GeneralReportController::class, 'data'])->name('reports.general.data');
+    Route::get('/reports/children', [App\Http\Controllers\SuperAdminReportsController::class, 'index'])->name('reports.children');
+    Route::get('/reports/children/data', [App\Http\Controllers\SuperAdminReportsController::class, 'data'])->name('reports.children.data');
+    // Redirect old route for backwards compatibility
+    Route::get('/rapoarte', function() { return redirect()->route('reports.traffic'); })->name('reports.index');
     
     Route::get('/change-password', [AuthController::class, 'showChangePasswordForm'])->name('change-password');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
@@ -43,11 +51,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/sessions/{id}/update-birthday-status', [App\Http\Controllers\SessionsController::class, 'updateBirthdayStatus'])->name('sessions.update-birthday-status');
     Route::post('/sessions/{id}/update-jungle-status', [App\Http\Controllers\SessionsController::class, 'updateJungleStatus'])->name('sessions.update-jungle-status');
     Route::post('/sessions/{id}/toggle-payment-status', [App\Http\Controllers\SessionsController::class, 'togglePaymentStatus'])->name('sessions.toggle-payment-status');
+    Route::post('/sessions/{id}/restart', [App\Http\Controllers\SessionsController::class, 'restartSession'])->name('sessions.restart');
 
     // Dashboard API (session-auth via web guard)
     Route::prefix('dashboard-api')->group(function () {
         Route::get('/stats', [App\Http\Controllers\DashboardApiController::class, 'stats']);
-            Route::get('/active-sessions', [App\Http\Controllers\ScanPageController::class, 'getActiveSessions']);
+        Route::get('/alerts', [App\Http\Controllers\DashboardApiController::class, 'alerts']);
+        Route::get('/active-sessions', [App\Http\Controllers\ScanPageController::class, 'getActiveSessions']);
         Route::post('/sessions/{id}/stop', [App\Http\Controllers\ScanPageController::class, 'stopSession']);
         Route::post('/sessions/{id}/pause', [App\Http\Controllers\ScanPageController::class, 'pauseSession']);
         Route::post('/sessions/{id}/resume', [App\Http\Controllers\ScanPageController::class, 'resumeSession']);
@@ -145,6 +155,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/anomalies', [App\Http\Controllers\AnomaliesController::class, 'index'])->name('anomalies.index');
     Route::post('/anomalies/scan', [App\Http\Controllers\AnomaliesController::class, 'scan'])->name('anomalies.scan');
     Route::get('/anomalies/{type}/sessions', [App\Http\Controllers\AnomaliesController::class, 'getSessions'])->name('anomalies.sessions');
+    
+    // Superadmin reports (super admin only)
+    Route::get('/superadmin-reports', [App\Http\Controllers\SuperAdminReportsController::class, 'index'])->name('superadmin-reports.index');
+    Route::get('/superadmin-reports/data', [App\Http\Controllers\SuperAdminReportsController::class, 'data'])->name('superadmin-reports.data');
 });
 
 // Legal documents accessible without authentication

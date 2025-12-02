@@ -6,7 +6,11 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportsController extends Controller
 {
-    public function index()
+    /**
+     * Display traffic analysis report
+     * Access: SUPER_ADMIN, COMPANY_ADMIN
+     */
+    public function traffic()
     {
         if (!Auth::user()) {
             return redirect()->route('login');
@@ -17,7 +21,7 @@ class ReportsController extends Controller
             abort(403, 'Acces interzis');
         }
         
-        return view('reports.index');
+        return view('reports.traffic');
     }
 }
 
