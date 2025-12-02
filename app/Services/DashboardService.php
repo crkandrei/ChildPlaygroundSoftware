@@ -21,6 +21,12 @@ class DashboardService
         $now = now();
         $startOfDay = $now->copy()->startOfDay();
         $endOfDay = $now->copy()->endOfDay();
+        
+        // Same day last week for comparison
+        $lastWeekSameDay = $now->copy()->subWeek();
+        $lastWeekStart = $lastWeekSameDay->copy()->startOfDay();
+        $lastWeekEnd = $lastWeekSameDay->copy()->endOfDay();
+        $dayName = $this->getRomanianDayName($now->dayOfWeek);
 
         $activeSessions = $this->sessions->countActiveSessionsByTenant($tenantId);
         $sessionsToday = $this->sessions->countSessionsStartedSince($tenantId, $startOfDay);
@@ -29,6 +35,20 @@ class DashboardService
         $todaySessions = $this->sessions->getSessionsSince($tenantId, $startOfDay);
         $totalMinutesToday = $todaySessions->reduce(fn($c, $s) => $c + $s->getCurrentDurationMinutes(), 0);
         $avgToday = $todaySessions->count() > 0 ? (int) floor($totalMinutesToday / $todaySessions->count()) : 0;
+
+        // Session type breakdown for today
+        $normalSessions = 0;
+        $birthdaySessions = 0;
+        $jungleSessions = 0;
+        foreach ($todaySessions as $session) {
+            if ($session->is_birthday) {
+                $birthdaySessions++;
+            } elseif ($session->is_jungle) {
+                $jungleSessions++;
+            } else {
+                $normalSessions++;
+            }
+        }
 
         $allSessions = $this->sessions->getAllByTenant($tenantId);
         $totalMinutesAll = $allSessions->reduce(fn($c, $s) => $c + $s->getCurrentDurationMinutes(), 0);
@@ -83,10 +103,25 @@ class DashboardService
         // Total income = cash + card + voucher (total value, not just collected)
         $totalIncomeToday = $cashTotal + $cardTotal + $voucherTotal;
 
+        // Get same day last week stats for comparison
+        $sessionsLastWeek = PlaySession::where('tenant_id', $tenantId)
+            ->where('started_at', '>=', $lastWeekStart)
+            ->where('started_at', '<=', $lastWeekEnd)
+            ->count();
+        
+        $incomeLastWeek = $this->calculateIncomeForPeriod($tenantId, $lastWeekStart, $lastWeekEnd);
+        
+        // Calculate comparison percentages
+        $sessionsComparison = $this->calculateComparison($sessionsToday, $sessionsLastWeek);
+        $incomeComparison = $this->calculateComparison($totalIncomeToday, $incomeLastWeek);
+
         return [
             'active_sessions' => $activeSessions,
             'sessions_today' => $sessionsToday,
             'sessions_today_in_progress' => $inProgressToday,
+            'sessions_normal' => $normalSessions,
+            'sessions_birthday' => $birthdaySessions,
+            'sessions_jungle' => $jungleSessions,
             'avg_session_today_minutes' => $avgToday,
             'avg_session_total_minutes' => $avgAll,
             'total_time_today' => $this->formatMinutes($totalMinutesToday),
@@ -94,7 +129,78 @@ class DashboardService
             'cash_total' => round($cashTotal, 2),
             'card_total' => round($cardTotal, 2),
             'voucher_total' => round($voucherTotal, 2),
+            // Comparison with same day last week
+            'comparison_day_name' => $dayName,
+            'sessions_last_week' => $sessionsLastWeek,
+            'sessions_comparison' => $sessionsComparison,
+            'income_last_week' => round($incomeLastWeek, 2),
+            'income_comparison' => $incomeComparison,
         ];
+    }
+    
+    /**
+     * Calculate income for a specific period
+     */
+    private function calculateIncomeForPeriod(int $tenantId, Carbon $start, Carbon $end): float
+    {
+        $sessions = PlaySession::where('tenant_id', $tenantId)
+            ->whereNotNull('ended_at')
+            ->whereNotNull('calculated_price')
+            ->where('ended_at', '>=', $start)
+            ->where('ended_at', '<=', $end)
+            ->where('is_birthday', false)
+            ->get();
+        
+        $total = 0;
+        foreach ($sessions as $session) {
+            if ($session->isPaid()) {
+                $timePrice = $session->calculated_price ?? 0;
+                $productsPrice = $session->getProductsTotalPrice();
+                $total += $timePrice + $productsPrice;
+            }
+        }
+        
+        return $total;
+    }
+    
+    /**
+     * Calculate comparison percentage between current and previous values
+     */
+    private function calculateComparison(float $current, float $previous): array
+    {
+        if ($previous == 0) {
+            return [
+                'percent' => $current > 0 ? 100 : 0,
+                'direction' => $current > 0 ? 'up' : 'neutral',
+                'diff' => $current,
+            ];
+        }
+        
+        $diff = $current - $previous;
+        $percent = round(($diff / $previous) * 100, 1);
+        
+        return [
+            'percent' => abs($percent),
+            'direction' => $percent > 0 ? 'up' : ($percent < 0 ? 'down' : 'neutral'),
+            'diff' => $diff,
+        ];
+    }
+    
+    /**
+     * Get Romanian day name
+     */
+    private function getRomanianDayName(int $dayOfWeek): string
+    {
+        $days = [
+            0 => 'Duminică',
+            1 => 'Luni',
+            2 => 'Marți',
+            3 => 'Miercuri',
+            4 => 'Joi',
+            5 => 'Vineri',
+            6 => 'Sâmbătă',
+        ];
+        return $days[$dayOfWeek] ?? '';
     }
 
     public function getActiveSessions(int $tenantId): array
@@ -104,16 +210,99 @@ class DashboardService
                 $child = $session->child;
                 $guardian = $child ? $child->guardian : null;
                 $childName = $child ? $child->name : '-';
+                
+                // Determine session type
+                $sessionType = 'normal';
+                if ($session->is_birthday) {
+                    $sessionType = 'birthday';
+                } elseif ($session->is_jungle) {
+                    $sessionType = 'jungle';
+                }
+                
                 return [
                     'id' => $session->id,
                     'child_name' => $childName,
                     'parent_name' => $guardian->name ?? '-',
                     'started_at' => $session->started_at ? $session->started_at->toISOString() : null,
                     'duration' => $session->getFormattedDuration(),
+                    'duration_minutes' => $session->getCurrentDurationMinutes(),
                     'bracelet_code' => $session->bracelet_code ?? null,
+                    'session_type' => $sessionType,
+                    'is_paused' => $session->isPaused(),
                 ];
             })
             ->toArray();
+    }
+    
+    /**
+     * Get alerts for the dashboard (unpaid sessions, long running sessions)
+     */
+    public function getAlerts(int $tenantId): array
+    {
+        $alerts = [];
+        $now = now();
+        $startOfDay = $now->copy()->startOfDay();
+        
+        // 1. Unpaid sessions - sessions ended today but not paid
+        $unpaidSessions = PlaySession::where('tenant_id', $tenantId)
+            ->whereNotNull('ended_at')
+            ->whereNull('paid_at')
+            ->where('ended_at', '>=', $startOfDay)
+            ->where('is_birthday', false) // Birthday sessions don't need payment
+            ->with('child')
+            ->get();
+        
+        if ($unpaidSessions->count() > 0) {
+            $unpaidDetails = $unpaidSessions->map(function ($session) {
+                return [
+                    'id' => $session->id,
+                    'child_name' => $session->child->name ?? 'Necunoscut',
+                    'price' => $session->calculated_price ?? $session->calculatePrice(),
+                ];
+            })->toArray();
+            
+            $alerts[] = [
+                'type' => 'unpaid',
+                'severity' => 'warning',
+                'icon' => 'fa-exclamation-triangle',
+                'title' => $unpaidSessions->count() . ' sesiuni neplătite',
+                'message' => 'Sesiuni finalizate azi care nu au fost încă plătite.',
+                'count' => $unpaidSessions->count(),
+                'details' => $unpaidDetails,
+            ];
+        }
+        
+        // 2. Long running sessions - active sessions > 4 hours
+        $longSessions = PlaySession::where('tenant_id', $tenantId)
+            ->whereNull('ended_at')
+            ->with('child')
+            ->get()
+            ->filter(function ($session) {
+                return $session->getCurrentDurationMinutes() > 240; // > 4 hours
+            });
+        
+        if ($longSessions->count() > 0) {
+            $longDetails = $longSessions->map(function ($session) {
+                return [
+                    'id' => $session->id,
+                    'child_name' => $session->child->name ?? 'Necunoscut',
+                    'duration' => $session->getFormattedDuration(),
+                    'duration_minutes' => $session->getCurrentDurationMinutes(),
+                ];
+            })->toArray();
+            
+            $alerts[] = [
+                'type' => 'long_session',
+                'severity' => 'info',
+                'icon' => 'fa-clock',
+                'title' => $longSessions->count() . ' sesiuni foarte lungi',
+                'message' => 'Sesiuni active de peste 4 ore - verifică dacă totul e în regulă.',
+                'count' => $longSessions->count(),
+                'details' => $longDetails,
+            ];
+        }
+        
+        return $alerts;
     }
 
     public function getReports(int $tenantId, ?string $startDate = null, ?string $endDate = null, ?array $weekdays = null): array

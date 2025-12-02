@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Rapoarte Superadmin')
-@section('page-title', 'Rapoarte Superadmin')
+@section('title', 'Statistici Copii')
+@section('page-title', 'Statistici Copii')
 
 @section('content')
 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 card-hover">
@@ -83,7 +83,7 @@
             search: state.search
         });
 
-        fetch(`/superadmin-reports/data?${params}`)
+        fetch(`/reports/children/data?${params}`)
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -205,4 +205,5 @@
     loadData();
 </script>
 @endsection
+
 

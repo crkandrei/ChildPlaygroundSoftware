@@ -104,6 +104,19 @@ class DashboardApiController extends Controller
         $entriesData = $this->dashboard->getEntriesOverTime($tenantId, $periodType, $count);
         return ApiResponder::success(['entries' => $entriesData]);
     }
+    
+    /** Get alerts for dashboard (unpaid sessions, long sessions) */
+    public function alerts()
+    {
+        $user = Auth::user();
+        if (!$user || !$user->tenant) {
+            return ApiResponder::error('Neautentificat', 401);
+        }
+        $tenantId = $user->tenant->id;
+
+        $alerts = $this->dashboard->getAlerts($tenantId);
+        return ApiResponder::success(['alerts' => $alerts]);
+    }
 }
 
 
