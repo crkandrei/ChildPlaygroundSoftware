@@ -1,7 +1,7 @@
 import { MessageCircle } from 'lucide-react';
 
 export function WhatsAppButton() {
-  const phoneNumber = '40700000000';
+  const phoneNumber = '40748394441';
   const message = 'Bună ziua! Aș dori să aflu mai multe informații despre Bongoland.';
 
   const handleClick = () => {

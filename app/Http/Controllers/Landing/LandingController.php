@@ -13,9 +13,49 @@ class LandingController extends Controller
     public function index()
     {
         return view('landing.app', [
-            'metaTitle' => 'Bongoland - Loc de Joacă Vaslui | Parc de Joacă pentru Copii',
-            'metaDescription' => 'Bongoland este cel mai bun loc de joacă din Vaslui pentru copii. Oferim activități distractive, zile de naștere memorabile și un mediu sigur pentru copiii tăi.',
-            'metaKeywords' => 'locuri de joacă Vaslui, parc de joacă Vaslui, playground Vaslui, activități copii Vaslui, zi de naștere copii Vaslui',
+            'metaTitle' => 'Bongoland Vaslui – Loc de joacă pentru copii | Petreceri și Serbări Copii',
+            'metaDescription' => 'Cauți un loc de joacă pentru copii în Vaslui? Bongoland este cea mai modernă locație cu trambuline, tobogane, zonă pentru copii mici, petreceri și serbări. Vezi programul, prețurile și galeria foto.',
+            'metaKeywords' => 'loc de joacă vaslui, loc joacă copii vaslui, petreceri copii vaslui, serbări copii vaslui, bongoland vaslui, joacă interior vaslui',
+            'canonicalUrl' => 'https://bongoland.ro',
+        ]);
+    }
+
+    /**
+     * SEO Page: Loc de Joacă Vaslui
+     */
+    public function locDeJoaca()
+    {
+        return view('landing.seo.loc-de-joaca-vaslui', [
+            'metaTitle' => 'Loc de Joacă Copii Vaslui – Bongoland | Cel Mai Mare Parc Interior',
+            'metaDescription' => 'Bongoland este cel mai mare loc de joacă interior din Vaslui. Trambuline, tobogane, tiroliană, piscină cu bile și zonă pentru copii mici. Deschis zilnic, prețuri accesibile!',
+            'metaKeywords' => 'loc de joacă vaslui, loc joacă copii vaslui, parc interior copii vaslui, joacă interior vaslui, playground vaslui',
+            'canonicalUrl' => 'https://bongoland.ro/loc-de-joaca-vaslui',
+        ]);
+    }
+
+    /**
+     * SEO Page: Petreceri Copii Vaslui
+     */
+    public function petreceriCopii()
+    {
+        return view('landing.seo.petreceri-copii-vaslui', [
+            'metaTitle' => 'Petreceri pentru Copii în Vaslui – Bongoland | Aniversări și Evenimente',
+            'metaDescription' => 'Organizezi o petrecere pentru copilul tău? La Bongoland Vaslui avem pachete complete pentru aniversări: acces loc de joacă, mâncare proaspătă, decorațiuni. Rezervă acum!',
+            'metaKeywords' => 'petreceri copii vaslui, aniversari copii vaslui, zile nastere copii vaslui, petreceri loc de joaca vaslui',
+            'canonicalUrl' => 'https://bongoland.ro/petreceri-copii-vaslui',
+        ]);
+    }
+
+    /**
+     * SEO Page: Serbări Copii Vaslui
+     */
+    public function serbariCopii()
+    {
+        return view('landing.seo.serbari-copii-vaslui', [
+            'metaTitle' => 'Serbări Școlare și Grădiniță în Vaslui – Bongoland | Evenimente pentru Copii',
+            'metaDescription' => 'Organizăm serbări de Crăciun, 8 Martie și sfârșit de an pentru grădinițe și școli din Vaslui. Spațiu generos, mâncare proaspătă, prețuri speciale pentru grupuri!',
+            'metaKeywords' => 'serbări copii vaslui, serbări grădiniță vaslui, serbări școlare vaslui, evenimente copii vaslui',
+            'canonicalUrl' => 'https://bongoland.ro/serbari-copii-vaslui',
         ]);
     }
 
@@ -67,7 +107,3 @@ class LandingController extends Controller
         ]);
     }
 }
-
-
-
-

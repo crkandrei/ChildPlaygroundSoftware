@@ -1,39 +1,54 @@
 import { useState } from 'react';
-import { Menu, X, Palmtree } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Button } from './Button';
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigation = [
-    { name: 'Acasă', href: '#home' },
-    { name: 'Locul de Joacă', href: '#playground' },
-    { name: 'Petreceri', href: '#parties' },
-    { name: 'Prețuri', href: '#pricing' },
-    { name: 'Galerie', href: '#gallery' },
-    { name: 'Contact', href: '#contact' },
+    { name: 'Acasă', href: '/', isExternal: false },
+    { name: 'Loc de Joacă', href: '/loc-de-joaca-vaslui', isExternal: true },
+    { name: 'Petreceri', href: '/petreceri-copii-vaslui', isExternal: true },
+    { name: 'Serbări', href: '/serbari-copii-vaslui', isExternal: true },
+    { name: 'Prețuri', href: '#pricing', isExternal: false },
+    { name: 'Contact', href: '#contact', isExternal: false },
   ];
+
+  const handleNavClick = (href: string, isExternal: boolean) => {
+    if (isExternal) {
+      window.location.href = href;
+    } else if (href.startsWith('#')) {
+      window.location.hash = href;
+    } else {
+      window.location.href = href;
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-jungle-dark via-jungle to-leaf shadow-2xl border-b-4 border-leaf-light">
       <nav className="container mx-auto px-4 md:px-6 max-w-7xl">
         <div className="flex items-center justify-between h-20">
-          <div className="flex items-center gap-3">
-            <div className="bg-sand rounded-full p-2 shadow-lg">
-              <Palmtree className="w-7 h-7 text-jungle-dark" />
-            </div>
-            <div>
-              <h1 className="font-display text-2xl font-bold text-white drop-shadow-md">Bongoland</h1>
-              <p className="text-xs font-bold text-leaf-light hidden sm:block">Aventura în Junglă</p>
-            </div>
-          </div>
+          <a href="/" className="flex items-center gap-3">
+            <img 
+              src="/images/bongoland-logo.png" 
+              alt="Bongoland - Loc de joacă Vaslui" 
+              className="h-14 w-auto drop-shadow-lg"
+              loading="eager"
+            />
+          </a>
 
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-6">
             {navigation.map((item) => (
               <a
                 key={item.name}
                 href={item.href}
-                className="text-white font-bold hover:text-sand transition-colors drop-shadow-md"
+                onClick={(e) => {
+                  if (!item.isExternal && item.href.startsWith('#')) {
+                    e.preventDefault();
+                    handleNavClick(item.href, item.isExternal);
+                  }
+                }}
+                className="text-white font-bold hover:text-sand transition-colors drop-shadow-md text-sm"
               >
                 {item.name}
               </a>
@@ -49,6 +64,7 @@ export function Header() {
           <button
             className="lg:hidden p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Meniu navigare"
           >
             {mobileMenuOpen ? (
               <X className="w-6 h-6 text-white" />
@@ -59,7 +75,7 @@ export function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="lg:hidden pb-6 space-y-4 bg-jungle-dark/95 backdrop-blur-sm rounded-b-3xl">
+          <div className="lg:hidden pb-6 space-y-4 bg-jungle-dark/95 backdrop-blur-sm rounded-b-3xl px-4">
             {navigation.map((item) => (
               <a
                 key={item.name}
@@ -86,4 +102,3 @@ export function Header() {
     </header>
   );
 }
-

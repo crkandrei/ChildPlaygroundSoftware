@@ -178,9 +178,10 @@ export function Playground() {
             </div>
             <h3 className="text-xl font-bold text-jungle-dark mb-3">Program și Recomandări</h3>
             <div className="text-gray-600 space-y-3 text-sm">
-              <p><span className="font-semibold">Luni - Vineri:</span> 10:00 - 20:00</p>
-              <p><span className="font-semibold">Weekend:</span> 09:00 - 21:00</p>
-              <p className="pt-3 border-t"><span className="font-semibold">Tip:</span> Dimineața în timpul săptămânii este mai liniștit și perfect pentru cei mici!</p>
+              <p><span className="font-semibold">Luni - Joi:</span> 15:30 - 20:30</p>
+              <p><span className="font-semibold">Vineri:</span> 15:30 - 22:00</p>
+              <p><span className="font-semibold">Weekend:</span> 11:00 - 21:00</p>
+              <p className="pt-3 border-t"><span className="font-semibold">Tip:</span> În weekend dimineața este mai liniștit și perfect pentru cei mici!</p>
             </div>
           </Card>
 

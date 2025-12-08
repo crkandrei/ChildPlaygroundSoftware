@@ -1,38 +1,38 @@
-import { Shield, Sparkles, Users, Heart, Trophy, Star } from 'lucide-react';
+import { Shield, Sparkles, Users, Heart, Trophy, ChefHat, Coffee, Maximize } from 'lucide-react';
 import { Section } from '../../components/Section';
 import { Card } from '../../components/Card';
 
 export function WhyBongoland() {
   const benefits = [
     {
+      icon: ChefHat,
+      title: 'Bucătărie Proprie',
+      description: 'Preparăm mâncare proaspătă în bucătăria noastră. Pizza, crispy și multe alte bunătăți făcute pe loc, nu produse congelate!',
+    },
+    {
+      icon: Coffee,
+      title: 'Zonă Restaurant Părinți',
+      description: 'Relaxează-te în zona noastră tip restaurant în timp ce copiii se joacă. Mese confortabile, mâncare bună și liniște.',
+    },
+    {
+      icon: Maximize,
+      title: 'Cea Mai Mare Suprafață',
+      description: 'Cel mai mare loc de joacă din Vaslui! Spațiu generos pentru ca fiecare copil să exploreze și să se joace în voie.',
+    },
+    {
       icon: Shield,
       title: 'Siguranță Maximă',
-      description: 'Echipamente certificate, suprafețe moi și personal instruit în prim ajutor. Fiecare colț este gândit pentru siguranța copiilor.',
+      description: 'Echipamente certificate, suprafețe moi și atenție la fiecare detaliu. Fiecare colț este gândit pentru siguranța copiilor.',
     },
     {
       icon: Sparkles,
       title: 'Curățenie Impecabilă',
-      description: 'Dezinfectăm zilnic toate zonele de joacă. Spații luminate natural, aer condiționat și ventilație optimă pentru confortul micuților.',
-    },
-    {
-      icon: Users,
-      title: 'Personal Calificat',
-      description: 'Echipa noastră iubește copiii și știe cum să creeze un mediu prietenos și distractiv. Supraveghere constantă și atentă.',
-    },
-    {
-      icon: Heart,
-      title: 'Spațiu Generos',
-      description: 'Peste 400 mp de distracție! Fiecare copil are spațiu să exploreze, să alerge și să se joace în voie, fără aglomerație.',
+      description: 'Dezinfectăm zilnic toate zonele de joacă. Spații luminate și ventilate pentru confortul și sănătatea micuților.',
     },
     {
       icon: Trophy,
-      title: 'Echipamente Noi',
-      description: 'Am investit în cele mai moderne și sigure echipamente de joacă. Tobogane uriașe, trambuline profesionale și multe altele.',
-    },
-    {
-      icon: Star,
-      title: 'Zone pe Vârste',
-      description: 'Arii dedicate pentru bebeluși, preșcolari și copii mari. Fiecare vârstă are propriile aventuri adaptate nivelului de dezvoltare.',
+      title: 'Echipamente Diverse',
+      description: 'Tiroliană, trambuline, tobogane, piscină cu bile, traseu obstacole și zonă specială pentru cei mai mici.',
     },
   ];
 
@@ -40,10 +40,11 @@ export function WhyBongoland() {
     <Section background="gray">
       <div className="text-center mb-12">
         <h2 className="text-4xl md:text-5xl font-bold text-jungle-dark mb-4">
-          De ce să alegi Bongoland?
+          De ce să Alegi Bongoland Vaslui?
         </h2>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Ne-am gândit la fiecare detaliu pentru ca experiența copiilor tăi să fie perfectă. Iată ce ne face diferiți:
+          Suntem cel mai modern loc de joacă din Vaslui, cu parteneriat cu Restaurant Stil. 
+          Spațiu încălzit/răcit tot timpul anului, curățenie și siguranță permanentă.
         </p>
       </div>
 
@@ -60,10 +61,18 @@ export function WhyBongoland() {
       </div>
 
       <div className="mt-12 bg-gradient-to-r from-jungle to-jungle-green rounded-3xl p-8 md:p-12 text-white text-center">
-        <h3 className="text-3xl font-bold mb-4">Promisiunea noastră</h3>
-        <p className="text-lg leading-relaxed max-w-3xl mx-auto opacity-95">
-          La Bongoland, fiecare copil este special. Ne asigurăm că fiecare vizită este o aventură de neuitat, într-un mediu în care părinții pot avea încredere deplină. Copiii tăi sunt în mâini bune!
+        <h3 className="text-3xl font-bold mb-4">Promisiunea Bongoland</h3>
+        <p className="text-lg leading-relaxed max-w-3xl mx-auto opacity-95 mb-4">
+          La Bongoland, copiii se joacă în cel mai mare loc de joacă din Vaslui, iar părinții se 
+          relaxează cu mâncare proaspătă din bucătăria noastră. Nu doar îi aduci la joacă — 
+          petreci timp de calitate împreună!
         </p>
+        <a 
+          href="/loc-de-joaca-vaslui" 
+          className="inline-block mt-2 text-sand hover:text-white font-semibold underline"
+        >
+          Descoperă tot ce oferim →
+        </a>
       </div>
     </Section>
   );

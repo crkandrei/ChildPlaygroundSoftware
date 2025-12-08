@@ -1,22 +1,29 @@
-import { Activity, Waves, Mountain, Baby, Target, Users } from 'lucide-react';
+import { Zap, Activity, Waves, Baby, Target, ArrowDownUp } from 'lucide-react';
 import { Section } from '../../components/Section';
 import { Card } from '../../components/Card';
 
 export function Attractions() {
   const attractions = [
     {
-      icon: Mountain,
-      title: 'Soft Play Gigant',
-      age: '2-12 ani',
+      icon: Zap,
+      title: 'Tiroliană',
+      age: '4-12 ani',
       color: 'bg-gradient-to-br from-jungle to-leaf-dark',
-      description: 'Structură pe mai multe nivele cu tuneluri colorate, tobogane rapide și obstacole captivante. Copiii se pot cățăra, explora și descoperi noi trasee în siguranță.',
+      description: 'Zboară prin junglă cu tiroliană noastră! O experiență plină de adrenalină într-un mediu complet sigur, cu echipamente profesionale și supraveghere.',
     },
     {
       icon: Activity,
-      title: 'Trambuline Profesionale',
-      age: '4-12 ani',
+      title: 'Trambulină',
+      age: '3-12 ani',
       color: 'bg-gradient-to-br from-sky to-blue-500',
-      description: 'Zone de trambuline cu plase de protecție și supraveghere constantă. Sărituri libere care dezvoltă coordonarea și echilibrul într-un mediu controlat.',
+      description: 'Trambuline profesionale cu plase de protecție. Sărituri libere care dezvoltă coordonarea, echilibrul și oferă distracție maximă pentru toate vârstele!',
+    },
+    {
+      icon: ArrowDownUp,
+      title: 'Tobogane',
+      age: '2-12 ani',
+      color: 'bg-gradient-to-br from-banana to-orange',
+      description: 'Tobogane variate pentru toate vârstele! De la cele mai blânde pentru cei mici, până la cele rapide și captivante pentru cei mai mari.',
     },
     {
       icon: Waves,
@@ -26,36 +33,30 @@ export function Attractions() {
       description: 'Mii de bile colorate într-o piscină sigură și distractivă. Spațiu ideal pentru jocuri imaginative, interacțiuni sociale și dezvoltare motrică.',
     },
     {
+      icon: Target,
+      title: 'Traseu Obstacole',
+      age: '4-12 ani',
+      color: 'bg-gradient-to-br from-jungle-brown to-earth',
+      description: 'Parcurs cu provocări fizice: căi suspendate, obstacole și poduri de funie. Dezvoltă curajul, forța și coordonarea într-un mediu inspirat din junglă.',
+    },
+    {
       icon: Baby,
-      title: 'Zonă Bebeluși',
+      title: 'Zonă pentru Cei Mici',
       age: '0-3 ani',
       color: 'bg-gradient-to-br from-leaf-light to-leaf',
-      description: 'Spațiu dedicat celor mici, cu jucării educative moi, suprafețe catifelate și atmosferă liniștită. Părinții pot supraveghea confortabil din zonele adiacente.',
-    },
-    {
-      icon: Target,
-      title: 'Parcurs Aventură',
-      age: '5-12 ani',
-      color: 'bg-gradient-to-br from-jungle-brown to-earth',
-      description: 'Traseu cu provocări fizice: căi suspendate, ziduri de cățărat și poduri de funie. Dezvoltă curajul, forța și coordonarea într-un mediu inspirat din junglă.',
-    },
-    {
-      icon: Users,
-      title: 'Arenă Jocuri Libere',
-      age: '3-12 ani',
-      color: 'bg-gradient-to-br from-jungle to-jungle-dark',
-      description: 'Spațiu deschis pentru fotbal în miniatură, curse și jocuri de echipă. Aici copiii socializează, colaborează și învață spiritul de echipă.',
+      description: 'Zonă delimitată special pentru bebeluși și toddleri, cu echipamente adaptate vârstei lor. Suprafețe moi, jucării sigure și spațiu de explorare în siguranță.',
     },
   ];
 
   return (
     <Section background="white" id="attractions">
       <div className="text-center mb-12">
-        <h2 className="font-display text-5xl md:text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-jungle-dark via-jungle to-leaf mb-6">
-          Aventuri pentru Toate Vârstele
+        <h2 className="font-display text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-jungle-dark via-jungle to-leaf mb-6">
+          Ce Găsești la Bongoland Vaslui
         </h2>
-        <p className="text-2xl font-bold text-gray-700 max-w-3xl mx-auto">
-          De la bebeluși la copii mari, fiecare găsește ceva potrivit pentru el în jungla noastră!
+        <p className="text-xl md:text-2xl font-bold text-gray-700 max-w-3xl mx-auto">
+          Cel mai complet loc de joacă interior din Vaslui! De la bebeluși la copii de 12 ani, 
+          fiecare găsește activități potrivite pentru vârsta lui.
         </p>
       </div>
 

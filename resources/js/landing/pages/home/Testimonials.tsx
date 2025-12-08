@@ -5,40 +5,40 @@ import { Card } from '../../components/Card';
 export function Testimonials() {
   const testimonials = [
     {
-      name: 'Maria Popescu',
+      name: 'Maria P.',
       role: 'Mamă a doi copii',
       rating: 5,
-      text: 'Bongoland este locul preferat al copiilor mei! Sunt impresionată de curățenie și de atenția personalului. Aici știu că sunt în siguranță și se distrează la maximum. Am organizat și aniversarea fetei mele aici — totul a fost perfect!',
+      text: 'Ce mi-a plăcut cel mai mult la Bongoland e că au bucătărie proprie! Copiii s-au jucat, iar eu am mâncat o pizza delicioasă făcută pe loc. Nu mai trebuie să cumperi mâncare înainte sau să pleci flămând.',
     },
     {
-      name: 'Andrei Ionescu',
+      name: 'Andrei I.',
       role: 'Tată a unui băiat de 4 ani',
       rating: 5,
-      text: 'Cel mai bun loc de joacă din Vaslui! Fiul meu nu mai vrea să plece când ajungem aici. Atracțiile sunt diverse și captivante, iar zona pentru bebeluși este excelentă. Foarte mulțumit că avem un astfel de spațiu în oraș.',
+      text: 'E clar cel mai mare loc de joacă din Vaslui! Fiul meu a adorat tiroliana și trambulinele. Spațiul e generos, nu e aglomerație ca în alte părți. Oferta Jungle de 80 lei e super convenabilă pentru o zi întreagă.',
     },
     {
-      name: 'Elena Radu',
+      name: 'Elena R.',
       role: 'Mamă a trei copii',
       rating: 5,
-      text: 'Am încercat multe locuri de joacă, dar Bongoland este cu adevărat premium. Copiii mei de vârste diferite (2, 5 și 8 ani) se simt toți în largul lor. Prețurile sunt corecte pentru calitatea oferită, iar petrecerea de aniversare a fost organizată impecabil.',
+      text: 'Am organizat petrecerea de aniversare aici și totul a fost perfect! Mâncarea proaspătă, copiii fericiți, noi relaxați la mese. Au și zonă specială pentru cei mici, așa că și bebelușul nostru s-a simțit bine.',
     },
     {
-      name: 'Gabriel Mihai',
+      name: 'Gabriel M.',
       role: 'Tată a unei fetițe de 6 ani',
       rating: 5,
-      text: 'Personalul este fantastic — prietenoși, atenți și pregătiți. Fetița mea s-a distrat de minune, iar eu am putut să mă relaxez știind că e supravegheată. Recomand cu căldură pentru toate vârstele!',
+      text: 'În sfârșit un loc de joacă unde și părinții pot sta confortabil! Zona de restaurant e genială - mă uit la fetița mea cum se joacă în timp ce beau o cafea și mănânc ceva bun. Win-win pentru toată lumea!',
     },
     {
-      name: 'Ioana Popa',
+      name: 'Ioana P.',
       role: 'Mamă a unui copil de 3 ani',
       rating: 5,
-      text: 'Atmosfera este minunată — colorată, veselă și primitoare. Băiețelul meu este timid, dar personalul a știut cum să-l integreze în activități. Bongoland a devenit rutina noastră de weekend. Mulțumim pentru tot ce faceți!',
+      text: 'Venim aproape săptămânal! Băiețelul meu adoră piscina cu bile și tobogoanele. Îmi place că au mâncare făcută acolo, nu congelate. Și personalul e mereu amabil și atent cu copiii.',
     },
     {
-      name: 'Alexandru Stan',
+      name: 'Alexandru S.',
       role: 'Tată a doi gemeni de 5 ani',
       rating: 5,
-      text: 'Locație excelentă pentru energie nelimitată! Gemenii mei aleargă, sar și explorează ore întregi fără să se plictisească. Echipamentele sunt noi, sigure și bine întreținute. Mă bucur că avem un astfel de loc în Vaslui — merită fiecare leu!',
+      text: 'Cu doi copii activi, aveam nevoie de un spațiu mare unde să își consume energia. Bongoland e perfect - atâtea atracții încât nu se plictisesc! Iar eu stau la restaurant și lucrez linistit pe laptop. Recomand!',
     },
   ];
 
@@ -78,10 +78,10 @@ export function Testimonials() {
 
       <div className="mt-12 text-center bg-gradient-to-r from-jungle to-jungle-green rounded-3xl p-8">
         <p className="text-white text-xl font-semibold mb-2">
-          Peste 500 de familii ne-au vizitat și s-au întors cu drag!
+          Familiile din Vaslui ne aleg pentru bucătăria proprie și spațiul generos!
         </p>
         <p className="text-white/90">
-          Vino și tu să faci parte din comunitatea Bongoland
+          Vino și tu să descoperi cel mai mare loc de joacă din oraș
         </p>
       </div>
     </Section>

@@ -1,2 +1,31 @@
 User-agent: *
-Disallow:
+Allow: /
+Allow: /loc-de-joaca-vaslui
+Allow: /petreceri-copii-vaslui
+Allow: /serbari-copii-vaslui
+
+# Admin and application routes - do not index
+Disallow: /login
+Disallow: /dashboard
+Disallow: /scan
+Disallow: /sessions
+Disallow: /children
+Disallow: /guardians
+Disallow: /products
+Disallow: /reports
+Disallow: /pricing
+Disallow: /fiscal-receipts
+Disallow: /fiscal-receipt-logs
+Disallow: /anomalies
+Disallow: /birthday-reservations
+Disallow: /end-of-day
+Disallow: /change-password
+Disallow: /legal
+Disallow: /superadmin-reports
+Disallow: /dashboard-api
+Disallow: /reports-api
+Disallow: /scan-api
+Disallow: /birthday-reservations-api
+
+# Sitemap
+Sitemap: https://bongoland.ro/sitemap.xml

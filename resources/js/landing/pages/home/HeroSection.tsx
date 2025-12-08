@@ -23,19 +23,20 @@ export function HeroSection() {
         <div className="text-center text-white">
           <div className="inline-flex items-center gap-3 bg-white/20 backdrop-blur-md rounded-full px-8 py-3 mb-8 shadow-xl border-2 border-white/30">
             <Leaf className="w-6 h-6 text-leaf-light" />
-            <span className="text-lg font-bold">Locul de joacă premium din Vaslui</span>
+            <span className="text-lg font-bold">Cel mai mare loc de joacă din Vaslui</span>
             <Leaf className="w-6 h-6 text-leaf-light" />
           </div>
 
-          <h1 className="font-display text-6xl md:text-8xl font-bold mb-8 leading-tight drop-shadow-2xl">
-            Aventura în Junglă<br />
-            <span className="text-sand text-7xl md:text-9xl">Începe Aici!</span>
+          <h1 className="font-display text-5xl md:text-7xl font-bold mb-8 leading-tight drop-shadow-2xl">
+            Loc de Joacă pentru Copii în Vaslui<br />
+            <span className="text-sand text-6xl md:text-8xl">Bongoland</span>
           </h1>
 
-          <p className="text-2xl md:text-3xl mb-10 max-w-3xl mx-auto leading-relaxed drop-shadow-lg">
-            În Bongoland, copiii descoperă o lume unde jungla prinde viață.
+          <p className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto leading-relaxed drop-shadow-lg">
+            Cel mai mare și modern loc de joacă interior din Vaslui! 
+            Trambuline, tobogane, tiroliană și zonă specială pentru cei mici.
             <br />
-            Explorează, cațără-te și râzi în voie într-un mediu sigur!
+            <span className="text-sand font-semibold">Bucătărie proprie cu mâncare proaspătă!</span>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
@@ -61,14 +62,14 @@ export function HeroSection() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
             {[
-              { number: '500+', label: 'Copii fericiți' },
-              { number: '100%', label: 'Siguranță' },
-              { number: '50+', label: 'Petreceri organizate' },
-              { number: '10+', label: 'Ani experiență' },
-            ].map((stat, index) => (
+              { icon: '🏆', label: 'Cea mai mare suprafață din Vaslui' },
+              { icon: '👨‍🍳', label: 'Bucătărie proprie' },
+              { icon: '🍕', label: 'Mâncare proaspătă' },
+              { icon: '☕', label: 'Zonă relaxare părinți' },
+            ].map((benefit, index) => (
               <div key={index} className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-2xl hover:bg-white transition-all border-4 border-leaf-light/50">
-                <div className="text-4xl md:text-5xl font-bold text-jungle mb-2">{stat.number}</div>
-                <div className="text-sm md:text-base font-bold text-jungle-dark">{stat.label}</div>
+                <div className="text-4xl md:text-5xl mb-2">{benefit.icon}</div>
+                <div className="text-sm md:text-base font-bold text-jungle-dark">{benefit.label}</div>
               </div>
             ))}
           </div>

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'KidsPass') - Admin Panel</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- Prevent search engines from indexing admin pages -->
+    <meta name="robots" content="noindex, nofollow">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Choices.js CSS for searchable selects -->

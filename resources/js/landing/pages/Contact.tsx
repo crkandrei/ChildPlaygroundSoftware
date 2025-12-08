@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MapPin, Phone, Mail, Send, Calendar, Users, Cake } from 'lucide-react';
+import { MapPin, Phone, Send, Calendar, Users, Cake } from 'lucide-react';
 import { Section } from '../components/Section';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -234,9 +234,9 @@ export function Contact() {
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-jungle focus:outline-none transition-colors"
                 >
                   <option value="">Alege un pachet</option>
-                  <option value="mini">Mini Party - 450 LEI</option>
-                  <option value="jungle">Jungle Party - 750 LEI</option>
-                  <option value="vip">VIP Party - 1200 LEI</option>
+                  <option value="aniversar-lj">Pachet Aniversar L-J - 90 LEI/copil</option>
+                  <option value="aniversar-vd">Pachet Aniversar V-D - 110 LEI/copil</option>
+                  <option value="regele-junglei">Pachet Regele Junglei - 2500 LEI</option>
                   <option value="custom">Pachet personalizat</option>
                 </select>
               </div>
@@ -255,15 +255,16 @@ export function Contact() {
       </Section>
 
       <Section background="gray">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card hover={false}>
             <div className="bg-jungle/10 rounded-2xl w-16 h-16 flex items-center justify-center mb-4">
               <MapPin className="w-8 h-8 text-jungle" />
             </div>
             <h3 className="font-bold text-jungle-dark mb-2">Adresă</h3>
             <p className="text-gray-600 text-sm leading-relaxed">
-              Strada Exemplu nr. 123<br />
-              Vaslui 730001, România
+              Strada Andrei Mureșanu 28<br />
+              Parcul Copou, Restaurant Stil<br />
+              Vaslui
             </p>
           </Card>
 
@@ -271,21 +272,11 @@ export function Contact() {
             <div className="bg-sky/10 rounded-2xl w-16 h-16 flex items-center justify-center mb-4">
               <Phone className="w-8 h-8 text-sky" />
             </div>
-            <h3 className="font-bold text-jungle-dark mb-2">Telefon</h3>
-            <a href="tel:+40700000000" className="text-jungle hover:text-jungle-dark transition-colors font-semibold text-sm">
-              +40 700 000 000
+            <h3 className="font-bold text-jungle-dark mb-2">Telefon / WhatsApp</h3>
+            <a href="tel:+40748394441" className="text-jungle hover:text-jungle-dark transition-colors font-semibold text-sm">
+              0748 394 441
             </a>
-            <p className="text-xs text-gray-500 mt-1">Luni - Duminică</p>
-          </Card>
-
-          <Card hover={false}>
-            <div className="bg-banana/20 rounded-2xl w-16 h-16 flex items-center justify-center mb-4">
-              <Mail className="w-8 h-8 text-yellow-700" />
-            </div>
-            <h3 className="font-bold text-jungle-dark mb-2">Email</h3>
-            <a href="mailto:contact@bongoland.ro" className="text-jungle hover:text-jungle-dark transition-colors text-sm break-all">
-              contact@bongoland.ro
-            </a>
+            <p className="text-xs text-gray-500 mt-1">Sună sau scrie pe WhatsApp</p>
           </Card>
 
           <Card hover={false}>
@@ -294,22 +285,23 @@ export function Contact() {
             </div>
             <h3 className="font-bold text-jungle-dark mb-2">Program</h3>
             <div className="text-gray-600 text-sm space-y-1">
-              <p className="font-semibold">L-V: 10:00-20:00</p>
-              <p className="font-semibold">S-D: 09:00-21:00</p>
+              <p><span className="font-semibold">L-J:</span> 15:30-20:30</p>
+              <p><span className="font-semibold">V:</span> 15:30-22:00</p>
+              <p><span className="font-semibold">S-D:</span> 11:00-21:00</p>
             </div>
           </Card>
         </div>
 
         <Card hover={false} className="overflow-hidden p-0">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d87326.38219495799!2d27.66045!3d46.63672!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x40b4415f48ed5c91%3A0x32c1e923e8cc3f32!2sVaslui!5e0!3m2!1sen!2sro!4v1234567890"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2723.5!2d27.7297!3d46.6367!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x40b4415e00000000%3A0x0!2sStrada%20Andrei%20Mure%C8%99anu%2028%2C%20Vaslui!5e0!3m2!1sro!2sro!4v1700000000000"
             width="100%"
             height="450"
             style={{ border: 0 }}
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
-            title="Locație Bongoland Vaslui"
+            title="Locație Bongoland - Parcul Copou, Vaslui"
           ></iframe>
         </Card>
       </Section>
