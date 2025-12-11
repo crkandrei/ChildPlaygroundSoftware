@@ -127,8 +127,11 @@ class SessionsController extends Controller
             abort(400, 'Bonul poate fi generat doar pentru sesiuni finalizate');
         }
 
-        if ($session->is_birthday || $session->is_jungle) {
-            abort(400, 'Nu se poate printa bon pentru sesiuni de tip Birthday sau Jungle');
+        $hasProducts = $session->getProductsTotalPrice() > 0;
+
+        // Pentru sesiuni Birthday/Jungle permitem bon doar dacă există produse (timpul rămâne 0)
+        if (($session->is_birthday || $session->is_jungle) && !$hasProducts) {
+            abort(400, 'Nu se poate printa bon pentru sesiuni de tip Birthday sau Jungle fără produse');
         }
 
         // Ensure price is calculated
@@ -188,10 +191,13 @@ class SessionsController extends Controller
             ], 400);
         }
 
-        if ($session->is_birthday || $session->is_jungle) {
+        $hasProducts = $session->getProductsTotalPrice() > 0;
+
+        // Pentru Birthday/Jungle permitem bon doar dacă există produse (timpul rămâne 0)
+        if (($session->is_birthday || $session->is_jungle) && !$hasProducts) {
             return response()->json([
                 'success' => false,
-                'message' => 'Nu se poate printa bon pentru sesiuni de tip Birthday sau Jungle'
+                'message' => 'Nu se poate printa bon pentru sesiuni de tip Birthday sau Jungle fără produse'
             ], 400);
         }
 
@@ -208,9 +214,13 @@ class SessionsController extends Controller
             $session->refresh();
         }
 
-        // Get voucher hours from request
+        $isFreeSession = $session->is_birthday || $session->is_jungle;
+
+        // Get voucher hours from request (ignored for free sessions)
         $voucherHours = $request->input('voucherHours', 0);
-        if ($voucherHours > 0) {
+        if ($isFreeSession) {
+            $voucherHours = 0;
+        } elseif ($voucherHours > 0) {
             $voucherHours = (float) $voucherHours;
         } else {
             $voucherHours = 0;
@@ -231,8 +241,8 @@ class SessionsController extends Controller
         $durationInHours = $pricingService->getDurationInHours($session);
         $roundedHours = $pricingService->roundToHalfHour($durationInHours);
         
-        // Validate voucher hours don't exceed session duration
-        if ($voucherHours > $roundedHours) {
+        // Validate voucher hours don't exceed session duration (only for paid time sessions)
+        if (!$isFreeSession && $voucherHours > $roundedHours) {
             return response()->json([
                 'success' => false,
                 'message' => 'Orele de voucher nu pot depăși durata sesiunii (' . $this->formatDuration(floor($roundedHours), round(($roundedHours - floor($roundedHours)) * 60)) . ')'
@@ -240,19 +250,19 @@ class SessionsController extends Controller
         }
 
         // Get price per hour (use the one saved at calculation time, or calculate current rate)
-        $pricePerHour = $session->price_per_hour_at_calculation ?? $pricingService->getHourlyRate($session->tenant, $session->started_at);
+        $pricePerHour = $isFreeSession ? 0 : ($session->price_per_hour_at_calculation ?? $pricingService->getHourlyRate($session->tenant, $session->started_at));
         
         // Calculate voucher price
         $voucherPrice = $voucherHours * $pricePerHour;
 
         // Get prices separately
-        $timePrice = $session->calculated_price ?? $session->calculatePrice();
+        $timePrice = $isFreeSession ? 0 : ($session->calculated_price ?? $session->calculatePrice());
         $productsPrice = $session->getProductsTotalPrice();
-        $totalPrice = $session->getTotalPrice();
+        $totalPrice = $timePrice + $productsPrice;
 
         // Voucher applies ONLY to time, not to products
         // Calculate final time price after voucher discount
-        $finalTimePrice = max(0, $timePrice - $voucherPrice);
+        $finalTimePrice = $isFreeSession ? 0 : max(0, $timePrice - $voucherPrice);
         
         // Final total price = final time price + products price (products are never discounted by voucher)
         $finalPrice = $finalTimePrice + $productsPrice;
@@ -261,8 +271,8 @@ class SessionsController extends Controller
         // If there are products, we still need a receipt even if time is fully covered
         $noReceiptNeeded = ($finalTimePrice <= 0 && $productsPrice <= 0);
 
-        // Calculate billed hours (total hours minus voucher hours)
-        $billedHours = max(0, $roundedHours - $voucherHours);
+        // Calculate billed hours (total hours minus voucher hours). For free sessions, time is not billed.
+        $billedHours = $isFreeSession ? 0 : max(0, $roundedHours - $voucherHours);
         
         // Format rounded duration
         $roundedHoursInt = floor($roundedHours);

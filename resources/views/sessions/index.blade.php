@@ -660,7 +660,7 @@
                                 </button>
                             ` : ''}
                         ` : ''}
-                        ${row.ended_at && !row.is_birthday && !row.is_jungle && !row.is_paid ? `
+                        ${row.ended_at && !row.is_paid && ((!row.is_birthday && !row.is_jungle) || row.products_price > 0) ? `
                             <button onclick="openFiscalModal(${row.id})" class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
                                 <i class="fas fa-receipt mr-1"></i>Bon
                             </button>
