@@ -244,11 +244,13 @@ class DashboardService
         $startOfDay = $now->copy()->startOfDay();
         
         // 1. Unpaid sessions - sessions ended today but not paid
+        // Exclude birthday and jungle sessions as they don't require payment
         $unpaidSessions = PlaySession::where('tenant_id', $tenantId)
             ->whereNotNull('ended_at')
             ->whereNull('paid_at')
             ->where('ended_at', '>=', $startOfDay)
             ->where('is_birthday', false) // Birthday sessions don't need payment
+            ->where('is_jungle', false) // Jungle sessions don't need payment
             ->with('child')
             ->get();
         

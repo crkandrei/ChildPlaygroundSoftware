@@ -86,6 +86,12 @@
         <div class="report-line report-title">RAPORT FINAL DE ZI</div>
         <div class="report-line">{{ $date }}</div>
         <div class="report-separator"></div>
+        <div class="report-line report-title" style="font-size: 9pt;">NUMAR COPII</div>
+        <div class="report-line">Birthday: {{ $birthdaySessions }}</div>
+        <div class="report-line">Jungle: {{ $jungleSessions }}</div>
+        <div class="report-line">Normal: {{ $regularSessions }}</div>
+        <div class="report-line">Total: {{ $birthdaySessions + $jungleSessions + $regularSessions }}</div>
+        <div class="report-separator"></div>
         <div class="report-line">Sesiuni Total: {{ $totalBilledHours }} {{ number_format($totalSessionsValue, 2, ',', '.') }} lei</div>
         @if($totalVoucherHours && $totalVoucherHours !== '0h' && $totalVoucherHours !== '0m')
         <div class="report-line">Total Voucher: {{ $totalVoucherHours }}</div>
