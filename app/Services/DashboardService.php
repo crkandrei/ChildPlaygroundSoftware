@@ -479,23 +479,24 @@ class DashboardService
      * @param int $count Number of periods to show
      * @return array Array with labels, data, and growth indicators
      */
-    public function getEntriesOverTime(int $tenantId, string $periodType, int $count): array
+    public function getEntriesOverTime(int $tenantId, string $periodType, int $count, ?string $sessionType = null): array
     {
         $now = now();
         $labels = [];
         $data = [];
         $growth = []; // Growth percentage from previous period
-        
+
         if ($periodType === 'daily') {
             // Get entries for the last $count days
             for ($i = $count - 1; $i >= 0; $i--) {
                 $date = $now->copy()->subDays($i)->startOfDay();
                 $endDate = $date->copy()->endOfDay();
-                
-                $entries = PlaySession::where('tenant_id', $tenantId)
+
+                $query = PlaySession::where('tenant_id', $tenantId)
                     ->where('started_at', '>=', $date)
-                    ->where('started_at', '<=', $endDate)
-                    ->count();
+                    ->where('started_at', '<=', $endDate);
+                $this->applySessionTypeFilter($query, $sessionType);
+                $entries = $query->count();
                 
                 $labels[] = $date->format('d.m.Y');
                 $data[] = $entries;
@@ -518,11 +519,12 @@ class DashboardService
             for ($i = $count - 1; $i >= 0; $i--) {
                 $weekStart = $now->copy()->subWeeks($i)->startOfWeek();
                 $weekEnd = $weekStart->copy()->endOfWeek();
-                
-                $entries = PlaySession::where('tenant_id', $tenantId)
+
+                $query = PlaySession::where('tenant_id', $tenantId)
                     ->where('started_at', '>=', $weekStart)
-                    ->where('started_at', '<=', $weekEnd)
-                    ->count();
+                    ->where('started_at', '<=', $weekEnd);
+                $this->applySessionTypeFilter($query, $sessionType);
+                $entries = $query->count();
                 
                 $labels[] = $weekStart->format('d.m') . ' - ' . $weekEnd->format('d.m.Y');
                 $data[] = $entries;
@@ -545,11 +547,12 @@ class DashboardService
             for ($i = $count - 1; $i >= 0; $i--) {
                 $monthStart = $now->copy()->subMonths($i)->startOfMonth();
                 $monthEnd = $monthStart->copy()->endOfMonth();
-                
-                $entries = PlaySession::where('tenant_id', $tenantId)
+
+                $query = PlaySession::where('tenant_id', $tenantId)
                     ->where('started_at', '>=', $monthStart)
-                    ->where('started_at', '<=', $monthEnd)
-                    ->count();
+                    ->where('started_at', '<=', $monthEnd);
+                $this->applySessionTypeFilter($query, $sessionType);
+                $entries = $query->count();
                 
                 $labels[] = $monthStart->format('m.Y');
                 $data[] = $entries;
@@ -574,6 +577,22 @@ class DashboardService
             'data' => $data,
             'growth' => $growth,
         ];
+    }
+
+    /**
+     * Apply session type filter to a query builder instance.
+     * Types: 'normal', 'birthday', 'jungle', 'all' (or null = all)
+     */
+    private function applySessionTypeFilter(\Illuminate\Database\Eloquent\Builder $query, ?string $sessionType): void
+    {
+        if ($sessionType === 'normal') {
+            $query->where('is_birthday', false)->where('is_jungle', false);
+        } elseif ($sessionType === 'birthday') {
+            $query->where('is_birthday', true);
+        } elseif ($sessionType === 'jungle') {
+            $query->where('is_jungle', true);
+        }
+        // 'all' or null: no filter applied
     }
 
     private function formatMinutes(int $minutes): string

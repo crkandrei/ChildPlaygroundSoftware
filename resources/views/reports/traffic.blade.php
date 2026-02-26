@@ -154,6 +154,15 @@
                     </select>
                 </div>
                 <div class="w-full md:w-auto">
+                    <label class="block text-sm text-gray-600 mb-1">Tip sesiune</label>
+                    <select id="entriesSessionType" class="w-full md:w-auto px-3 py-2.5 md:py-2 border border-gray-300 rounded-md text-base md:text-sm">
+                        <option value="normal" selected>Normal</option>
+                        <option value="birthday">Birthday</option>
+                        <option value="jungle">Jungle</option>
+                        <option value="all">Toate</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-auto">
                     <label class="block text-sm text-gray-600 mb-1">Număr perioade</label>
                     <input type="number" id="entriesCount" min="1" max="365" value="7" class="w-full md:w-24 px-3 py-2.5 md:py-2 border border-gray-300 rounded-md text-base md:text-sm" />
                 </div>
@@ -395,19 +404,27 @@
 
     // Entries Report Chart
     let entriesChart;
+    const sessionTypeLabels = {
+        normal: 'Normale',
+        birthday: 'Birthday',
+        jungle: 'Jungle',
+        all: 'Toate'
+    };
     async function loadEntriesReport() {
         try {
             const periodType = document.getElementById('entriesPeriodType').value;
             const count = parseInt(document.getElementById('entriesCount').value) || 7;
+            const sessionType = document.getElementById('entriesSessionType').value;
 
             const qs = new URLSearchParams();
             qs.append('period', periodType);
             qs.append('count', count);
+            qs.append('session_type', sessionType);
 
             const entriesData = await apiCall('/reports-api/entries?' + qs.toString());
-            
+
             if (entriesData.success && entriesData.entries) {
-                renderEntriesChart(entriesData.entries);
+                renderEntriesChart(entriesData.entries, sessionType);
             } else {
                 console.error('Eroare la încărcarea raportului de intrări:', entriesData);
             }
@@ -416,13 +433,14 @@
         }
     }
 
-    function renderEntriesChart(entriesData) {
+    function renderEntriesChart(entriesData, sessionType) {
         const ctx = document.getElementById('entriesChart').getContext('2d');
         const isMobile = window.innerWidth < 768;
-        
+
         const labels = entriesData.labels || [];
         const data = entriesData.data || [];
         const growth = entriesData.growth || [];
+        const datasetLabel = 'Intrări ' + (sessionTypeLabels[sessionType] || '');
 
         // Create background colors based on growth
         const backgroundColors = growth.map((g, index) => {
@@ -442,7 +460,7 @@
         const chartData = {
             labels: labels,
             datasets: [{
-                label: 'Număr intrări',
+                label: datasetLabel,
                 data: data,
                 backgroundColor: 'rgba(99, 102, 241, 0.1)',
                 borderColor: 'rgba(99, 102, 241, 1)',
@@ -463,6 +481,7 @@
             entriesChart.options.scales.x.ticks.minRotation = isMobile ? 90 : 45;
             entriesChart.options.scales.x.ticks.font.size = isMobile ? 10 : 12;
             entriesChart.options.scales.y.ticks.font.size = isMobile ? 10 : 12;
+            entriesChart.options.scales.y.title.text = datasetLabel;
             entriesChart.options.scales.y.title.font.size = isMobile ? 12 : 14;
             entriesChart.options.scales.x.title.font.size = isMobile ? 12 : 14;
             entriesChart.update();
@@ -548,6 +567,11 @@
 
     // Load entries report on period type change
     document.getElementById('entriesPeriodType').addEventListener('change', function(){
+        loadEntriesReport();
+    });
+
+    // Load entries report on session type change
+    document.getElementById('entriesSessionType').addEventListener('change', function(){
         loadEntriesReport();
     });
 

@@ -90,6 +90,7 @@ class DashboardApiController extends Controller
 
         $periodType = request()->query('period', 'daily'); // daily, weekly, monthly
         $count = (int) request()->query('count', 7); // Number of periods
+        $sessionType = request()->query('session_type', 'normal'); // normal, birthday, jungle, all
 
         // Validate period type
         if (!in_array($periodType, ['daily', 'weekly', 'monthly'])) {
@@ -101,7 +102,12 @@ class DashboardApiController extends Controller
             return ApiResponder::error('Numărul de perioade trebuie să fie între 1 și 365', 400);
         }
 
-        $entriesData = $this->dashboard->getEntriesOverTime($tenantId, $periodType, $count);
+        // Validate session type
+        if (!in_array($sessionType, ['normal', 'birthday', 'jungle', 'all'])) {
+            return ApiResponder::error('Tip sesiune invalid. Trebuie să fie: normal, birthday, jungle sau all', 400);
+        }
+
+        $entriesData = $this->dashboard->getEntriesOverTime($tenantId, $periodType, $count, $sessionType);
         return ApiResponder::success(['entries' => $entriesData]);
     }
     
