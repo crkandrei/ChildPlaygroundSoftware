@@ -170,33 +170,12 @@
                     <label class="block text-sm text-transparent mb-1">&nbsp;</label>
                     <button id="loadEntriesReport" class="w-full md:w-auto px-4 py-2.5 md:py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 text-base md:text-sm font-medium">Încarcă</button>
                 </div>
-                <div class="w-full md:w-auto">
-                    <label class="block text-sm text-transparent mb-1">&nbsp;</label>
-                    <label class="flex items-center w-full md:w-auto px-3 py-2.5 md:py-2 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 bg-white text-base md:text-sm select-none">
-                        <input type="checkbox" id="entriesShowRevenue" class="mr-2 w-4 h-4 accent-purple-600">
-                        <span class="text-gray-700">Afișează sume</span>
-                    </label>
-                </div>
             </div>
             <div id="entriesBirthdayNote" style="display:none" class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                 <i class="fas fa-info-circle mr-1"></i>
                 Graficul arată numărul de <strong>zile de naștere</strong>, nu de sesiuni individuale. Toate sesiunile birthday cu același părinte din aceeași perioadă sunt grupate ca un singur eveniment.
             </div>
-            <div id="entriesRevenueTable" style="display:none" class="mb-4 overflow-x-auto rounded-lg border border-gray-200">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Perioadă</th>
-                            <th id="entriesRevenueCountHeader" class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Intrări</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Suma încasată</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Suma generată</th>
-                        </tr>
-                    </thead>
-                    <tbody id="entriesRevenueTableBody" class="bg-white divide-y divide-gray-100"></tbody>
-                    <tfoot id="entriesRevenueTotalRow" class="bg-gray-50 border-t-2 border-gray-300 font-semibold"></tfoot>
-                </table>
-            </div>
-            <div class="w-full overflow-x-auto">
+<div class="w-full overflow-x-auto">
                 <div class="min-w-full" style="min-height: 250px;">
                     <canvas id="entriesChart"></canvas>
                 </div>
@@ -432,49 +411,9 @@
     let currentEntriesGrowth = [];
     let currentEntriesTooltipLabel = 'Intrări';
     let currentEntriesRevenue = [];
-    let currentEntriesLabels = [];
-    let currentEntriesData = [];
-    let currentEntriesSessionType = 'normal';
 
     function formatRON(value) {
         return parseFloat(value).toFixed(2).replace('.', ',') + ' RON';
-    }
-
-    function renderRevenueTable() {
-        const tableBody = document.getElementById('entriesRevenueTableBody');
-        const totalRow = document.getElementById('entriesRevenueTotalRow');
-        const countHeader = document.getElementById('entriesRevenueCountHeader');
-        if (!tableBody || !totalRow || !countHeader) return;
-
-        countHeader.textContent = currentEntriesSessionType === 'birthday' ? 'Zile de naștere' : 'Intrări';
-
-        let totalCount = 0, totalGenerated = 0, totalCollected = 0;
-        tableBody.innerHTML = '';
-
-        currentEntriesLabels.forEach(function(label, index) {
-            const count = currentEntriesData[index] || 0;
-            const rev = currentEntriesRevenue[index] || { generated: 0, collected: 0 };
-            totalCount += count;
-            totalGenerated += rev.generated;
-            totalCollected += rev.collected;
-
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-            tr.innerHTML =
-                '<td class="px-3 py-2 text-gray-700">' + label + '</td>' +
-                '<td class="px-3 py-2 text-center text-gray-700">' + count + '</td>' +
-                '<td class="px-3 py-2 text-right font-medium text-emerald-700">' + formatRON(rev.collected) + '</td>' +
-                '<td class="px-3 py-2 text-right text-gray-500">' + formatRON(rev.generated) + '</td>';
-            tableBody.appendChild(tr);
-        });
-
-        totalRow.innerHTML =
-            '<tr>' +
-            '<td class="px-3 py-2 text-gray-800">Total</td>' +
-            '<td class="px-3 py-2 text-center text-gray-800">' + totalCount + '</td>' +
-            '<td class="px-3 py-2 text-right text-emerald-700">' + formatRON(totalCollected) + '</td>' +
-            '<td class="px-3 py-2 text-right text-gray-600">' + formatRON(totalGenerated) + '</td>' +
-            '</tr>';
     }
     const sessionTypeLabels = {
         normal: 'Normale',
@@ -532,19 +471,6 @@
         currentEntriesGrowth = growth;
         currentEntriesTooltipLabel = tooltipLabel;
         currentEntriesRevenue = entriesData.revenue || [];
-        currentEntriesLabels = labels;
-        currentEntriesData = data;
-        currentEntriesSessionType = sessionType;
-
-        // Show/hide and populate revenue table based on toggle
-        const revenueTable = document.getElementById('entriesRevenueTable');
-        const showRevenue = document.getElementById('entriesShowRevenue')?.checked;
-        if (revenueTable) {
-            revenueTable.style.display = showRevenue ? 'block' : 'none';
-        }
-        if (showRevenue) {
-            renderRevenueTable();
-        }
 
         // Show/hide birthday info note
         const birthdayNote = document.getElementById('entriesBirthdayNote');
@@ -628,11 +554,9 @@
                                     return currentEntriesTooltipLabel + ': ' + entryCount + growthText;
                                 },
                                 afterLabel: function(context) {
-                                    const showRevenue = document.getElementById('entriesShowRevenue')?.checked;
-                                    if (!showRevenue) return '';
                                     const rev = currentEntriesRevenue[context.dataIndex];
                                     if (!rev) return '';
-                                    return 'Încasat: ' + formatRON(rev.collected) + ' (generat: ' + formatRON(rev.generated) + ')';
+                                    return 'Încasat: ' + formatRON(rev.collected);
                                 }
                             }
                         }
@@ -692,17 +616,6 @@
         loadEntriesReport();
     });
 
-    // Toggle revenue table visibility
-    document.getElementById('entriesShowRevenue').addEventListener('change', function() {
-        const revenueTable = document.getElementById('entriesRevenueTable');
-        if (!revenueTable) return;
-        if (this.checked && currentEntriesLabels.length > 0) {
-            revenueTable.style.display = 'block';
-            renderRevenueTable();
-        } else {
-            revenueTable.style.display = 'none';
-        }
-    });
 
     // Load initial entries report
     loadEntriesReport();
