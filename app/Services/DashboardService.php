@@ -485,6 +485,7 @@ class DashboardService
         $labels = [];
         $data = [];
         $growth = []; // Growth percentage from previous period
+        $revenue = []; // ['generated' => float, 'collected' => float] per period
 
         if ($periodType === 'daily') {
             // Get entries for the last $count days
@@ -504,7 +505,8 @@ class DashboardService
                 
                 $labels[] = $date->format('d.m.Y');
                 $data[] = $entries;
-                
+                $revenue[] = $this->calculateRevenueForPeriod($tenantId, $date, $endDate, $sessionType);
+
                 // Calculate growth from previous day
                 if ($i < $count - 1) {
                     $prevEntries = $data[count($data) - 2];
@@ -536,7 +538,8 @@ class DashboardService
                 
                 $labels[] = $weekStart->format('d.m') . ' - ' . $weekEnd->format('d.m.Y');
                 $data[] = $entries;
-                
+                $revenue[] = $this->calculateRevenueForPeriod($tenantId, $weekStart, $weekEnd, $sessionType);
+
                 // Calculate growth from previous week
                 if ($i < $count - 1) {
                     $prevEntries = $data[count($data) - 2];
@@ -568,7 +571,8 @@ class DashboardService
                 
                 $labels[] = $monthStart->format('m.Y');
                 $data[] = $entries;
-                
+                $revenue[] = $this->calculateRevenueForPeriod($tenantId, $monthStart, $monthEnd, $sessionType);
+
                 // Calculate growth from previous month
                 if ($i < $count - 1) {
                     $prevEntries = $data[count($data) - 2];
@@ -588,6 +592,7 @@ class DashboardService
             'labels' => $labels,
             'data' => $data,
             'growth' => $growth,
+            'revenue' => $revenue,
         ];
     }
 
@@ -622,6 +627,44 @@ class DashboardService
         }
 
         return count($guardianIds) + $noGuardianCount;
+    }
+
+    /**
+     * Calculate generated and collected revenue for a period, filtered by session type.
+     * - generated: calculated_price + products for all ended sessions
+     * - collected: (calculated_price + products - voucher) for paid sessions only
+     * Birthday/Jungle have calculated_price = 0, so revenue comes from products only.
+     */
+    private function calculateRevenueForPeriod(int $tenantId, Carbon $start, Carbon $end, ?string $sessionType): array
+    {
+        $query = PlaySession::where('tenant_id', $tenantId)
+            ->where('started_at', '>=', $start)
+            ->where('started_at', '<=', $end)
+            ->whereNotNull('ended_at');
+
+        $this->applySessionTypeFilter($query, $sessionType);
+
+        $sessions = $query->with('products')->get();
+
+        $generated = 0.0;
+        $collected = 0.0;
+
+        foreach ($sessions as $session) {
+            $timePrice = (float) ($session->calculated_price ?? 0);
+            $productsPrice = $session->getProductsTotalPrice();
+            $sessionGenerated = $timePrice + $productsPrice;
+            $generated += $sessionGenerated;
+
+            if ($session->isPaid()) {
+                $voucherPrice = $session->getVoucherPrice();
+                $collected += max(0.0, $sessionGenerated - $voucherPrice);
+            }
+        }
+
+        return [
+            'generated' => round($generated, 2),
+            'collected' => round($collected, 2),
+        ];
     }
 
     /**
