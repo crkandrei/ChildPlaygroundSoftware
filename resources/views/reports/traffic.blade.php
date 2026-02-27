@@ -171,6 +171,10 @@
                     <button id="loadEntriesReport" class="w-full md:w-auto px-4 py-2.5 md:py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 text-base md:text-sm font-medium">Încarcă</button>
                 </div>
             </div>
+            <div id="entriesBirthdayNote" style="display:none" class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                <i class="fas fa-info-circle mr-1"></i>
+                Graficul arată numărul de <strong>zile de naștere</strong>, nu de sesiuni individuale. Toate sesiunile birthday cu același părinte din aceeași perioadă sunt grupate ca un singur eveniment.
+            </div>
             <div class="w-full overflow-x-auto">
                 <div class="min-w-full" style="min-height: 250px;">
                     <canvas id="entriesChart"></canvas>
@@ -406,9 +410,21 @@
     let entriesChart;
     const sessionTypeLabels = {
         normal: 'Normale',
-        birthday: 'Birthday',
+        birthday: 'Zile de naștere',
         jungle: 'Jungle',
         all: 'Toate'
+    };
+    const sessionTypeAxisLabels = {
+        normal: 'Număr intrări',
+        birthday: 'Număr zile de naștere',
+        jungle: 'Număr intrări',
+        all: 'Număr intrări'
+    };
+    const sessionTypeTooltipLabels = {
+        normal: 'Intrări',
+        birthday: 'Zile de naștere',
+        jungle: 'Intrări',
+        all: 'Intrări'
     };
     async function loadEntriesReport() {
         try {
@@ -440,7 +456,15 @@
         const labels = entriesData.labels || [];
         const data = entriesData.data || [];
         const growth = entriesData.growth || [];
-        const datasetLabel = 'Intrări ' + (sessionTypeLabels[sessionType] || '');
+        const datasetLabel = sessionTypeLabels[sessionType] || 'Intrări';
+        const axisLabel = sessionTypeAxisLabels[sessionType] || 'Număr intrări';
+        const tooltipLabel = sessionTypeTooltipLabels[sessionType] || 'Intrări';
+
+        // Show/hide birthday info note
+        const birthdayNote = document.getElementById('entriesBirthdayNote');
+        if (birthdayNote) {
+            birthdayNote.style.display = sessionType === 'birthday' ? 'block' : 'none';
+        }
 
         // Create background colors based on growth
         const backgroundColors = growth.map((g, index) => {
@@ -481,7 +505,7 @@
             entriesChart.options.scales.x.ticks.minRotation = isMobile ? 90 : 45;
             entriesChart.options.scales.x.ticks.font.size = isMobile ? 10 : 12;
             entriesChart.options.scales.y.ticks.font.size = isMobile ? 10 : 12;
-            entriesChart.options.scales.y.title.text = datasetLabel;
+            entriesChart.options.scales.y.title.text = axisLabel;
             entriesChart.options.scales.y.title.font.size = isMobile ? 12 : 14;
             entriesChart.options.scales.x.title.font.size = isMobile ? 12 : 14;
             entriesChart.update();
@@ -515,7 +539,7 @@
                                     } else {
                                         growthText = ' (fără schimbare)';
                                     }
-                                    return 'Intrări: ' + entryCount + growthText;
+                                    return tooltipLabel + ': ' + entryCount + growthText;
                                 }
                             }
                         }
@@ -532,7 +556,7 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Număr intrări',
+                                text: axisLabel,
                                 font: {
                                     size: isMobile ? 12 : 14
                                 }

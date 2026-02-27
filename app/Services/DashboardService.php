@@ -492,11 +492,15 @@ class DashboardService
                 $date = $now->copy()->subDays($i)->startOfDay();
                 $endDate = $date->copy()->endOfDay();
 
-                $query = PlaySession::where('tenant_id', $tenantId)
-                    ->where('started_at', '>=', $date)
-                    ->where('started_at', '<=', $endDate);
-                $this->applySessionTypeFilter($query, $sessionType);
-                $entries = $query->count();
+                if ($sessionType === 'birthday') {
+                    $entries = $this->countBirthdayEvents($tenantId, $date, $endDate);
+                } else {
+                    $query = PlaySession::where('tenant_id', $tenantId)
+                        ->where('started_at', '>=', $date)
+                        ->where('started_at', '<=', $endDate);
+                    $this->applySessionTypeFilter($query, $sessionType);
+                    $entries = $query->count();
+                }
                 
                 $labels[] = $date->format('d.m.Y');
                 $data[] = $entries;
@@ -520,11 +524,15 @@ class DashboardService
                 $weekStart = $now->copy()->subWeeks($i)->startOfWeek();
                 $weekEnd = $weekStart->copy()->endOfWeek();
 
-                $query = PlaySession::where('tenant_id', $tenantId)
-                    ->where('started_at', '>=', $weekStart)
-                    ->where('started_at', '<=', $weekEnd);
-                $this->applySessionTypeFilter($query, $sessionType);
-                $entries = $query->count();
+                if ($sessionType === 'birthday') {
+                    $entries = $this->countBirthdayEvents($tenantId, $weekStart, $weekEnd);
+                } else {
+                    $query = PlaySession::where('tenant_id', $tenantId)
+                        ->where('started_at', '>=', $weekStart)
+                        ->where('started_at', '<=', $weekEnd);
+                    $this->applySessionTypeFilter($query, $sessionType);
+                    $entries = $query->count();
+                }
                 
                 $labels[] = $weekStart->format('d.m') . ' - ' . $weekEnd->format('d.m.Y');
                 $data[] = $entries;
@@ -548,11 +556,15 @@ class DashboardService
                 $monthStart = $now->copy()->subMonths($i)->startOfMonth();
                 $monthEnd = $monthStart->copy()->endOfMonth();
 
-                $query = PlaySession::where('tenant_id', $tenantId)
-                    ->where('started_at', '>=', $monthStart)
-                    ->where('started_at', '<=', $monthEnd);
-                $this->applySessionTypeFilter($query, $sessionType);
-                $entries = $query->count();
+                if ($sessionType === 'birthday') {
+                    $entries = $this->countBirthdayEvents($tenantId, $monthStart, $monthEnd);
+                } else {
+                    $query = PlaySession::where('tenant_id', $tenantId)
+                        ->where('started_at', '>=', $monthStart)
+                        ->where('started_at', '<=', $monthEnd);
+                    $this->applySessionTypeFilter($query, $sessionType);
+                    $entries = $query->count();
+                }
                 
                 $labels[] = $monthStart->format('m.Y');
                 $data[] = $entries;
@@ -577,6 +589,39 @@ class DashboardService
             'data' => $data,
             'growth' => $growth,
         ];
+    }
+
+    /**
+     * Count distinct birthday events in a period.
+     * A birthday event = all birthday sessions that share the same guardian.
+     * Sessions without a guardian each count as a separate event.
+     */
+    private function countBirthdayEvents(int $tenantId, Carbon $start, Carbon $end): int
+    {
+        $sessions = PlaySession::where('tenant_id', $tenantId)
+            ->where('is_birthday', true)
+            ->where('started_at', '>=', $start)
+            ->where('started_at', '<=', $end)
+            ->with('child:id,guardian_id')
+            ->get();
+
+        if ($sessions->isEmpty()) {
+            return 0;
+        }
+
+        $guardianIds = [];
+        $noGuardianCount = 0;
+
+        foreach ($sessions as $session) {
+            $guardianId = $session->child?->guardian_id ?? null;
+            if ($guardianId !== null) {
+                $guardianIds[$guardianId] = true;
+            } else {
+                $noGuardianCount++;
+            }
+        }
+
+        return count($guardianIds) + $noGuardianCount;
     }
 
     /**
