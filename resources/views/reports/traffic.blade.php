@@ -408,6 +408,8 @@
 
     // Entries Report Chart
     let entriesChart;
+    let currentEntriesGrowth = [];
+    let currentEntriesTooltipLabel = 'Intrări';
     const sessionTypeLabels = {
         normal: 'Normale',
         birthday: 'Zile de naștere',
@@ -459,6 +461,10 @@
         const datasetLabel = sessionTypeLabels[sessionType] || 'Intrări';
         const axisLabel = sessionTypeAxisLabels[sessionType] || 'Număr intrări';
         const tooltipLabel = sessionTypeTooltipLabels[sessionType] || 'Intrări';
+
+        // Update module-level variables so the tooltip closure always reads current values
+        currentEntriesGrowth = growth;
+        currentEntriesTooltipLabel = tooltipLabel;
 
         // Show/hide birthday info note
         const birthdayNote = document.getElementById('entriesBirthdayNote');
@@ -528,7 +534,7 @@
                                 label: function(context) {
                                     const index = context.dataIndex;
                                     const entryCount = context.parsed.y;
-                                    const growthValue = growth[index];
+                                    const growthValue = currentEntriesGrowth[index];
                                     let growthText = '';
                                     if (index === 0) {
                                         growthText = ' (perioadă inițială)';
@@ -539,7 +545,7 @@
                                     } else {
                                         growthText = ' (fără schimbare)';
                                     }
-                                    return tooltipLabel + ': ' + entryCount + growthText;
+                                    return currentEntriesTooltipLabel + ': ' + entryCount + growthText;
                                 }
                             }
                         }
