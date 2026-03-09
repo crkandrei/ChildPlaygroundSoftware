@@ -26,6 +26,22 @@
             @csrf
             <input type="hidden" name="tenant_id" value="{{ $tenant->id }}">
 
+            <div class="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
+                <label for="default_time_tax_group" class="block text-sm font-medium text-gray-700 mb-2">
+                    Grupa TVA implicită pentru \"Ora de joacă\"
+                </label>
+                <select id="default_time_tax_group"
+                        name="default_time_tax_group"
+                        class="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    @for($group = 1; $group <= 8; $group++)
+                        <option value="{{ $group }}" {{ (int) ($tenant->default_time_tax_group ?? 2) === $group ? 'selected' : '' }}>
+                            Grupa {{ $group }}
+                        </option>
+                    @endfor
+                </select>
+                <p class="text-xs text-gray-500 mt-2">Această grupă se aplică itemului de timp pe bonul fiscal.</p>
+            </div>
+
             <div class="space-y-4">
                 @php
                     $days = [

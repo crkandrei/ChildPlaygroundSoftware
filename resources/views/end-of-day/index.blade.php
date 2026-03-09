@@ -220,11 +220,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             try {
                 // Step 1: Send directly to local bridge from browser (same as print)
-                const bridgeUrl = 'http://localhost:9000';
+                const bridgeUrl = window.HOPO_AGENT?.url || 'http://localhost:3000';
+                const bridgeKey = window.HOPO_AGENT?.key || '';
                 const bridgeResponse = await fetch(`${bridgeUrl}/z-report`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-HOPO-Agent-Key': bridgeKey
                     }
                 });
 
@@ -242,11 +244,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const bridgeData = await bridgeResponse.json();
 
                 // Step 2: Save log to Laravel backend
-                if (bridgeData.status === 'success') {
+                if (bridgeData.ok) {
                     // Success case - save log and show result
                     try {
                         await saveZReportLog({
-                            filename: bridgeData.file || null,
+                            filename: null,
                             status: 'success',
                             error_message: null
                         });
@@ -254,13 +256,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.error('Error saving Z report log:', logError);
                         // Don't fail the request if logging fails
                     }
-                    showZReportResult('success', 'Z;1', bridgeData.file || null);
+                    showZReportResult('success', 'Z;1', null);
                 } else {
                     // Error case - save log and show error
-                    const errorMessage = bridgeData.message || bridgeData.details || 'Eroare necunoscută';
+                    const errorMessage = bridgeData.message || 'Eroare necunoscută';
                     try {
                         await saveZReportLog({
-                            filename: bridgeData.file || null,
+                            filename: null,
                             status: 'error',
                             error_message: errorMessage
                         });
@@ -275,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Network error or other exception
                 let errorMessage;
                 if (error.message && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
-                    errorMessage = 'Nu s-a putut conecta la bridge-ul fiscal. Asigură-te că bridge-ul rulează pe localhost:9000';
+                    errorMessage = 'Nu s-a putut conecta la HOPO Agent. Asigură-te că agentul rulează pe localhost:3000';
                 } else {
                     errorMessage = error.message || 'Eroare necunoscută';
                 }

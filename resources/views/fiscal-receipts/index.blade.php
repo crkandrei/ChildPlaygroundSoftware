@@ -185,7 +185,13 @@
             </div>
 
             <!-- Action Button -->
-            <div class="flex justify-end">
+            <div class="flex justify-end gap-3">
+                <button type="button"
+                        id="test-print-btn"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-vial mr-2"></i>
+                    Test Conexiune Agent
+                </button>
                 <button type="submit" 
                         id="one-leu-btn"
                         class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -351,11 +357,13 @@
             }
 
             // Step 2: Send directly to local bridge from browser
-            const bridgeUrl = 'http://localhost:9000';
-            const bridgeResponse = await fetch(`${bridgeUrl}/print`, {
+            const bridgeUrl = window.HOPO_AGENT?.url || 'http://localhost:3000';
+            const bridgeKey = window.HOPO_AGENT?.key || '';
+            const bridgeResponse = await fetch(`${bridgeUrl}/print-receipt`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-HOPO-Agent-Key': bridgeKey
                 },
                 body: JSON.stringify(prepareData.data)
             });
@@ -375,11 +383,12 @@
 
             // Step 3: Send result to Laravel backend for session message handling
             let resultPayload;
-            if (bridgeData.status === 'success') {
+            if (bridgeData.ok) {
                 resultPayload = {
                     status: 'success',
                     message: 'Bon fiscal emis cu succes!',
-                    file: bridgeData.file || null,
+                    receiptNumber: bridgeData.receiptNumber || null,
+                    receiptDateTime: bridgeData.receiptDateTime || null,
                     price: prepareData.data.price,
                     duration: prepareData.data.duration,
                     paymentType: prepareData.data.paymentType,
@@ -388,7 +397,7 @@
                 resultPayload = {
                     status: 'error',
                     message: bridgeData.message || 'Eroare necunoscută',
-                    details: bridgeData.details || null,
+                    details: bridgeData.error || null,
                 };
             }
 
@@ -425,7 +434,7 @@
                 const errorPayload = {
                     status: 'error',
                     message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
-                        ? 'Nu s-a putut conecta la bridge-ul fiscal local (localhost:9000). Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                        ? 'Nu s-a putut conecta la HOPO Agent local (localhost:3000). Verifică că serviciul rulează pe calculatorul tău.'
                         : error.message,
                     details: null,
                 };
@@ -467,7 +476,13 @@
     document.getElementById('one-leu-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        const tenantId = document.getElementById('tenant_id').value;
         const paymentType = document.querySelector('input[name="paymentTypeOneLeu"]:checked').value;
+
+        if (!tenantId) {
+            alert('Selectați un tenant înainte de tipărirea rapidă.');
+            return;
+        }
 
         // Show loading state
         const submitBtn = document.getElementById('one-leu-btn');
@@ -485,7 +500,8 @@
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    paymentType: paymentType
+                    paymentType: paymentType,
+                    tenant_id: tenantId
                 })
             });
 
@@ -501,11 +517,13 @@
             }
 
             // Step 2: Send directly to local bridge from browser
-            const bridgeUrl = 'http://localhost:9000';
-            const bridgeResponse = await fetch(`${bridgeUrl}/print`, {
+            const bridgeUrl = window.HOPO_AGENT?.url || 'http://localhost:3000';
+            const bridgeKey = window.HOPO_AGENT?.key || '';
+            const bridgeResponse = await fetch(`${bridgeUrl}/print-receipt`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-HOPO-Agent-Key': bridgeKey
                 },
                 body: JSON.stringify(prepareData.data)
             });
@@ -525,11 +543,12 @@
 
             // Step 3: Send result to Laravel backend for session message handling
             let resultPayload;
-            if (bridgeData.status === 'success') {
+            if (bridgeData.ok) {
                 resultPayload = {
                     status: 'success',
                     message: 'Bon fiscal de 1 leu emis cu succes!',
-                    file: bridgeData.file || null,
+                    receiptNumber: bridgeData.receiptNumber || null,
+                    receiptDateTime: bridgeData.receiptDateTime || null,
                     price: prepareData.data.price,
                     duration: prepareData.data.duration,
                     paymentType: prepareData.data.paymentType,
@@ -538,7 +557,7 @@
                 resultPayload = {
                     status: 'error',
                     message: bridgeData.message || 'Eroare necunoscută',
-                    details: bridgeData.details || null,
+                    details: bridgeData.error || null,
                 };
             }
 
@@ -575,7 +594,7 @@
                 const errorPayload = {
                     status: 'error',
                     message: error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
-                        ? 'Nu s-a putut conecta la bridge-ul fiscal local (localhost:9000). Verifică că serviciul Node.js rulează pe calculatorul tău.'
+                        ? 'Nu s-a putut conecta la HOPO Agent local (localhost:3000). Verifică că serviciul rulează pe calculatorul tău.'
                         : error.message,
                     details: null,
                 };
@@ -610,6 +629,37 @@
                 submitBtn.innerHTML = originalBtnText;
                 alert('Eroare: ' + error.message);
             }
+        }
+    });
+
+    document.getElementById('test-print-btn').addEventListener('click', async function () {
+        const button = document.getElementById('test-print-btn');
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Test în curs...';
+
+        try {
+            const bridgeUrl = window.HOPO_AGENT?.url || 'http://localhost:3000';
+            const bridgeKey = window.HOPO_AGENT?.key || '';
+            const response = await fetch(`${bridgeUrl}/test-print`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-HOPO-Agent-Key': bridgeKey
+                }
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+                throw new Error(data.message || 'Test print eșuat.');
+            }
+
+            alert(`Test print OK. Bon: ${data.receiptNumber || 'N/A'}`);
+        } catch (error) {
+            alert('Eroare test print: ' + error.message);
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalText;
         }
     });
 </script>

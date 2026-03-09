@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
+use App\Services\FiscalService;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,10 +12,12 @@ use Carbon\Carbon;
 class FiscalReceiptController extends Controller
 {
     protected $pricingService;
+    protected $fiscalService;
 
-    public function __construct(PricingService $pricingService)
+    public function __construct(PricingService $pricingService, FiscalService $fiscalService)
     {
         $this->pricingService = $pricingService;
+        $this->fiscalService = $fiscalService;
     }
 
     /**
@@ -146,11 +149,29 @@ class FiscalReceiptController extends Controller
 
         // Product name
         $productName = 'Ora de joacă';
+        $legacyItems = [
+            [
+                'name' => $productName . ' (' . $durationFiscalized . ')',
+                'quantity' => 1,
+                'price' => (float) $price,
+                'taxGroup' => $this->fiscalService->getDefaultTimeTaxGroup($tenant->id),
+            ],
+        ];
+
+        $agentPayload = $this->fiscalService->buildReceiptPayload(
+            $legacyItems,
+            $paymentType,
+            (float) $price,
+            (int) $tenant->id
+        );
 
         // Return data for client-side bridge call
         return response()->json([
             'success' => true,
             'data' => [
+                'uniqueSaleNumber' => $agentPayload['uniqueSaleNumber'],
+                'items' => $agentPayload['items'],
+                'payments' => $agentPayload['payments'],
                 'productName' => $productName,
                 'duration' => $durationFiscalized,
                 'price' => $price,
@@ -173,6 +194,7 @@ class FiscalReceiptController extends Controller
 
         $request->validate([
             'paymentType' => 'required|in:CASH,CARD',
+            'tenant_id' => 'required|exists:tenants,id',
         ]);
 
         $paymentType = $request->paymentType;
@@ -181,11 +203,32 @@ class FiscalReceiptController extends Controller
         $price = 1.00;
         $productName = 'Serviciu';
         $duration = '1 leu';
+        $tenant = Tenant::findOrFail($request->tenant_id);
+        $tenantId = $tenant->id;
+
+        $legacyItems = [
+            [
+                'name' => $productName,
+                'quantity' => 1,
+                'price' => $price,
+                'taxGroup' => $this->fiscalService->getDefaultTimeTaxGroup((int) $tenantId),
+            ],
+        ];
+
+        $agentPayload = $this->fiscalService->buildReceiptPayload(
+            $legacyItems,
+            $paymentType,
+            (float) $price,
+            (int) $tenantId
+        );
 
         // Return data for client-side bridge call
         return response()->json([
             'success' => true,
             'data' => [
+                'uniqueSaleNumber' => $agentPayload['uniqueSaleNumber'],
+                'items' => $agentPayload['items'],
+                'payments' => $agentPayload['payments'],
                 'productName' => $productName,
                 'duration' => $duration,
                 'price' => $price,
@@ -207,6 +250,8 @@ class FiscalReceiptController extends Controller
             'status' => 'required|in:success,error',
             'message' => 'required|string',
             'file' => 'nullable|string',
+            'receiptNumber' => 'nullable|string',
+            'receiptDateTime' => 'nullable|string',
             'price' => 'nullable|numeric',
             'duration' => 'nullable|string',
             'paymentType' => 'nullable|in:CASH,CARD',
@@ -215,7 +260,9 @@ class FiscalReceiptController extends Controller
 
         if ($request->status === 'success') {
             $message = $request->message;
-            if ($request->file) {
+            if ($request->receiptNumber) {
+                $message .= " Bon: {$request->receiptNumber}";
+            } elseif ($request->file) {
                 $message .= " Fișier: {$request->file}";
             }
             if ($request->price) {

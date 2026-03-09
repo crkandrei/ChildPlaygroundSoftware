@@ -14,6 +14,8 @@ class FiscalReceiptLog extends Model
         'play_session_ids',
         'tenant_id',
         'filename',
+        'receipt_number',
+        'receipt_date_time',
         'status',
         'error_message',
         'voucher_hours',

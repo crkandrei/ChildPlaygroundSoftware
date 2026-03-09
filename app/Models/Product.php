@@ -12,11 +12,13 @@ class Product extends Model
         'tenant_id',
         'name',
         'price',
+        'tax_group',
         'is_active',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'tax_group' => 'integer',
         'is_active' => 'boolean',
     ];
 

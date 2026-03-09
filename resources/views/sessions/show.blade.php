@@ -960,11 +960,13 @@ async function confirmAndPrint() {
         };
 
         // Step 2: Send directly to local bridge from browser
-        const bridgeUrl = '{{ config("services.fiscal_bridge.url", "http://localhost:9000") }}';
-        const bridgeResponse = await fetch(`${bridgeUrl}/print`, {
+        const bridgeUrl = window.HOPO_AGENT?.url || 'http://localhost:3000';
+        const bridgeKey = window.HOPO_AGENT?.key || '';
+        const bridgeResponse = await fetch(`${bridgeUrl}/print-receipt`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-HOPO-Agent-Key': bridgeKey
             },
             body: JSON.stringify(prepareData.data)
         });
@@ -987,9 +989,11 @@ async function confirmAndPrint() {
             const voucherHours = fiscalModalData.voucherHours || 0;
             await saveFiscalReceiptLog({
                 play_session_id: fiscalModalSessionId,
-                filename: bridgeData.file || null,
-                status: bridgeData.status === 'success' ? 'success' : 'error',
-                error_message: bridgeData.status === 'success' ? null : (bridgeData.message || bridgeData.details || 'Eroare necunoscută'),
+                filename: null,
+                receipt_number: bridgeData.receiptNumber || null,
+                receipt_date_time: bridgeData.receiptDateTime || null,
+                status: bridgeData.ok ? 'success' : 'error',
+                error_message: bridgeData.ok ? null : (bridgeData.message || 'Eroare necunoscută'),
                 voucher_hours: voucherHours > 0 ? voucherHours : null,
                 payment_status: voucherHours > 0 ? 'paid_voucher' : 'paid',
                 payment_method: fiscalModalPaymentType,
@@ -1000,14 +1004,14 @@ async function confirmAndPrint() {
         }
 
         // Show result in modal
-        if (bridgeData.status === 'success') {
-            showFiscalResult('success', 'Bon fiscal emis cu succes!', bridgeData.file || null);
+        if (bridgeData.ok) {
+            showFiscalResult('success', 'Bon fiscal emis cu succes!', bridgeData.receiptNumber || null);
             // Reload page to reflect payment status changes
             setTimeout(() => {
                 window.location.reload();
             }, 1500);
         } else {
-            const errorMessage = bridgeData.message || bridgeData.details || 'Eroare necunoscută';
+            const errorMessage = bridgeData.message || 'Eroare necunoscută';
             showFiscalResult('error', errorMessage, null);
             // Reload page even on error to ensure consistency
             setTimeout(() => {

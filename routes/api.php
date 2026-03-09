@@ -52,3 +52,9 @@ Route::middleware('auth')->group(function () {
     // Rute pentru activitate
     Route::get('/activity/recent', [App\Http\Controllers\DashboardApiController::class, 'recentActivity']);
 });
+
+Route::prefix('agent')->group(function () {
+    Route::post('/activate', [App\Http\Controllers\AgentApiController::class, 'activate']);
+    Route::post('/heartbeat', [App\Http\Controllers\AgentApiController::class, 'heartbeat']);
+    Route::get('/version', [App\Http\Controllers\AgentApiController::class, 'version']);
+});

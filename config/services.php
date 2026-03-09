@@ -35,8 +35,9 @@ return [
         ],
     ],
 
-    'fiscal_bridge' => [
-        'url' => env('FISCAL_BRIDGE_URL', 'http://localhost:9000'),
+    'hopo_agent' => [
+        'url' => env('HOPO_AGENT_URL', 'http://localhost:3000'),
+        'key' => env('HOPO_AGENT_KEY', ''),
     ],
 
 ];

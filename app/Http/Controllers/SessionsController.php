@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Repositories\Contracts\PlaySessionRepositoryInterface;
+use App\Services\FiscalService;
 use App\Support\ApiResponder;
 use App\Models\PlaySession;
 use Illuminate\Http\Request;
@@ -10,7 +11,10 @@ use Illuminate\Support\Facades\Auth;
 
 class SessionsController extends Controller
 {
-    public function __construct(private PlaySessionRepositoryInterface $sessions)
+    public function __construct(
+        private PlaySessionRepositoryInterface $sessions,
+        private FiscalService $fiscalService
+    )
     {
     }
     /** Show sessions page */
@@ -322,6 +326,7 @@ class SessionsController extends Controller
                 'quantity' => $sp->quantity,
                 'unit_price' => (float) $sp->unit_price,
                 'total_price' => (float) $sp->total_price,
+                'tax_group' => $sp->product && $sp->product->tax_group ? (int) $sp->product->tax_group : 2,
             ];
         })->values();
 
@@ -331,41 +336,53 @@ class SessionsController extends Controller
         // Product name
         $productName = 'Ora de joacă';
 
-        // Build items array for bridge: time item + product items
+        // Build items array for HOPO agent: time item + product items
         // Only include items if there's something to pay (finalPrice > 0)
-        $items = [];
+        $legacyItems = [];
         
         if (!$noReceiptNeeded) {
             // Add time item ONLY if there's time to bill (billed hours > 0 and final time price > 0)
             // If voucher covers all time, don't include time item on receipt
             if ($billedHours > 0 && $finalTimePrice > 0) {
-                $items[] = [
+                $legacyItems[] = [
                     'name' => $productName . ' (' . $durationBilled . ')',
                     'quantity' => 1,
                     'price' => (float) $finalTimePrice,
+                    'taxGroup' => $this->fiscalService->getDefaultTimeTaxGroup($session->tenant_id),
                 ];
             }
             
             // Add product items (products are never affected by voucher)
             foreach ($products as $product) {
                 if ($product['total_price'] > 0) {
-                    $items[] = [
+                    $legacyItems[] = [
                         'name' => $product['name'],
                         'quantity' => $product['quantity'],
                         'price' => (float) $product['unit_price'], // Use unit price, not total
+                        'taxGroup' => $this->fiscalService->sanitizeTaxGroup((int) ($product['tax_group'] ?? 2)),
                     ];
                 }
             }
         }
 
+        $agentPayload = $this->fiscalService->buildReceiptPayload(
+            $legacyItems,
+            $request->paymentType,
+            (float) max(0, $finalPrice),
+            (int) $session->tenant_id,
+            (string) $session->id
+        );
+
         // Return data for client-side bridge call
         return response()->json([
             'success' => true,
             'data' => [
-                'items' => $items,
-                'paymentType' => $request->paymentType,
+                'sessionId' => (string) $session->id,
+                'uniqueSaleNumber' => $agentPayload['uniqueSaleNumber'],
+                'items' => $agentPayload['items'],
+                'payments' => $agentPayload['payments'],
                 'voucherHours' => $voucherHours,
-                // Keep legacy fields for backward compatibility (not used if items is present)
+                // Keep legacy fields for compatibility in modal displays.
                 'productName' => $productName,
                 'duration' => $durationBilled,
                 'price' => max(0, $finalPrice),
@@ -557,6 +574,7 @@ class SessionsController extends Controller
                     'quantity' => $sp->quantity,
                     'unit_price' => (float) $sp->unit_price,
                     'total_price' => (float) $sp->total_price,
+                    'tax_group' => $sp->product && $sp->product->tax_group ? (int) $sp->product->tax_group : 2,
                 ];
             });
 
@@ -632,18 +650,19 @@ class SessionsController extends Controller
         // Calculate billed hours (total hours minus voucher hours)
         $billedHours = max(0, $totalRoundedHours - $voucherHours);
 
-        // Build items array for bridge: separate items for each child with adjusted hours after voucher
-        $items = [];
+        // Build items array for HOPO agent: separate items for each child with adjusted hours after voucher
+        $legacyItems = [];
         
         if (!$noReceiptNeeded) {
             // Add separate time items for each child with adjusted hours (after voucher deduction)
             // adjustedTimeItems already has hours reduced by voucher
             foreach ($adjustedTimeItems as $timeItem) {
                 if ($timeItem['roundedHours'] > 0 && $timeItem['price'] > 0) {
-                    $items[] = [
+                    $legacyItems[] = [
                         'name' => 'Ora de joacă (' . $timeItem['duration'] . ')',
                         'quantity' => 1,
                         'price' => (float) $timeItem['price'],
+                        'taxGroup' => $this->fiscalService->getDefaultTimeTaxGroup($tenant->id),
                     ];
                 }
             }
@@ -651,14 +670,23 @@ class SessionsController extends Controller
             // Add all product items
             foreach ($allProducts as $product) {
                 if ($product['total_price'] > 0) {
-                    $items[] = [
+                    $legacyItems[] = [
                         'name' => $product['name'],
                         'quantity' => $product['quantity'],
                         'price' => (float) $product['unit_price'],
+                        'taxGroup' => $this->fiscalService->sanitizeTaxGroup((int) ($product['tax_group'] ?? 2)),
                     ];
                 }
             }
         }
+
+        $agentPayload = $this->fiscalService->buildReceiptPayload(
+            $legacyItems,
+            $request->paymentType,
+            (float) max(0, $finalPrice),
+            (int) $tenant->id,
+            'combined:' . implode(',', $sessionIds)
+        );
 
         // Format total duration for display
         $totalRoundedHoursInt = floor($totalRoundedHours);
@@ -685,8 +713,10 @@ class SessionsController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'items' => $items,
-                'paymentType' => $request->paymentType,
+                'sessionId' => 'combined:' . implode(',', $sessionIds),
+                'uniqueSaleNumber' => $agentPayload['uniqueSaleNumber'],
+                'items' => $agentPayload['items'],
+                'payments' => $agentPayload['payments'],
                 'voucherHours' => $voucherHours,
                 'productName' => 'Ora de joacă',
                 'duration' => $durationBilled,
@@ -731,6 +761,8 @@ class SessionsController extends Controller
         $request->validate([
             'play_session_id' => 'required|exists:play_sessions,id',
             'filename' => 'nullable|string|max:255',
+            'receipt_number' => 'nullable|string|max:255',
+            'receipt_date_time' => 'nullable|string|max:255',
             'status' => 'required|in:success,error',
             'error_message' => 'nullable|string',
             'voucher_hours' => 'nullable|numeric|min:0',
@@ -752,6 +784,8 @@ class SessionsController extends Controller
                 'play_session_id' => $request->play_session_id,
                 'tenant_id' => $playSession->tenant_id,
                 'filename' => $request->filename,
+                'receipt_number' => $request->receipt_number,
+                'receipt_date_time' => $request->receipt_date_time,
                 'status' => $request->status,
                 'error_message' => $request->error_message,
                 'voucher_hours' => $voucherHours,
@@ -814,6 +848,8 @@ class SessionsController extends Controller
             'play_session_ids' => 'required|array|min:2',
             'play_session_ids.*' => 'required|integer|exists:play_sessions,id',
             'filename' => 'nullable|string|max:255',
+            'receipt_number' => 'nullable|string|max:255',
+            'receipt_date_time' => 'nullable|string|max:255',
             'status' => 'required|in:success,error',
             'error_message' => 'nullable|string',
             'voucher_hours' => 'nullable|numeric|min:0',
@@ -857,6 +893,8 @@ class SessionsController extends Controller
                 'play_session_ids' => $sessionIds, // Array of session IDs
                 'tenant_id' => $tenantId,
                 'filename' => $request->filename,
+                'receipt_number' => $request->receipt_number,
+                'receipt_date_time' => $request->receipt_date_time,
                 'status' => $request->status,
                 'error_message' => $request->error_message,
                 'voucher_hours' => $voucherHours,

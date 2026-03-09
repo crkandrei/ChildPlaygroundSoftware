@@ -15,11 +15,13 @@ class Tenant extends Model
         'address',
         'is_active',
         'price_per_hour',
+        'default_time_tax_group',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'price_per_hour' => 'decimal:2',
+        'default_time_tax_group' => 'integer',
     ];
 
     /**
@@ -92,5 +94,13 @@ class Tenant extends Model
     public function configurations(): HasMany
     {
         return $this->hasMany(TenantConfiguration::class);
+    }
+
+    /**
+     * Get local HOPO agents associated with the tenant.
+     */
+    public function agents(): HasMany
+    {
+        return $this->hasMany(Agent::class);
     }
 }

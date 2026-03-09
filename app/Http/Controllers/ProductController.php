@@ -74,6 +74,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'tax_group' => ['required', 'integer', 'min:1', 'max:8'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -82,6 +83,7 @@ class ProductController extends Controller
                 'tenant_id' => $tenant->id,
                 'name' => $validated['name'],
                 'price' => $validated['price'],
+                'tax_group' => $validated['tax_group'],
                 'is_active' => $validated['is_active'] ?? true,
             ]);
 
@@ -166,6 +168,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'tax_group' => ['required', 'integer', 'min:1', 'max:8'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
@@ -173,6 +176,7 @@ class ProductController extends Controller
             $product->update([
                 'name' => $validated['name'],
                 'price' => $validated['price'],
+                'tax_group' => $validated['tax_group'],
                 'is_active' => $validated['is_active'] ?? $product->is_active,
             ]);
 

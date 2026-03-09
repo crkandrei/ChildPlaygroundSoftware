@@ -138,12 +138,17 @@ class PricingController extends Controller
         $request->validate([
             'rates' => 'required|array',
             'rates.*' => 'required|numeric|min:0',
+            'default_time_tax_group' => 'required|integer|min:1|max:8',
         ]);
 
         $tenant = Tenant::findOrFail($tenantId);
         $this->ensureTenantAccess($tenant->id);
 
         DB::transaction(function () use ($tenant, $request) {
+            $tenant->update([
+                'default_time_tax_group' => (int) $request->input('default_time_tax_group'),
+            ]);
+
             // Update or create rates for each day
             for ($day = 0; $day <= 6; $day++) {
                 $rate = $request->rates[$day] ?? null;

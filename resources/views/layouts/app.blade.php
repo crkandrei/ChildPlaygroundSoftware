@@ -414,6 +414,7 @@
 
     <!-- Choices.js for searchable selects (load before page scripts) -->
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+    @include('partials._hopo-agent-config')
 
     @yield('scripts')
 
@@ -578,24 +579,23 @@
             });
         }
 
-        // Fiscal Bridge Health Check (only for SUPER_ADMIN)
-        // Direct check to local Node.js bridge (not through Laravel backend)
+        // HOPO Agent health check (only for SUPER_ADMIN)
         @if($currentUser && $currentUser->role && $currentUser->role->name === 'SUPER_ADMIN')
         (function() {
             const healthIndicator = document.getElementById('bridge-health-indicator');
             const healthDot = document.getElementById('bridge-health-dot');
-            const healthText = document.getElementById('bridge-health-text');
             const checkInterval = 15000; // 15 seconds
-            const bridgeUrl = '{{ config("services.fiscal_bridge.url", "http://localhost:9000") }}';
+            const bridgeUrl = window.HOPO_AGENT?.url || 'http://localhost:3000';
+            const agentKey = window.HOPO_AGENT?.key || '';
             
             if (!healthIndicator || !healthDot) return;
             
             function checkBridgeHealth() {
-                // Direct fetch to local Node.js bridge
-                fetch(`${bridgeUrl}/health`, {
+                fetch(`${bridgeUrl}/status`, {
                     method: 'GET',
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-HOPO-Agent-Key': agentKey
                     },
                     // Abort after 3 seconds if no response
                     signal: AbortSignal.timeout(3000)
@@ -608,21 +608,19 @@
                     }
                 })
                 .then(data => {
-                    // Bridge is alive if we get a response
-                    if (data && data.status === 'ok') {
+                    if (data && data.printer && data.printer.status === 'online') {
                         healthDot.className = 'w-2 h-2 rounded-full bg-green-500';
                         healthDot.style.animation = 'none';
-                        healthIndicator.title = 'Bridge Fiscal: Online';
+                        healthIndicator.title = 'HOPO Agent: Online';
                     } else {
                         throw new Error('Invalid response from bridge');
                     }
                 })
                 .catch(error => {
-                    // Bridge is dead or unreachable
-                    console.error('Bridge health check error:', error);
+                    console.error('HOPO agent health check error:', error);
                     healthDot.className = 'w-2 h-2 rounded-full bg-red-500';
                     healthDot.style.animation = 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite';
-                    healthIndicator.title = 'Bridge Fiscal: Offline';
+                    healthIndicator.title = 'HOPO Agent: Offline';
                 });
             }
             
