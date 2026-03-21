@@ -21,40 +21,62 @@ return new class extends Migration
 
         // Migrate existing bracelet_id values to bracelet_code (only if bracelet_id still exists)
         if (Schema::hasColumn('play_sessions', 'bracelet_id')) {
-            DB::statement('
-                UPDATE play_sessions ps
-                INNER JOIN bracelets b ON ps.bracelet_id = b.id
-                SET ps.bracelet_code = b.code
-                WHERE ps.bracelet_id IS NOT NULL AND ps.bracelet_code IS NULL
-            ');
+            $driver = DB::connection()->getDriverName();
+            if ($driver === 'mysql') {
+                DB::statement('
+                    UPDATE play_sessions ps
+                    INNER JOIN bracelets b ON ps.bracelet_id = b.id
+                    SET ps.bracelet_code = b.code
+                    WHERE ps.bracelet_id IS NOT NULL AND ps.bracelet_code IS NULL
+                ');
+            } else {
+                // SQLite-compatible syntax
+                DB::statement('
+                    UPDATE play_sessions
+                    SET bracelet_code = (SELECT b.code FROM bracelets b WHERE b.id = play_sessions.bracelet_id)
+                    WHERE bracelet_id IS NOT NULL AND bracelet_code IS NULL
+                ');
+            }
         }
 
         // Drop foreign key and bracelet_id column if they exist
+        // SQLite does not support DROP COLUMN on columns with FK definitions — skip on SQLite
         if (Schema::hasColumn('play_sessions', 'bracelet_id')) {
-            Schema::table('play_sessions', function (Blueprint $table) {
-                // Check if foreign key exists before dropping
-                $foreignKeys = DB::select("
-                    SELECT CONSTRAINT_NAME 
-                    FROM information_schema.KEY_COLUMN_USAGE 
-                    WHERE TABLE_SCHEMA = DATABASE() 
-                    AND TABLE_NAME = 'play_sessions' 
-                    AND COLUMN_NAME = 'bracelet_id' 
-                    AND REFERENCED_TABLE_NAME IS NOT NULL
-                ");
-                
-                if (!empty($foreignKeys)) {
-                    $table->dropForeign(['bracelet_id']);
-                }
-                
-                // Drop the bracelet_id column
-                $table->dropColumn('bracelet_id');
-            });
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                // Make nullable so test factories can insert rows without bracelet_id
+                Schema::table('play_sessions', function (Blueprint $table) {
+                    $table->unsignedBigInteger('bracelet_id')->nullable()->change();
+                });
+            } else {
+                Schema::table('play_sessions', function (Blueprint $table) {
+                    $foreignKeys = DB::select("
+                        SELECT CONSTRAINT_NAME
+                        FROM information_schema.KEY_COLUMN_USAGE
+                        WHERE TABLE_SCHEMA = DATABASE()
+                        AND TABLE_NAME = 'play_sessions'
+                        AND COLUMN_NAME = 'bracelet_id'
+                        AND REFERENCED_TABLE_NAME IS NOT NULL
+                    ");
+                    if (!empty($foreignKeys)) {
+                        $table->dropForeign(['bracelet_id']);
+                    }
+                    $table->dropColumn('bracelet_id');
+                });
+            }
         }
-        
+
         // Add index on bracelet_code for performance (only if it doesn't exist)
         if (Schema::hasColumn('play_sessions', 'bracelet_code')) {
-            $indexes = DB::select("SHOW INDEXES FROM play_sessions WHERE Key_name = 'play_sessions_bracelet_code_index'");
-            if (empty($indexes)) {
+            $driver = DB::connection()->getDriverName();
+            $indexExists = false;
+            if ($driver === 'mysql') {
+                $indexes = DB::select("SHOW INDEXES FROM play_sessions WHERE Key_name = 'play_sessions_bracelet_code_index'");
+                $indexExists = !empty($indexes);
+            } else {
+                $pragmaIndexes = DB::select("PRAGMA index_list(play_sessions)");
+                $indexExists = collect($pragmaIndexes)->contains('name', 'play_sessions_bracelet_code_index');
+            }
+            if (!$indexExists) {
                 Schema::table('play_sessions', function (Blueprint $table) {
                     $table->index('bracelet_code');
                 });

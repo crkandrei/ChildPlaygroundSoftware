@@ -74,9 +74,15 @@ return new class extends Migration
             }
         }
 
-        // Verifică dacă unique constraint-ul există deja
-        $indexes = DB::select("SHOW INDEXES FROM users WHERE Key_name = 'users_username_unique'");
-        
+        // Verifică dacă unique constraint-ul există deja (cross-DB compatible)
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'mysql') {
+            $indexes = DB::select("SHOW INDEXES FROM users WHERE Key_name = 'users_username_unique'");
+        } else {
+            $pragmaIndexes = DB::select("PRAGMA index_list(users)");
+            $indexes = collect($pragmaIndexes)->filter(fn($i) => $i->name === 'users_username_unique')->values()->all();
+        }
+
         if (empty($indexes)) {
             // Acum adaugă unique constraint-ul
             Schema::table('users', function (Blueprint $table) {

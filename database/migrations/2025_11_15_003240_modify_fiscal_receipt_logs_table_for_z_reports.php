@@ -17,8 +17,14 @@ return new class extends Migration
             $table->dropForeign(['play_session_id']);
         });
         
-        // Make play_session_id nullable using raw SQL
-        DB::statement('ALTER TABLE fiscal_receipt_logs MODIFY play_session_id BIGINT UNSIGNED NULL');
+        // Make play_session_id nullable
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE fiscal_receipt_logs MODIFY play_session_id BIGINT UNSIGNED NULL');
+        } else {
+            Schema::table('fiscal_receipt_logs', function (Blueprint $table) {
+                $table->unsignedBigInteger('play_session_id')->nullable()->change();
+            });
+        }
         
         Schema::table('fiscal_receipt_logs', function (Blueprint $table) {
             // Add type field to distinguish between session receipts and Z reports

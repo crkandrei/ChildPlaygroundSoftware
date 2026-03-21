@@ -12,8 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Modify last_name column to be nullable
-        DB::statement('ALTER TABLE `children` MODIFY `last_name` VARCHAR(255) NULL');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE `children` MODIFY `last_name` VARCHAR(255) NULL');
+        } else {
+            Schema::table('children', function (Blueprint $table) {
+                $table->string('last_name')->nullable()->change();
+            });
+        }
     }
 
     /**
@@ -21,9 +26,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert last_name column to NOT NULL
-        // First, set any NULL values to empty string to avoid constraint violation
         DB::statement('UPDATE `children` SET `last_name` = "" WHERE `last_name` IS NULL');
-        DB::statement('ALTER TABLE `children` MODIFY `last_name` VARCHAR(255) NOT NULL');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE `children` MODIFY `last_name` VARCHAR(255) NOT NULL');
+        } else {
+            Schema::table('children', function (Blueprint $table) {
+                $table->string('last_name')->nullable(false)->change();
+            });
+        }
     }
 };

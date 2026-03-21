@@ -12,13 +12,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Redenumește coloana first_name în name
-        DB::statement('ALTER TABLE `children` CHANGE `first_name` `name` VARCHAR(255) NOT NULL');
-        
-        // Șterge coloana last_name
-        Schema::table('children', function (Blueprint $table) {
-            $table->dropColumn('last_name');
-        });
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE `children` CHANGE `first_name` `name` VARCHAR(255) NOT NULL');
+        } else {
+            Schema::table('children', function (Blueprint $table) {
+                $table->renameColumn('first_name', 'name');
+            });
+        }
+
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            Schema::table('children', function (Blueprint $table) {
+                $table->dropColumn('last_name');
+            });
+        }
     }
 
     /**
@@ -26,13 +32,19 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Adaugă înapoi coloana last_name
-        Schema::table('children', function (Blueprint $table) {
-            $table->string('last_name')->nullable()->after('name');
-        });
-        
-        // Redenumește înapoi coloana name în first_name
-        DB::statement('ALTER TABLE `children` CHANGE `name` `first_name` VARCHAR(255) NOT NULL');
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            Schema::table('children', function (Blueprint $table) {
+                $table->string('last_name')->nullable()->after('name');
+            });
+        }
+
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE `children` CHANGE `name` `first_name` VARCHAR(255) NOT NULL');
+        } else {
+            Schema::table('children', function (Blueprint $table) {
+                $table->renameColumn('name', 'first_name');
+            });
+        }
     }
 };
 
