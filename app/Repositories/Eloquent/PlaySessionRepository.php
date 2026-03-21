@@ -37,6 +37,7 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
     {
         return PlaySession::where('tenant_id', $tenantId)
             ->where('started_at', '>=', $since)
+            ->with('intervals')
             ->get();
     }
 
