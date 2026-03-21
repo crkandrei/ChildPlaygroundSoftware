@@ -20,7 +20,7 @@ interface PlaySessionRepositoryInterface
 
     public function getAllByTenant(int $tenantId): Collection;
 
-    public function getActiveSessionsWithRelations(int $tenantId): Collection;
+    public function getActiveSessionsWithRelations(int $tenantId, int $limit = 100): Collection;
 
     /**
      * Paginate sessions with search/sort.

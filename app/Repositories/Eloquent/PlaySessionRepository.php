@@ -53,12 +53,21 @@ class PlaySessionRepository implements PlaySessionRepositoryInterface
         return PlaySession::where('tenant_id', $tenantId)->get();
     }
 
-    public function getActiveSessionsWithRelations(int $tenantId): Collection
+    public function getActiveSessionsWithRelations(int $tenantId, int $limit = 100): Collection
     {
-        return PlaySession::where('tenant_id', $tenantId)
+        $sessions = PlaySession::where('tenant_id', $tenantId)
             ->whereNull('ended_at')
             ->with(['child.guardian'])
+            ->limit($limit)
             ->get();
+
+        if ($sessions->count() >= $limit) {
+            \Illuminate\Support\Facades\Log::warning(
+                "getActiveSessionsWithRelations: LIMIT atins ({$limit}) pentru tenant {$tenantId}. Posibil sesiuni blocate."
+            );
+        }
+
+        return $sessions;
     }
 
     public function paginateSessions(
