@@ -504,117 +504,149 @@ class DashboardService
     public function getEntriesOverTime(int $tenantId, string $periodType, int $count, ?string $sessionType = null): array
     {
         $now = now();
+
+        // ✅ C3: calculează întregul interval de fetch — un singur query pentru toate perioadele
+        $rangeStart = match ($periodType) {
+            'daily'   => $now->copy()->subDays($count - 1)->startOfDay(),
+            'weekly'  => $now->copy()->subWeeks($count - 1)->startOfWeek(),
+            'monthly' => $now->copy()->subMonths($count - 1)->startOfMonth(),
+            default   => $now->copy()->subDays($count - 1)->startOfDay(),
+        };
+
+        // ✅ C3: un singur query pentru întreaga perioadă, cu eager load products și child
+        $query = PlaySession::where('tenant_id', $tenantId)
+            ->where('started_at', '>=', $rangeStart)
+            ->where('started_at', '<=', $now->copy()->endOfDay())
+            ->with(['products', 'child:id,guardian_id']);
+
+        $this->applySessionTypeFilter($query, $sessionType);
+
+        $allSessions = $query->get();
+
+        // Grupează sesiunile după cheia perioadei (portabil MySQL + SQLite)
+        $groupKey = match ($periodType) {
+            'daily'   => fn($s) => $s->started_at->format('Y-m-d'),
+            'weekly'  => fn($s) => $s->started_at->copy()->startOfWeek()->format('Y-m-d'),
+            'monthly' => fn($s) => $s->started_at->format('Y-m'),
+            default   => fn($s) => $s->started_at->format('Y-m-d'),
+        };
+
+        $grouped = $allSessions->groupBy($groupKey);
+
         $labels = [];
         $data = [];
-        $growth = []; // Growth percentage from previous period
-        $revenue = []; // ['generated' => float, 'collected' => float] per period
+        $growth = [];
+        $revenue = [];
 
-        if ($periodType === 'daily') {
-            // Get entries for the last $count days
-            for ($i = $count - 1; $i >= 0; $i--) {
-                $date = $now->copy()->subDays($i)->startOfDay();
-                $endDate = $date->copy()->endOfDay();
+        for ($i = $count - 1; $i >= 0; $i--) {
+            [$label, $key] = match ($periodType) {
+                'daily' => [
+                    $now->copy()->subDays($i)->format('d.m.Y'),
+                    $now->copy()->subDays($i)->format('Y-m-d'),
+                ],
+                'weekly' => [
+                    $now->copy()->subWeeks($i)->startOfWeek()->format('d.m')
+                        . ' - '
+                        . $now->copy()->subWeeks($i)->endOfWeek()->format('d.m.Y'),
+                    $now->copy()->subWeeks($i)->startOfWeek()->format('Y-m-d'),
+                ],
+                'monthly' => [
+                    $now->copy()->subMonths($i)->format('m.Y'),
+                    $now->copy()->subMonths($i)->format('Y-m'),
+                ],
+                default => [
+                    $now->copy()->subDays($i)->format('d.m.Y'),
+                    $now->copy()->subDays($i)->format('Y-m-d'),
+                ],
+            };
 
-                if ($sessionType === 'birthday') {
-                    $entries = $this->countBirthdayEvents($tenantId, $date, $endDate);
-                } else {
-                    $query = PlaySession::where('tenant_id', $tenantId)
-                        ->where('started_at', '>=', $date)
-                        ->where('started_at', '<=', $endDate);
-                    $this->applySessionTypeFilter($query, $sessionType);
-                    $entries = $query->count();
-                }
-                
-                $labels[] = $date->format('d.m.Y');
-                $data[] = $entries;
-                $revenue[] = $this->calculateRevenueForPeriod($tenantId, $date, $endDate, $sessionType);
+            $periodSessions = $grouped->get($key) ?? collect();
 
-                // Calculate growth from previous day
-                if ($i < $count - 1) {
-                    $prevEntries = $data[count($data) - 2];
-                    if ($prevEntries > 0) {
-                        $growthPercent = round((($entries - $prevEntries) / $prevEntries) * 100, 1);
-                    } else {
-                        $growthPercent = $entries > 0 ? 100 : 0;
-                    }
-                } else {
-                    $growthPercent = 0;
-                }
-                $growth[] = $growthPercent;
+            // Count — cu logica specială pentru birthday
+            $entries = $sessionType === 'birthday'
+                ? $this->countBirthdayEventsFromCollection($periodSessions)
+                : $periodSessions->count();
+
+            // Revenue din colecția deja fetch-ată (fără query suplimentar)
+            $rev = $this->calculateRevenueFromCollection($periodSessions);
+
+            $labels[] = $label;
+            $data[] = $entries;
+            $revenue[] = $rev;
+
+            // Growth față de perioada anterioară
+            if ($i < $count - 1) {
+                $prevEntries = $data[count($data) - 2];
+                $growthPercent = $prevEntries > 0
+                    ? round((($entries - $prevEntries) / $prevEntries) * 100, 1)
+                    : ($entries > 0 ? 100 : 0);
+            } else {
+                $growthPercent = 0;
             }
-        } elseif ($periodType === 'weekly') {
-            // Get entries for the last $count weeks
-            for ($i = $count - 1; $i >= 0; $i--) {
-                $weekStart = $now->copy()->subWeeks($i)->startOfWeek();
-                $weekEnd = $weekStart->copy()->endOfWeek();
+            $growth[] = $growthPercent;
+        }
 
-                if ($sessionType === 'birthday') {
-                    $entries = $this->countBirthdayEvents($tenantId, $weekStart, $weekEnd);
-                } else {
-                    $query = PlaySession::where('tenant_id', $tenantId)
-                        ->where('started_at', '>=', $weekStart)
-                        ->where('started_at', '<=', $weekEnd);
-                    $this->applySessionTypeFilter($query, $sessionType);
-                    $entries = $query->count();
-                }
-                
-                $labels[] = $weekStart->format('d.m') . ' - ' . $weekEnd->format('d.m.Y');
-                $data[] = $entries;
-                $revenue[] = $this->calculateRevenueForPeriod($tenantId, $weekStart, $weekEnd, $sessionType);
+        return [
+            'labels'  => $labels,
+            'data'    => $data,
+            'growth'  => $growth,
+            'revenue' => $revenue,
+        ];
+    }
 
-                // Calculate growth from previous week
-                if ($i < $count - 1) {
-                    $prevEntries = $data[count($data) - 2];
-                    if ($prevEntries > 0) {
-                        $growthPercent = round((($entries - $prevEntries) / $prevEntries) * 100, 1);
-                    } else {
-                        $growthPercent = $entries > 0 ? 100 : 0;
-                    }
-                } else {
-                    $growthPercent = 0;
-                }
-                $growth[] = $growthPercent;
-            }
-        } elseif ($periodType === 'monthly') {
-            // Get entries for the last $count months
-            for ($i = $count - 1; $i >= 0; $i--) {
-                $monthStart = $now->copy()->subMonths($i)->startOfMonth();
-                $monthEnd = $monthStart->copy()->endOfMonth();
+    /**
+     * Numără evenimentele birthday dintr-o colecție deja fetch-ată.
+     * Un eveniment = toți copiii cu același guardian; copiii fără guardian = câte un eveniment fiecare.
+     */
+    private function countBirthdayEventsFromCollection(\Illuminate\Support\Collection $sessions): int
+    {
+        if ($sessions->isEmpty()) {
+            return 0;
+        }
 
-                if ($sessionType === 'birthday') {
-                    $entries = $this->countBirthdayEvents($tenantId, $monthStart, $monthEnd);
-                } else {
-                    $query = PlaySession::where('tenant_id', $tenantId)
-                        ->where('started_at', '>=', $monthStart)
-                        ->where('started_at', '<=', $monthEnd);
-                    $this->applySessionTypeFilter($query, $sessionType);
-                    $entries = $query->count();
-                }
-                
-                $labels[] = $monthStart->format('m.Y');
-                $data[] = $entries;
-                $revenue[] = $this->calculateRevenueForPeriod($tenantId, $monthStart, $monthEnd, $sessionType);
+        $guardianIds = [];
+        $noGuardianCount = 0;
 
-                // Calculate growth from previous month
-                if ($i < $count - 1) {
-                    $prevEntries = $data[count($data) - 2];
-                    if ($prevEntries > 0) {
-                        $growthPercent = round((($entries - $prevEntries) / $prevEntries) * 100, 1);
-                    } else {
-                        $growthPercent = $entries > 0 ? 100 : 0;
-                    }
-                } else {
-                    $growthPercent = 0;
-                }
-                $growth[] = $growthPercent;
+        foreach ($sessions as $session) {
+            $guardianId = $session->child?->guardian_id ?? null;
+            if ($guardianId !== null) {
+                $guardianIds[$guardianId] = true;
+            } else {
+                $noGuardianCount++;
             }
         }
-        
+
+        return count($guardianIds) + $noGuardianCount;
+    }
+
+    /**
+     * Calculează revenue dintr-o colecție deja fetch-ată cu products eager-loaded.
+     * Nu face niciun query suplimentar.
+     */
+    private function calculateRevenueFromCollection(\Illuminate\Support\Collection $sessions): array
+    {
+        $generated = 0.0;
+        $collected = 0.0;
+
+        foreach ($sessions as $session) {
+            if ($session->ended_at === null) {
+                continue;
+            }
+
+            $timePrice = (float) ($session->calculated_price ?? 0);
+            $productsPrice = $session->getProductsTotalPrice();
+            $sessionGenerated = $timePrice + $productsPrice;
+            $generated += $sessionGenerated;
+
+            if ($session->isPaid()) {
+                $voucherPrice = $session->getVoucherPrice();
+                $collected += max(0.0, $sessionGenerated - $voucherPrice);
+            }
+        }
+
         return [
-            'labels' => $labels,
-            'data' => $data,
-            'growth' => $growth,
-            'revenue' => $revenue,
+            'generated' => round($generated, 2),
+            'collected' => round($collected, 2),
         ];
     }
 

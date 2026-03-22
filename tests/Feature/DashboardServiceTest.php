@@ -35,6 +35,37 @@ class DashboardServiceTest extends TestCase
         ]);
     }
 
+    public function test_get_entries_over_time_daily_returns_correct_structure_and_counts(): void
+    {
+        // Sesiune ieri
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subDay()->setHour(10)->setMinute(0)->setSecond(0),
+            'ended_at' => now()->subDay()->setHour(11)->setMinute(0)->setSecond(0),
+            'calculated_price' => 40.00,
+            'paid_at' => now()->subDay(),
+        ]);
+        // Sesiune azi
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->setHour(10)->setMinute(0)->setSecond(0),
+            'ended_at' => now()->setHour(11)->setMinute(0)->setSecond(0),
+            'calculated_price' => 40.00,
+            'paid_at' => now(),
+        ]);
+
+        $result = $this->service->getEntriesOverTime($this->tenant->id, 'daily', 7);
+
+        $this->assertArrayHasKey('labels', $result);
+        $this->assertArrayHasKey('data', $result);
+        $this->assertArrayHasKey('revenue', $result);
+        $this->assertCount(7, $result['labels']);
+        $this->assertCount(7, $result['data']);
+        $this->assertEquals(2, array_sum($result['data']));
+    }
+
     public function test_get_reports_returns_correct_bucket_distribution(): void
     {
         // Sesiune de 45 minute (bucket <1h)
