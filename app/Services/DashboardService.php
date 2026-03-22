@@ -28,9 +28,19 @@ class DashboardService
         $lastWeekEnd = $lastWeekSameDay->copy()->endOfDay();
         $dayName = $this->getRomanianDayName($now->dayOfWeek);
 
-        $activeSessions = $this->sessions->countActiveSessionsByTenant($tenantId);
-        $sessionsToday = $this->sessions->countSessionsStartedSince($tenantId, $startOfDay);
-        $inProgressToday = $this->sessions->countActiveSessionsStartedSince($tenantId, $startOfDay);
+        // ✅ R1: un singur query cu CASE WHEN în loc de 3 COUNT-uri separate
+        $counts = PlaySession::where('tenant_id', $tenantId)
+            ->selectRaw(
+                'SUM(CASE WHEN ended_at IS NULL THEN 1 ELSE 0 END) as active_total,
+                 SUM(CASE WHEN started_at >= ? THEN 1 ELSE 0 END) as started_today,
+                 SUM(CASE WHEN started_at >= ? AND ended_at IS NULL THEN 1 ELSE 0 END) as active_today',
+                [$startOfDay, $startOfDay]
+            )
+            ->first();
+
+        $activeSessions  = (int) ($counts->active_total ?? 0);
+        $sessionsToday   = (int) ($counts->started_today ?? 0);
+        $inProgressToday = (int) ($counts->active_today ?? 0);
         
         $todaySessions = $this->sessions->getSessionsSince($tenantId, $startOfDay);
         $totalMinutesToday = $todaySessions->reduce(fn($c, $s) => $c + $s->getCurrentDurationMinutes(), 0);
