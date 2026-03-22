@@ -293,13 +293,12 @@ class DashboardService
         }
         
         // 2. Long running sessions - active sessions > 4 hours
+        // ✅ R2: filtrul mutat în SQL, nu PHP — utilizează indexul pe started_at
         $longSessions = PlaySession::where('tenant_id', $tenantId)
             ->whereNull('ended_at')
+            ->where('started_at', '<=', now()->subMinutes(240))
             ->with('child')
-            ->get()
-            ->filter(function ($session) {
-                return $session->getCurrentDurationMinutes() > 240; // > 4 hours
-            });
+            ->get();
         
         if ($longSessions->count() > 0) {
             $longDetails = $longSessions->map(function ($session) {

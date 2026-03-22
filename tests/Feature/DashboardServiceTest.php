@@ -35,6 +35,31 @@ class DashboardServiceTest extends TestCase
         ]);
     }
 
+    public function test_get_alerts_detects_long_sessions(): void
+    {
+        // Sesiune activă de 5 ore (ar trebui în alerte)
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subHours(5),
+            'ended_at' => null,
+        ]);
+
+        // Sesiune activă de 1 oră (nu ar trebui în alerte)
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subHour(),
+            'ended_at' => null,
+        ]);
+
+        $alerts = $this->service->getAlerts($this->tenant->id);
+
+        $longSessionAlerts = collect($alerts)->firstWhere('type', 'long_session');
+        $this->assertNotNull($longSessionAlerts);
+        $this->assertEquals(1, $longSessionAlerts['count']);
+    }
+
     public function test_avg_session_duration_excludes_sessions_older_than_90_days(): void
     {
         // Sesiune din acum 5 zile (60 minute) — trebuie inclusă
