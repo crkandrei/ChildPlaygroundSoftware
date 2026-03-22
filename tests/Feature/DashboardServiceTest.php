@@ -35,6 +35,30 @@ class DashboardServiceTest extends TestCase
         ]);
     }
 
+    public function test_avg_session_duration_excludes_sessions_older_than_90_days(): void
+    {
+        // Sesiune din acum 5 zile (60 minute) — trebuie inclusă
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subDays(5)->subHour(),
+            'ended_at' => now()->subDays(5),
+        ]);
+        // Sesiune din acum 120 de zile (120 minute) — trebuie EXCLUSĂ
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subDays(120)->subHours(2),
+            'ended_at' => now()->subDays(120),
+        ]);
+
+        $stats = $this->service->getStatsForTenant($this->tenant->id);
+
+        // Dacă sesiunea de 120 de zile ar fi inclusă, media ar fi 90 min
+        // Dacă e exclusă corect, media = 60 min ± 2
+        $this->assertEqualsWithDelta(60, $stats['avg_session_total_minutes'], 2);
+    }
+
     public function test_get_stats_returns_correct_active_and_today_counts(): void
     {
         // 2 active (fără ended_at), 1 terminată

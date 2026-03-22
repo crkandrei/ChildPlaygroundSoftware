@@ -60,9 +60,17 @@ class DashboardService
             }
         }
 
-        $allSessions = $this->sessions->getAllByTenant($tenantId);
-        $totalMinutesAll = $allSessions->reduce(fn($c, $s) => $c + $s->getCurrentDurationMinutes(), 0);
-        $avgAll = $allSessions->count() > 0 ? (int) floor($totalMinutesAll / $allSessions->count()) : 0;
+        // ✅ C2: bounded la 90 zile, selectează doar 2 coloane în loc să încarce toată istoria
+        $avgAll = (int) floor(
+            PlaySession::where('tenant_id', $tenantId)
+                ->whereNotNull('ended_at')
+                ->where('started_at', '>=', now()->subDays(90))
+                ->get(['started_at', 'ended_at'])
+                ->avg(fn($s) => $s->started_at && $s->ended_at
+                    ? $s->started_at->diffInMinutes($s->ended_at)
+                    : 0
+                ) ?? 0
+        );
 
         // Calculate total income for sessions ended today (exclude birthday sessions)
         $sessionsEndedToday = PlaySession::where('tenant_id', $tenantId)
