@@ -35,6 +35,44 @@ class DashboardServiceTest extends TestCase
         ]);
     }
 
+    public function test_get_reports_returns_correct_bucket_distribution(): void
+    {
+        // Sesiune de 45 minute (bucket <1h)
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subMinutes(45),
+            'ended_at' => now(),
+            'is_birthday' => false,
+            'is_jungle' => false,
+        ]);
+
+        // Fără weekdays filter (DAYOFWEEK incompatibil SQLite)
+        $reports = $this->service->getReports($this->tenant->id);
+
+        $this->assertEquals(1, $reports['total_today']);
+        $this->assertEquals(1, $reports['buckets_today']['lt_1h']['count']);
+    }
+
+    public function test_income_includes_products_for_paid_sessions(): void
+    {
+        PlaySession::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'child_id' => $this->child->id,
+            'started_at' => now()->subHour(),
+            'ended_at' => now(),
+            'calculated_price' => 40.00,
+            'paid_at' => now(),
+            'payment_method' => 'CASH',
+            'is_birthday' => false,
+        ]);
+
+        $stats = $this->service->getStatsForTenant($this->tenant->id);
+
+        $this->assertGreaterThanOrEqual(40.0, $stats['total_income_today']);
+        $this->assertGreaterThanOrEqual(40.0, $stats['cash_total']);
+    }
+
     public function test_get_alerts_detects_long_sessions(): void
     {
         // Sesiune activă de 5 ore (ar trebui în alerte)

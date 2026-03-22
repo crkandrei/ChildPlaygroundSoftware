@@ -73,12 +73,14 @@ class DashboardService
         );
 
         // Calculate total income for sessions ended today (exclude birthday sessions)
+        // ✅ M1: eager load products pentru getProductsTotalPrice() fără N lazy queries
         $sessionsEndedToday = PlaySession::where('tenant_id', $tenantId)
             ->whereNotNull('ended_at')
             ->whereNotNull('calculated_price')
             ->where('ended_at', '>=', $startOfDay)
             ->where('ended_at', '<=', $endOfDay)
             ->where('is_birthday', false)
+            ->with('products')
             ->get();
         
         // Calculate payment breakdown: cash, card, voucher
@@ -161,12 +163,14 @@ class DashboardService
      */
     private function calculateIncomeForPeriod(int $tenantId, Carbon $start, Carbon $end): float
     {
+        // ✅ M1: eager load products pentru getProductsTotalPrice() fără N lazy queries
         $sessions = PlaySession::where('tenant_id', $tenantId)
             ->whereNotNull('ended_at')
             ->whereNotNull('calculated_price')
             ->where('ended_at', '>=', $start)
             ->where('ended_at', '<=', $end)
             ->where('is_birthday', false)
+            ->with('products')
             ->get();
         
         $total = 0;
@@ -357,7 +361,8 @@ class DashboardService
             $sessionsQuery->whereRaw("DAYOFWEEK(started_at) IN ({$placeholders})", $mysqlWeekdays);
         }
         
-        $sessionsToday = $sessionsQuery->get();
+        // ✅ R4: eager load intervals pentru getCurrentDurationMinutes() fără N lazy queries
+        $sessionsToday = $sessionsQuery->with('intervals')->get();
         
         $totalToday = $sessionsToday->count();
 
