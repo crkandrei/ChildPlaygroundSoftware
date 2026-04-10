@@ -58,7 +58,7 @@
 
             <!-- QR Code -->
             <div class="flex justify-center">
-                <img id="preCheckinQr" src="" alt="QR Code" class="rounded-xl border border-gray-200 w-[220px] h-[220px]">
+                <img id="preCheckinQr" src="" alt="QR Code" class="rounded-xl border border-gray-200 w-[220px] h-[220px]" crossorigin="anonymous">
             </div>
 
             <!-- URL -->
@@ -84,6 +84,11 @@
                     <i class="fas fa-copy"></i> Copiază
                 </button>
             </div>
+
+            <button onclick="downloadPreCheckinQr()"
+                class="w-full h-10 border border-sky-300 hover:bg-sky-50 text-sky-700 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
+                <i class="fas fa-download"></i> Descarcă QR (PNG)
+            </button>
         </div>
     </div>
     @endif
@@ -224,7 +229,55 @@
 
         const qrImg = document.getElementById('preCheckinQr');
         if (!qrImg.src || qrImg.src === window.location.href) {
-            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=0369a1&data=' + encodeURIComponent(PRECHECKIN_URL);
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=0369a1&data=' + encodeURIComponent(PRECHECKIN_URL);
+        }
+    }
+
+    function downloadPreCheckinQr() {
+        const tenantName = '{{ Auth::user()->tenant->name ?? "Pre-Checkin" }}';
+        const qrImg = document.getElementById('preCheckinQr');
+
+        const doDownload = () => {
+            const padding   = 40;
+            const qrSize    = 400;
+            const lineH     = 28;
+            const lines     = ['Scanează pentru', 'Pre-Checkin – ' + tenantName];
+            const canvasH   = padding + qrSize + 16 + lines.length * lineH + padding;
+
+            const canvas  = document.createElement('canvas');
+            canvas.width  = qrSize + padding * 2;
+            canvas.height = canvasH;
+            const ctx = canvas.getContext('2d');
+
+            // Fundal alb
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // QR
+            ctx.drawImage(qrImg, padding, padding, qrSize, qrSize);
+
+            // Text
+            ctx.fillStyle = '#0369a1';
+            ctx.textAlign = 'center';
+            let y = padding + qrSize + 20;
+            lines.forEach((line, i) => {
+                ctx.font = i === 0
+                    ? '500 18px system-ui, sans-serif'
+                    : 'bold 22px system-ui, sans-serif';
+                ctx.fillText(line, canvas.width / 2, y);
+                y += lineH;
+            });
+
+            const a = document.createElement('a');
+            a.download = 'pre-checkin-qr-' + tenantName.toLowerCase().replace(/\s+/g, '-') + '.png';
+            a.href = canvas.toDataURL('image/png');
+            a.click();
+        };
+
+        if (qrImg.complete && qrImg.naturalWidth > 0) {
+            doDownload();
+        } else {
+            qrImg.onload = doDownload;
         }
     }
     @endif
