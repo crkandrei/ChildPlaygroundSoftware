@@ -241,7 +241,7 @@
             const padding   = 40;
             const qrSize    = 400;
             const lineH     = 28;
-            const lines     = ['Scanează pentru', 'Pre-Checkin – ' + tenantName];
+            const lines     = ['SCANEAZA ACEST COD QR PENTRU', 'INREGISTRARE RAPIDA IN LOCATIE'];
             const canvasH   = padding + qrSize + 16 + lines.length * lineH + padding;
 
             const canvas  = document.createElement('canvas');
