@@ -57,7 +57,7 @@
         </div>
     </div>
 
-    <!-- Main state + actions -->
+<!-- Main state + actions -->
     <div class="max-w-6xl mx-auto px-0 space-y-6">
         <div id="stateCard" class="bg-white border border-gray-300 rounded-lg p-6" aria-live="polite">
             <div class="text-gray-500">Introduceți sau scanați un cod pentru a începe.</div>
@@ -130,6 +130,7 @@
 
         <!-- Assignment section (hidden by default) -->
         <div id="assignmentSection" class="hidden bg-white border border-gray-300 rounded-lg p-6">
+
             <!-- Tabs -->
             <div class="mb-4 border-b border-gray-200">
                 <nav class="flex gap-2" role="tablist" aria-label="Assignment tabs">
@@ -300,6 +301,55 @@
                             Creează și asignează
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- QR Pre-Checkin (sub secțiunea de adăugare) -->
+            <div class="mt-6 pt-6 border-t-2 border-sky-100">
+                <p class="text-xs font-semibold text-sky-700 uppercase tracking-wide mb-2">
+                    <i class="fas fa-qrcode mr-1"></i> Pre-Checkin QR
+                </p>
+                <div class="flex gap-2">
+                    <input id="inlineQrInput" type="text" maxlength="8"
+                        placeholder="Scanează QR-ul clientului..."
+                        autocomplete="off" spellcheck="false"
+                        class="flex-1 h-11 px-4 text-lg font-mono tracking-widest uppercase border border-sky-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-sky-50 placeholder:text-sky-300">
+                    <button id="inlineQrBtn"
+                        class="h-11 px-5 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded-lg transition">
+                        Verifică
+                    </button>
+                </div>
+
+                <!-- Eroare -->
+                <div id="inlineQrError" class="hidden mt-2 text-sm text-red-600 flex items-center gap-1">
+                    <i class="fas fa-exclamation-circle"></i><span></span>
+                </div>
+
+                <!-- Confirmare vizuală + buton pornire -->
+                <div id="inlineQrConfirm" class="hidden mt-3 space-y-3">
+                    <div class="flex items-center gap-4 bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
+                        <div class="w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-child text-sky-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p id="inlineQrChildName" class="font-bold text-gray-900 text-lg leading-tight"></p>
+                            <p id="inlineQrGuardianName" class="text-sm text-gray-500"></p>
+                        </div>
+                        <button id="inlineQrResetBtn" class="text-gray-300 hover:text-gray-500 ml-2" title="Anulează">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <button id="inlineQrStartBtn"
+                        class="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition flex items-center justify-center gap-2 text-base">
+                        <i class="fas fa-play"></i> Pornește sesiunea
+                    </button>
+                    <div id="inlineQrStartError" class="hidden text-sm text-red-600 flex items-center gap-1">
+                        <i class="fas fa-exclamation-circle"></i><span></span>
+                    </div>
+                </div>
+
+                <div id="inlineQrSuccess" class="hidden mt-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <i class="fas fa-check-circle"></i><span></span>
                 </div>
             </div>
         </div>
@@ -670,10 +720,16 @@
         if (data.can_assign) {
             assignmentSection.classList.remove('hidden');
             updateStatusChip('Disponibilă', 'warn');
-            // Update button state when assignment section becomes visible
             updateAssignButtonState();
-            // Keep code visible in input - operator needs to see it during assignment/creation
-            // Code will be cleared after successful assignment/creation
+            // Resetează câmpul QR când apare assignment section
+            setTimeout(() => {
+                const qrInput = document.getElementById('inlineQrInput');
+                if (qrInput) {
+                    qrInput.value = '';
+                    document.getElementById('inlineQrError').classList.add('hidden');
+                    document.getElementById('inlineQrSuccess').classList.add('hidden');
+                }
+            }, 50);
         } else {
             assignmentSection.classList.add('hidden');
             updateStatusChip('OK', undefined);
@@ -2587,6 +2643,130 @@
     // Initialize on page load
     updateJungleCheckboxesVisibility();
     setupMutualExclusivity();
+
+    // ── Pre-Checkin QR inline (în assignment section) ───────────────────────
+    (function initInlinePreCheckin() {
+        const qrInput    = document.getElementById('inlineQrInput');
+        const qrBtn      = document.getElementById('inlineQrBtn');
+        const errEl      = document.getElementById('inlineQrError');
+        const confirmEl  = document.getElementById('inlineQrConfirm');
+        const childNameEl   = document.getElementById('inlineQrChildName');
+        const guardianNameEl= document.getElementById('inlineQrGuardianName');
+        const resetBtn   = document.getElementById('inlineQrResetBtn');
+        const startBtn   = document.getElementById('inlineQrStartBtn');
+        const startErrEl = document.getElementById('inlineQrStartError');
+        const successEl  = document.getElementById('inlineQrSuccess');
+        if (!qrInput) return;
+
+        let pendingPreCheckin = null; // { child_id, precheckin_id, child_name, guardian_name }
+
+        function resetQr() {
+            qrInput.value = '';
+            qrInput.disabled = false;
+            qrBtn.disabled = false;
+            errEl.classList.add('hidden');
+            confirmEl.classList.add('hidden');
+            successEl.classList.add('hidden');
+            startErrEl.classList.add('hidden');
+            pendingPreCheckin = null;
+            qrInput.focus();
+        }
+
+        qrInput.addEventListener('input', () => {
+            qrInput.value = qrInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+        qrInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') qrBtn.click();
+        });
+
+        resetBtn.addEventListener('click', resetQr);
+
+        // ── PASUL 1: Verifică QR ──
+        qrBtn.addEventListener('click', async () => {
+            errEl.classList.add('hidden');
+            confirmEl.classList.add('hidden');
+            const token = qrInput.value.trim();
+            if (!token) {
+                errEl.querySelector('span').textContent = 'Scanează sau introdu codul QR.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            qrBtn.disabled = true;
+            qrBtn.textContent = '...';
+            try {
+                const res = await apiCall('/scan-api/lookup-precheckin', {
+                    method: 'POST',
+                    body: JSON.stringify({ token }),
+                });
+
+                // Afișează datele pentru confirmare vizuală
+                pendingPreCheckin = {
+                    child_id:      res.child.id,
+                    precheckin_id: res.precheckin_id,
+                    child_name:    res.child.name,
+                    guardian_name: res.guardian.name,
+                };
+                childNameEl.textContent    = res.child.name;
+                guardianNameEl.textContent = res.guardian.name;
+                qrInput.disabled = true;
+                confirmEl.classList.remove('hidden');
+                startBtn.focus();
+
+            } catch (e) {
+                errEl.querySelector('span').textContent = e?.data?.message || e?.message || 'Eroare de rețea.';
+                errEl.classList.remove('hidden');
+                qrBtn.disabled = false;
+                qrBtn.textContent = 'Verifică';
+            }
+        });
+
+        // ── PASUL 2: Pornește sesiunea ──
+        startBtn.addEventListener('click', async () => {
+            startErrEl.classList.add('hidden');
+            if (!pendingPreCheckin) return;
+
+            const braceletCode = currentBracelet ? currentBracelet.code : null;
+            if (!braceletCode) {
+                startErrEl.querySelector('span').textContent = 'Scanează mai întâi o brățară.';
+                startErrEl.classList.remove('hidden');
+                return;
+            }
+
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Se pornește...';
+            try {
+                const startRes = await apiCall('/scan-api/start-session', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        child_id:      pendingPreCheckin.child_id,
+                        bracelet_code: braceletCode,
+                        precheckin_id: pendingPreCheckin.precheckin_id,
+                    }),
+                });
+
+                // Succes
+                confirmEl.classList.add('hidden');
+                successEl.querySelector('span').textContent =
+                    `Sesiune pornită pentru ${pendingPreCheckin.child_name} (${pendingPreCheckin.guardian_name})`;
+                successEl.classList.remove('hidden');
+
+                document.getElementById('assignmentSection').classList.add('hidden');
+                if (typeof loadActiveSessions === 'function') loadActiveSessions();
+
+                setTimeout(() => {
+                    const rfid = document.getElementById('rfidCode');
+                    if (rfid && rfid.value) document.getElementById('searchBtn').click();
+                }, 300);
+
+            } catch (e) {
+                startErrEl.querySelector('span').textContent = e?.data?.message || e?.message || 'Eroare de rețea.';
+                startErrEl.classList.remove('hidden');
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="fas fa-play"></i> Pornește sesiunea';
+            }
+        });
+    })();
 
 </script>
 @endsection

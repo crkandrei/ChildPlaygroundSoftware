@@ -44,11 +44,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // Make sure API routes return JSON even if they're in web.php
         $exceptions->shouldRenderJsonWhen(function ($request, Throwable $e) {
             // Check if request expects JSON or is an API route
-            return $request->expectsJson() 
+            return $request->expectsJson()
                 || $request->is('scan-api/*')
                 || $request->is('dashboard-api/*')
                 || $request->is('reports-api/*')
                 || $request->is('birthday-reservations-api/*')
+                || $request->is('pre-checkin/*/lookup')
+                || $request->is('pre-checkin/*/register')
+                || $request->is('pre-checkin/*/generate-qr')
+                || $request->is('pre-checkin/*/add-child')
+                || $request->is('pre-checkin/*/accept-terms')
                 || $request->is('children/data')
                 || $request->is('children-search')
                 || $request->is('guardians-search')

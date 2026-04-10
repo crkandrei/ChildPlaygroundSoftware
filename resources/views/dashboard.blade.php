@@ -20,13 +20,73 @@
                     <span id="currentDateTime" class="text-gray-500"></span>
                 </p>
             </div>
-            <div class="hidden md:block">
-                <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <i class="fas fa-baby text-white text-xl"></i>
+            <div class="flex items-center gap-3">
+                @if(Auth::user()->tenant)
+                <button onclick="openPreCheckinModal()"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium rounded-lg transition">
+                    <i class="fas fa-qrcode"></i>
+                    <span class="hidden sm:inline">Link Pre-Checkin</span>
+                </button>
+                @endif
+                <div class="hidden md:block">
+                    <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <i class="fas fa-baby text-white text-xl"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    @if(Auth::user()->tenant)
+    <!-- Pre-Checkin Modal -->
+    <div id="preCheckinModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="document.getElementById('preCheckinModal').classList.add('hidden')"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-gray-900 text-lg flex items-center gap-2">
+                    <i class="fas fa-qrcode text-sky-600"></i> Pre-Checkin
+                </h3>
+                <button onclick="document.getElementById('preCheckinModal').classList.add('hidden')"
+                    class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+
+            <p class="text-sm text-gray-500">
+                Trimite acest link clienților să se înregistreze de acasă.
+            </p>
+
+            <!-- QR Code -->
+            <div class="flex justify-center">
+                <img id="preCheckinQr" src="" alt="QR Code" class="rounded-xl border border-gray-200 w-[220px] h-[220px]">
+            </div>
+
+            <!-- URL -->
+            <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                <code id="preCheckinUrl" class="text-xs text-sky-700 flex-1 break-all"></code>
+                <button onclick="copyPreCheckinUrl()" title="Copiază"
+                    class="flex-shrink-0 text-gray-400 hover:text-sky-600 transition">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+
+            <p id="copiedMsg" class="hidden text-xs text-green-600 text-center">
+                <i class="fas fa-check mr-1"></i> Link copiat!
+            </p>
+
+            <div class="flex gap-3">
+                <a id="preCheckinOpenBtn" href="#" target="_blank"
+                    class="flex-1 h-10 bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-external-link-alt"></i> Deschide
+                </a>
+                <button onclick="copyPreCheckinUrl()"
+                    class="flex-1 h-10 border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-copy"></i> Copiază
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -154,6 +214,30 @@
 
 @section('scripts')
 <script>
+    @if(Auth::user()->tenant)
+    const PRECHECKIN_URL = '{{ url("/pre-checkin/" . Auth::user()->tenant->slug) }}';
+
+    function openPreCheckinModal() {
+        document.getElementById('preCheckinUrl').textContent = PRECHECKIN_URL;
+        document.getElementById('preCheckinOpenBtn').href = PRECHECKIN_URL;
+        document.getElementById('preCheckinModal').classList.remove('hidden');
+
+        const qrImg = document.getElementById('preCheckinQr');
+        if (!qrImg.src || qrImg.src === window.location.href) {
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=0369a1&data=' + encodeURIComponent(PRECHECKIN_URL);
+        }
+    }
+    @endif
+
+    function copyPreCheckinUrl() {
+        const url = document.getElementById('preCheckinUrl').textContent;
+        navigator.clipboard.writeText(url).then(() => {
+            const msg = document.getElementById('copiedMsg');
+            msg.classList.remove('hidden');
+            setTimeout(() => msg.classList.add('hidden'), 2500);
+        });
+    }
+
     // API helper
     async function apiCall(url, options = {}) {
         const response = await fetch(url, {

@@ -87,6 +87,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/child-session/{childId}', [App\Http\Controllers\ScanPageController::class, 'lookupChildSession']);
         Route::post('/check-guardian-terms', [App\Http\Controllers\ScanPageController::class, 'checkGuardianTerms']);
         Route::post('/accept-guardian-terms', [App\Http\Controllers\ScanPageController::class, 'acceptGuardianTerms']);
+        Route::post('/lookup-precheckin', [App\Http\Controllers\PreCheckinController::class, 'lookupToken']);
         Route::post('/add-products', [App\Http\Controllers\ScanPageController::class, 'addProductsToSession']);
         Route::get('/available-products', [App\Http\Controllers\ScanPageController::class, 'getAvailableProducts']);
         Route::get('/session-products/{sessionId}', [App\Http\Controllers\ScanPageController::class, 'getSessionProducts']);
@@ -163,3 +164,14 @@ Route::middleware('auth')->group(function () {
 // Legal documents accessible without authentication
 Route::get('/legal/terms', [App\Http\Controllers\LegalController::class, 'terms'])->name('legal.terms.public');
 Route::get('/legal/gdpr', [App\Http\Controllers\LegalController::class, 'gdpr'])->name('legal.gdpr.public');
+
+// Pre-Checkin (public — no auth required)
+Route::prefix('pre-checkin/{slug}')->group(function () {
+    Route::get('/',               [App\Http\Controllers\PreCheckinController::class, 'index'])->name('pre-checkin.index');
+    Route::post('/lookup',        [App\Http\Controllers\PreCheckinController::class, 'lookup'])->name('pre-checkin.lookup');
+    Route::post('/register',      [App\Http\Controllers\PreCheckinController::class, 'register'])->name('pre-checkin.register');
+    Route::post('/generate-qr',   [App\Http\Controllers\PreCheckinController::class, 'generateQr'])->name('pre-checkin.generate-qr');
+    Route::post('/add-child',     [App\Http\Controllers\PreCheckinController::class, 'addChild'])->name('pre-checkin.add-child');
+    Route::post('/accept-terms',  [App\Http\Controllers\PreCheckinController::class, 'acceptTerms'])->name('pre-checkin.accept-terms');
+    Route::get('/qr/{token}',     [App\Http\Controllers\PreCheckinController::class, 'showQr'])->name('pre-checkin.qr');
+});

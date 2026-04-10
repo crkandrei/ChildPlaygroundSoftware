@@ -6,6 +6,7 @@ use App\Models\Child;
 use App\Models\Guardian;
 use App\Models\PlaySession;
 use App\Models\PlaySessionProduct;
+use App\Models\PreCheckinToken;
 use App\Models\Product;
 use App\Models\Tenant;
 use App\Models\TenantConfiguration;
@@ -381,6 +382,14 @@ class ScanPageController extends Controller
             $isBirthday = $request->boolean('is_birthday', false);
             $isJungle = $request->boolean('is_jungle', false);
             $session = $this->scanService->startPlaySession($tenant, $child, $braceletCode, $isBirthday, $isJungle);
+
+            // Mark pre-checkin token as used if provided
+            if ($request->filled('precheckin_id')) {
+                PreCheckinToken::where('id', (int) $request->precheckin_id)
+                    ->where('tenant_id', $tenant->id)
+                    ->whereNull('used_at')
+                    ->update(['used_at' => now()]);
+            }
 
             return ApiResponder::success([
                 'message' => 'Sesiunea a început cu succes',
